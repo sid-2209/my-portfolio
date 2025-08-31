@@ -39,7 +39,7 @@ export default function Home() {
           {/* Collapse Button */}
           <button 
             onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            className="absolute -right-3 top-4 w-6 h-6 bg-white/20 border border-white/40 rounded-full flex items-center justify-center text-white/80 hover:text-white hover:bg-white/30 transition-all duration-300 group-hover:scale-110"
+            className="absolute -right-3 top-4 w-6 h-6 backdrop-blur-[2px] bg-white/35 border border-white/50 rounded-full flex items-center justify-center text-white/90 hover:text-white hover:bg-white/45 hover:border-white/70 transition-all duration-300 group-hover:scale-110 shadow-lg"
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transform transition-transform duration-300 ${isSidebarCollapsed ? 'rotate-180' : ''}`}>
               <polyline points="15,18 9,12 15,6"/>
@@ -77,6 +77,55 @@ export default function Home() {
                 <span className={`absolute left-8 font-medium transition-all duration-300 ${isSidebarCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>Blog</span>
               </a>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content - Work Section */}
+      <div className="pt-24 px-8 transition-all duration-500 ease-out ml-56">
+        <div className="max-w-4xl mx-auto">
+          {/* Content Grid */}
+          <div className="space-y-8">
+            {/* First Content Item */}
+            <article className="group cursor-pointer">
+              <div className="backdrop-blur-[2px] bg-white/20 border border-white/30 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+                <div className="flex items-start space-x-6">
+                  {/* Poster Image */}
+                  <div className="flex-shrink-0">
+                    <div className="w-24 h-24 bg-gradient-to-br from-blue-400 to-purple-500 rounded-xl flex items-center justify-center text-white text-2xl font-bold shadow-lg">
+                      RAG
+                    </div>
+                  </div>
+                  
+                  {/* Content Details */}
+                  <div className="flex-1 min-w-0">
+                    {/* Title and Tag */}
+                    <div className="flex items-center justify-between mb-3">
+                      <h2 className="text-xl font-semibold text-gray-800 group-hover:underline transition-all duration-300">
+                        RAG Explained: The Fusion of Search and Generation
+                      </h2>
+                      <span className="px-3 py-1 bg-blue-100 text-blue-800 text-sm font-medium rounded-full">
+                        Blog
+                      </span>
+                    </div>
+                    
+                    {/* Description */}
+                    <p className="text-gray-600 mb-3 leading-relaxed">
+                      An introduction to Retrieval-Augmented Generation, why it matters, and how it blends information retrieval with large language model reasoning.
+                    </p>
+                    
+                    {/* Date */}
+                    <p className="text-sm text-gray-500">
+                      {new Date().toLocaleDateString('en-US', { 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                      })}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </article>
           </div>
         </div>
       </div>
