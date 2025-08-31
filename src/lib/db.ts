@@ -16,7 +16,10 @@ export interface Content {
   title: string;
   description: string;
   contentType: ContentType;
+  category?: string | null;
+  featured?: boolean;
   posterImage?: string | null;
+  imageUrl?: string | null;
   contentUrl?: string | null;
   publishedDate: Date;
   author: string;

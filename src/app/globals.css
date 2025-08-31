@@ -43,7 +43,7 @@ body {
 
 .hero-title {
   font-family: var(--font-michroma);
-  font-size: 3rem;
+  font-size: 1.5rem !important;
   font-weight: normal;
   line-height: 1.2;
   letter-spacing: 0.05em;

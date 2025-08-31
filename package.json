@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "seed": "tsx scripts/seed.ts",
+    "sample": "tsx scripts/sample-content.ts",
     "db:push": "prisma db push",
     "db:generate": "prisma generate"
   },

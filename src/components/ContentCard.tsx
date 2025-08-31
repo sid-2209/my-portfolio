@@ -14,7 +14,7 @@ interface ContentCardProps {
 export default function ContentCard({ content, onClick }: ContentCardProps) {
   return (
     <article className="group cursor-pointer" onClick={onClick}>
-      <div className="backdrop-blur-[2px] bg-white/20 border border-white/30 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+      <div className="backdrop-blur-[2px] bg-white/20 border border-white/30 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1]">
         <div className="flex items-start space-x-6">
           {/* Text Content - Left Side */}
           <div className="flex-1 min-w-0">
