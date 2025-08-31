@@ -1,9 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import ContentGrid from "../../components/ContentGrid";
 
 export default function Home() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [selectedContentType, setSelectedContentType] = useState<'project' | 'case_study' | 'blog' | null>(null);
+
+  const handleSidebarItemClick = (type: 'project' | 'case_study' | 'blog') => {
+    setSelectedContentType(type);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#678dc6] to-[#FFFFFF]">
@@ -48,7 +54,11 @@ export default function Home() {
           
           <div className="flex flex-col justify-center h-full">
             <div className="space-y-8">
-              <a href="#projects" className="relative flex items-center space-x-3 text-white/90 hover:text-white transition-all duration-300 hover:scale-105 group/item">
+              <a 
+                href="#projects" 
+                className="relative flex items-center space-x-3 text-white/90 hover:text-white transition-all duration-300 hover:scale-105 group/item"
+                onClick={() => handleSidebarItemClick('project')}
+              >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/80 group-hover/item:text-white transition-colors duration-300">
                   <rect x="3" y="3" width="7" height="7"/>
                   <rect x="14" y="3" width="7" height="7"/>
@@ -58,7 +68,11 @@ export default function Home() {
                 <span className={`absolute left-8 font-medium transition-all duration-300 ${isSidebarCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>Projects</span>
               </a>
               
-              <a href="#case-studies" className="relative flex items-center space-x-3 text-white/90 hover:text-white transition-all duration-300 hover:scale-105 group/item">
+              <a 
+                href="#case-studies" 
+                className="relative flex items-center space-x-3 text-white/90 hover:text-white transition-all duration-300 hover:scale-105 group/item"
+                onClick={() => handleSidebarItemClick('case_study')}
+              >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/80 group-hover/item:text-white transition-colors duration-300">
                   <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
                   <polyline points="14,2 14,8 20,8"/>
@@ -69,7 +83,11 @@ export default function Home() {
                 <span className={`absolute left-8 font-medium transition-all duration-300 ${isSidebarCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>Case Studies</span>
               </a>
               
-              <a href="#blog" className="relative flex items-center space-x-3 text-white/90 hover:text-white transition-all duration-300 hover:scale-105 group/item">
+              <a 
+                href="#blog" 
+                className="relative flex items-center space-x-3 text-white/90 hover:text-white transition-all duration-300 hover:scale-105 group/item"
+                onClick={() => handleSidebarItemClick('blog')}
+              >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/80 group-hover/item:text-white transition-colors duration-300">
                   <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
                   <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
@@ -82,51 +100,10 @@ export default function Home() {
       </div>
 
       {/* Main Content - Work Section */}
-      <div className="pt-24 px-8 transition-all duration-500 ease-out ml-56">
+      <div className="pt-32 px-8 transition-all duration-500 ease-out">
         <div className="max-w-4xl mx-auto">
           {/* Content Grid */}
-          <div className="space-y-8">
-            {/* First Content Item */}
-            <article className="group cursor-pointer">
-              <div className="backdrop-blur-[2px] bg-white/20 border border-white/30 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
-                <div className="flex items-start space-x-6">
-                  {/* Poster Image */}
-                  <div className="flex-shrink-0">
-                    <div className="w-24 h-24 bg-gradient-to-br from-blue-400 to-purple-500 rounded-xl flex items-center justify-center text-white text-2xl font-bold shadow-lg">
-                      RAG
-                    </div>
-                  </div>
-                  
-                  {/* Content Details */}
-                  <div className="flex-1 min-w-0">
-                    {/* Title and Tag */}
-                    <div className="flex items-center justify-between mb-3">
-                      <h2 className="text-xl font-semibold text-gray-800 group-hover:underline transition-all duration-300">
-                        RAG Explained: The Fusion of Search and Generation
-                      </h2>
-                      <span className="px-3 py-1 bg-blue-100 text-blue-800 text-sm font-medium rounded-full">
-                        Blog
-                      </span>
-                    </div>
-                    
-                    {/* Description */}
-                    <p className="text-gray-600 mb-3 leading-relaxed">
-                      An introduction to Retrieval-Augmented Generation, why it matters, and how it blends information retrieval with large language model reasoning.
-                    </p>
-                    
-                    {/* Date */}
-                    <p className="text-sm text-gray-500">
-                      {new Date().toLocaleDateString('en-US', { 
-                        year: 'numeric', 
-                        month: 'long', 
-                        day: 'numeric' 
-                      })}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </article>
-          </div>
+          <ContentGrid contentType={selectedContentType} />
         </div>
       </div>
     </div>
