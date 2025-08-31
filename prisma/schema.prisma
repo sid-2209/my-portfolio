@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,8 +10,8 @@ datasource db {
 model Content {
   id            String   @id @default(cuid())
   title         String
-  description  String
-  contentType   String   // 'project', 'case_study', 'blog'
+  description   String
+  contentType   String
   posterImage   String?
   contentUrl    String?
   publishedDate DateTime @default(now())
@@ -22,8 +19,13 @@ model Content {
   tags          String[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  category      String?
+  featured      Boolean  @default(false)
+  imageUrl      String?
 
   @@index([contentType])
   @@index([publishedDate])
   @@index([tags])
+  @@index([featured])
+  @@index([category])
 }
