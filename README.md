@@ -1,36 +1,102 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Sid's Portfolio
+
+A modern, responsive portfolio website built with Next.js, TypeScript, and Tailwind CSS.
+
+## Features
+
+- 🎨 **Modern Design**: Clean, professional design with smooth animations
+- 📱 **Responsive**: Fully responsive design that works on all devices
+- 🌙 **Dark Mode**: Built-in dark mode support
+- ⚡ **Fast Performance**: Built with Next.js for optimal performance
+- 🎯 **SEO Optimized**: Meta tags and structured content for better search visibility
+- 🚀 **Modern Tech Stack**: TypeScript, Tailwind CSS, and Next.js 15
+
+## Sections
+
+- **Hero**: Eye-catching introduction with call-to-action buttons
+- **About**: Personal information and experience highlights
+- **Skills**: Interactive skill bars with technology proficiency levels
+- **Projects**: Showcase of featured projects with technology tags
+- **Contact**: Multiple ways to get in touch
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
+- Node.js 18+ 
+- npm or yarn
+
+### Installation
+
+1. Clone the repository:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone <your-repo-url>
+cd portfolio
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Install dependencies:
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Run the development server:
+```bash
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+4. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-## Learn More
+## Available Scripts
 
-To learn more about Next.js, take a look at the following resources:
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run start` - Start production server
+- `npm run lint` - Run ESLint
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Customization
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Personal Information
+Update the following in `src/app/page.tsx`:
+- Name and title
+- About section content
+- Skills and proficiency levels
+- Project details and descriptions
+- Contact information
 
-## Deploy on Vercel
+### Styling
+The project uses Tailwind CSS for styling. You can customize:
+- Colors in the Tailwind config
+- Typography and spacing
+- Component layouts and animations
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Adding New Sections
+To add new sections:
+1. Create new components in `src/components/`
+2. Import and add them to the main page
+3. Update navigation links
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Deployment
+
+This project can be easily deployed to:
+- **Vercel** (recommended for Next.js)
+- **Netlify**
+- **AWS Amplify**
+- Any static hosting service
+
+## Technologies Used
+
+- **Framework**: Next.js 15
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **Fonts**: Geist (Google Fonts)
+- **Icons**: Emoji icons (easily replaceable with icon libraries)
+
+## License
+
+This project is open source and available under the [MIT License](LICENSE).
+
+## Contact
+
+Sid - [sid@example.com](mailto:sid@example.com)
+
+Project Link: [https://github.com/yourusername/portfolio](https://github.com/yourusername/portfolio)
