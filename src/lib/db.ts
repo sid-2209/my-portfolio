@@ -33,7 +33,7 @@ export async function getContentByType(type: ContentType): Promise<Content[]> {
       orderBy: { publishedDate: 'desc' },
     });
     
-    return content;
+    return content as Content[];
   } catch (error) {
     console.error('Error fetching content:', error);
     return [];
@@ -46,7 +46,7 @@ export async function getAllContent(): Promise<Content[]> {
       orderBy: { publishedDate: 'desc' },
     });
     
-    return content;
+    return content as Content[];
   } catch (error) {
     console.error('Error fetching all content:', error);
     return [];
@@ -59,7 +59,7 @@ export async function getContentById(id: string): Promise<Content | null> {
       where: { id },
     });
     
-    return content;
+    return content as Content | null;
   } catch (error) {
     console.error('Error fetching content by ID:', error);
     return null;
@@ -79,7 +79,7 @@ export async function searchContent(query: string): Promise<Content[]> {
       orderBy: { publishedDate: 'desc' },
     });
     
-    return content;
+    return content as Content[];
   } catch (error) {
     console.error('Error searching content:', error);
     return [];

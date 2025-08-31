@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Content, ContentType } from '@/lib/db';
+import { useState, useEffect, useCallback } from 'react';
+import { Content, ContentType } from '../lib/db';
 import ContentCard from './ContentCard';
 
 interface ContentGridProps {
-  contentType?: ContentType;
+  contentType?: ContentType | null;
   searchQuery?: string;
 }
 
@@ -14,11 +14,7 @@ export default function ContentGrid({ contentType, searchQuery }: ContentGridPro
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchContent();
-  }, [contentType, searchQuery]);
-
-  const fetchContent = async () => {
+  const fetchContent = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -42,7 +38,11 @@ export default function ContentGrid({ contentType, searchQuery }: ContentGridPro
     } finally {
       setLoading(false);
     }
-  };
+  }, [contentType, searchQuery]);
+
+  useEffect(() => {
+    fetchContent();
+  }, [fetchContent]);
 
   const handleContentClick = (content: Content) => {
     if (content.contentUrl) {

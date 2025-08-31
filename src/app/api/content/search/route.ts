@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { searchContent } from '@/lib/db';
+import { searchContent } from '../../../../lib/db';
 
 export async function GET(request: Request) {
   try {

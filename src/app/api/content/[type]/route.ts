@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
-import { getContentByType, ContentType } from '@/lib/db';
+import { getContentByType, ContentType } from '../../../../lib/db';
 
 export async function GET(
   request: Request,
-  { params }: { params: { type: string } }
+  { params }: { params: Promise<{ type: string }> }
 ) {
   try {
-    const contentType = params.type as ContentType;
+    const { type } = await params;
+    const contentType = type as ContentType;
     
     // Validate content type
     if (!['project', 'case_study', 'blog'].includes(contentType)) {

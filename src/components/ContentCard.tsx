@@ -1,6 +1,6 @@
 'use client';
 
-import { Content } from '@/lib/db';
+import { Content } from '../lib/db';
 import Image from 'next/image';
 
 interface ContentCardProps {
