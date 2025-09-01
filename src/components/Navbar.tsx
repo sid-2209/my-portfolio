@@ -21,7 +21,7 @@ export default function Navbar() {
       {/* Fixed Project Title - Top Left Corner, Vertically Centered with Navbar */}
       <div className="fixed top-0 left-8 z-50 flex items-center h-20">
         <h1 className="michroma text-white/90 text-2xl font-bold tracking-wide hover:text-white transition-colors duration-300">
-          Sid's Notes
+          Sid&apos;s Notes
         </h1>
       </div>
 

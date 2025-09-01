@@ -9,13 +9,12 @@ export const prisma = globalForPrisma.prisma ?? new PrismaClient();
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
 // Content type definitions
-export type ContentType = 'project' | 'case_study' | 'blog';
 
 export interface Content {
   id: string;
   title: string;
   description: string;
-  contentType: ContentType;
+  contentType: 'project' | 'case_study' | 'blog';
   category?: string | null;
   featured?: boolean;
   posterImage?: string | null;
@@ -29,19 +28,6 @@ export interface Content {
 }
 
 // Content fetching functions
-export async function getContentByType(type: ContentType): Promise<Content[]> {
-  try {
-    const content = await prisma.content.findMany({
-      where: { contentType: type },
-      orderBy: { publishedDate: 'desc' },
-    });
-    
-    return content as Content[];
-  } catch (error) {
-    console.error('Error fetching content:', error);
-    return [];
-  }
-}
 
 export async function getAllContent(): Promise<Content[]> {
   try {

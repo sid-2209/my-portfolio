@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server';
-import { getAllContent } from '../../../lib/db';
+import { NextRequest, NextResponse } from 'next/server';
+import { getAllContent, prisma } from '../../../lib/db';
 
 export async function GET() {
   try {

@@ -3,19 +3,19 @@ import { prisma } from '../../../../lib/db';
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const body = await request.json();
     
     // Only allow updating specific fields for security
     const allowedFields = ['featured', 'title', 'description'];
-    const updateData: any = {};
+    const updateData: Partial<{ featured: boolean; title: string; description: string }> = {};
     
     Object.keys(body).forEach(key => {
       if (allowedFields.includes(key)) {
-        updateData[key] = body[key];
+        updateData[key as keyof typeof updateData] = body[key];
       }
     });
     
@@ -43,10 +43,10 @@ export async function PATCH(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     
     const content = await prisma.content.findUnique({
       where: { id },

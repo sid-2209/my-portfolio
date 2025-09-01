@@ -55,7 +55,7 @@ export default function SearchBar({
         </form>
         
         <GlassmorphismButton
-          onClick={handleSubmit}
+          onClick={() => handleSubmit({ preventDefault: () => {} } as React.FormEvent)}
           size="md"
           type="submit"
           className="absolute -right-12 top-1/2 transform -translate-y-1/2"
