@@ -1,31 +1,25 @@
-import { NextResponse } from 'next/server';
-import { prisma } from '../../../../lib/db';
+import { NextRequest, NextResponse } from 'next/server';
+import { getFeaturedContent } from '../../../../lib/db';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    // First try to get featured content
-    let featuredContent = await prisma.content.findFirst({
-      where: { featured: true },
-      orderBy: { publishedDate: 'desc' },
-    });
-
-    // If no featured content, get the most recent content
-    if (!featuredContent) {
-      featuredContent = await prisma.content.findFirst({
-        orderBy: { publishedDate: 'desc' },
-      });
-    }
-
-    if (!featuredContent) {
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '4');
+    
+    // Validate parameters
+    if (page < 1 || limit < 1 || limit > 20) {
       return NextResponse.json(
-        { error: 'No content available' },
-        { status: 404 }
+        { error: 'Invalid pagination parameters' },
+        { status: 400 }
       );
     }
-
-    return NextResponse.json(featuredContent, {
+    
+    const result = await getFeaturedContent(page, limit);
+    
+    return NextResponse.json(result, {
       headers: {
-        'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
       },
     });
   } catch (error) {

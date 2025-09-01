@@ -88,3 +88,52 @@ export async function searchContent(query: string): Promise<Content[]> {
     return [];
   }
 }
+
+export async function getFeaturedContent(page: number = 1, limit: number = 4): Promise<{
+  content: Content[];
+  totalCount: number;
+  totalPages: number;
+  currentPage: number;
+  hasNext: boolean;
+  hasPrevious: boolean;
+}> {
+  try {
+    const skip = (page - 1) * limit;
+    
+    // Get total count of featured content
+    const totalCount = await prisma.content.count({
+      where: { featured: true },
+    });
+    
+    // Get featured content with pagination
+    const content = await prisma.content.findMany({
+      where: { featured: true },
+      orderBy: { publishedDate: 'desc' },
+      skip,
+      take: limit,
+    });
+    
+    const totalPages = Math.ceil(totalCount / limit);
+    const hasNext = page < totalPages;
+    const hasPrevious = page > 1;
+    
+    return {
+      content: content as Content[],
+      totalCount,
+      totalPages,
+      currentPage: page,
+      hasNext,
+      hasPrevious,
+    };
+  } catch (error) {
+    console.error('Error fetching featured content:', error);
+    return {
+      content: [],
+      totalCount: 0,
+      totalPages: 0,
+      currentPage: page,
+      hasNext: false,
+      hasPrevious: false,
+    };
+  }
+}
