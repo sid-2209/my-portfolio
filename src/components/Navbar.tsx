@@ -1,12 +1,19 @@
 'use client';
 
-import Link from "next/link";
-import SearchInput from "./ui/SearchInput";
+import { useState } from "react";
+import NavigationLink from "./ui/NavigationLink";
+import SearchBar from "./ui/SearchBar";
+import GlassmorphismContainer from "./ui/GlassmorphismContainer";
+import GlassmorphismButton from "./ui/GlassmorphismButton";
+import { SearchIcon } from "./ui/Icons";
 
 export default function Navbar() {
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+
   const handleSearch = (query: string) => {
     // TODO: Implement search functionality
     console.log('Searching for:', query);
+    setIsSearchOpen(false);
   };
 
   return (
@@ -20,23 +27,31 @@ export default function Navbar() {
 
       {/* Main Navigation Bar */}
       <nav className="fixed top-0 left-0 right-0 z-50 flex justify-center items-center py-4">
-        <div className="backdrop-blur-[20px] bg-gradient-to-r from-white/[0.15] via-white/[0.08] via-white/[0.04] via-white/[0.08] to-white/[0.15] border border-white/[0.2] rounded-full px-12 py-3 shadow-[0_8px_32px_rgba(0,0,0,0.8),0_2px_8px_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.25),inset_0_-1px_0_rgba(0,0,0,0.5),0_0_25px_rgba(255,255,255,0.03),0_0_50px_rgba(255,255,255,0.01)] transition-all duration-1200 ease-out">
+        <GlassmorphismContainer variant="navbar" className="px-12 py-3 transition-all duration-1200 ease-out">
           <div className="flex items-center space-x-12">
-            <Link href="/" className="michroma text-white/90 hover:text-white font-medium text-base transition-all duration-300 hover:scale-105">
+            <NavigationLink href="/">
               Home
-            </Link>
-            <a href="#about-me" className="michroma text-white/90 hover:text-white font-medium text-base transition-all duration-300 hover:scale-105">
+            </NavigationLink>
+            <NavigationLink href="#about-me">
               About Me
-            </a>
-            <SearchInput 
-              placeholder="Ask anything!" 
-              onSearch={handleSearch}
-              initialWidth="w-48"
-              focusWidth="w-72"
-            />
+            </NavigationLink>
+            <GlassmorphismButton
+              onClick={() => setIsSearchOpen(true)}
+              size="md"
+              className="text-white/90 hover:text-white transition-all duration-300 hover:scale-105"
+            >
+              <SearchIcon size={16} />
+            </GlassmorphismButton>
           </div>
-        </div>
+        </GlassmorphismContainer>
       </nav>
+
+      {/* Bottom Search Bar */}
+      <SearchBar 
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+        onSearch={handleSearch}
+      />
     </>
   );
 }
