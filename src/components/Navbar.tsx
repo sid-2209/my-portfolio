@@ -5,7 +5,7 @@ import NavigationLink from "./ui/NavigationLink";
 import SearchBar from "./ui/SearchBar";
 import GlassmorphismContainer from "./ui/GlassmorphismContainer";
 import GlassmorphismButton from "./ui/GlassmorphismButton";
-import { SearchIcon } from "./ui/Icons";
+import { SearchIcon, LinkedInIcon, InstagramIcon, GitHubIcon } from "./ui/Icons";
 
 export default function Navbar() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -42,6 +42,34 @@ export default function Navbar() {
             >
               <SearchIcon size={16} />
             </GlassmorphismButton>
+            
+            {/* Social Media Icons */}
+            <div className="flex items-center space-x-4">
+              <a 
+                href="https://www.linkedin.com/in/realsiddhartha/" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-white/90 hover:text-white transition-all duration-300 hover:scale-105"
+              >
+                <LinkedInIcon size={16} />
+              </a>
+              <a 
+                href="https://www.instagram.com/in/realsiddhartha/" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-white/90 hover:text-white transition-all duration-300 hover:scale-105"
+              >
+                <InstagramIcon size={16} />
+              </a>
+              <a 
+                href="https://github.com/sid-2209" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-white/90 hover:text-white transition-all duration-300 hover:scale-105"
+              >
+                <GitHubIcon size={16} />
+              </a>
+            </div>
           </div>
         </GlassmorphismContainer>
       </nav>
