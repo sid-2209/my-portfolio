@@ -13,10 +13,10 @@ export default function AdminMediaPage() {
             <p className="text-lg text-gray-600 mt-2">Organize and manage your digital assets</p>
           </div>
           <div className="flex items-center space-x-4">
-            <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+            <button className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors">
               Upload Media
             </button>
-            <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+            <button className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors">
               Create Album
             </button>
           </div>
@@ -26,8 +26,8 @@ export default function AdminMediaPage() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
             <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <span className="text-2xl text-blue-600">🖼️</span>
+              <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                <span className="text-2xl text-gray-700">🖼️</span>
               </div>
               <div>
                 <p className="text-2xl font-bold text-gray-900">156</p>
@@ -38,8 +38,8 @@ export default function AdminMediaPage() {
 
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
             <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <span className="text-2xl text-green-600">📹</span>
+              <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                <span className="text-2xl text-gray-700">📹</span>
               </div>
               <div>
                 <p className="text-2xl font-bold text-gray-900">23</p>
@@ -50,8 +50,8 @@ export default function AdminMediaPage() {
 
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
             <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-                <span className="text-2xl text-yellow-600">📁</span>
+              <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                <span className="text-2xl text-gray-700">📁</span>
               </div>
               <div>
                 <p className="text-2xl font-bold text-gray-900">8</p>
@@ -62,8 +62,8 @@ export default function AdminMediaPage() {
 
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
             <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                <span className="text-2xl text-purple-600">💾</span>
+              <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                <span className="text-2xl text-gray-700">💾</span>
               </div>
               <div>
                 <p className="text-2xl font-bold text-gray-900">2.4 GB</p>
@@ -77,7 +77,7 @@ export default function AdminMediaPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
             <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+              <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
                 <span className="text-2xl">📤</span>
               </div>
               <div>
@@ -85,7 +85,7 @@ export default function AdminMediaPage() {
                 <p className="text-sm text-gray-600">Add new images, videos, and files</p>
               </div>
             </div>
-            <button className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm">
+            <button className="mt-4 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors text-sm">
               Upload Now
             </button>
           </div>

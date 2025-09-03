@@ -1,136 +1,482 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 
 interface RichTextEditorProps {
   content: string;
   onChange: (content: string) => void;
   placeholder?: string;
   className?: string;
+  isEditing?: boolean;
 }
 
 export default function RichTextEditor({ 
   content, 
   onChange, 
   placeholder = "Start writing...",
-  className = ""
+  className = "",
+  isEditing = false
 }: RichTextEditorProps) {
-  const [isMarkdownMode, setIsMarkdownMode] = useState(false);
-  const [markdownContent, setMarkdownContent] = useState(content);
   const editorRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
+  const [showLinkEditor, setShowLinkEditor] = useState(false);
+  const [embeddedLinkUrl, setEmbeddedLinkUrl] = useState('');
+  const [embeddedLinkText, setEmbeddedLinkText] = useState('');
+  const [activeFormatting, setActiveFormatting] = useState<{
+    bold: boolean;
+    italic: boolean;
+    underline: boolean;
+    strike: boolean;
+    alignLeft: boolean;
+    alignCenter: boolean;
+    alignRight: boolean;
+    unorderedList: boolean;
+    orderedList: boolean;
+  }>({
+    bold: false,
+    italic: false,
+    underline: false,
+    strike: false,
+    alignLeft: false,
+    alignCenter: false,
+    alignRight: false,
+    unorderedList: false,
+    orderedList: false,
+  });
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const lastContentRef = useRef(content);
+  const [showPlaceholder, setShowPlaceholder] = useState(true);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  // Cleanup timeout on unmount
   useEffect(() => {
-    if (isMarkdownMode) {
-      setMarkdownContent(content);
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Function to fix existing links with proper protocols
+  const fixExistingLinks = (htmlContent: string) => {
+    // Create a temporary div to parse and fix HTML
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = htmlContent;
+    
+    // Find all links and fix their href attributes
+    const links = tempDiv.querySelectorAll('a[href]');
+    links.forEach(link => {
+      const href = link.getAttribute('href');
+      if (href && !href.startsWith('http://') && !href.startsWith('https://') && !href.startsWith('//') && !href.startsWith('#')) {
+        link.setAttribute('href', 'https://' + href);
+        console.log('Fixed link:', href, '→', 'https://' + href);
+      }
+    });
+    
+    return tempDiv.innerHTML;
+  };
+
+  // Initialize editor content only once
+  useEffect(() => {
+    if (mounted && !isInitialized && editorRef.current) {
+      const fixedContent = fixExistingLinks(content);
+      if (fixedContent && fixedContent.trim() !== '') {
+        editorRef.current.innerHTML = fixedContent;
+        setShowPlaceholder(false);
+      } else {
+        editorRef.current.innerHTML = '';
+        setShowPlaceholder(true);
+      }
+
+      setIsInitialized(true);
     }
-  }, [content, isMarkdownMode]);
+  }, [mounted, content, isInitialized, isEditing]);
+
+  // Handle external content updates (only when not typing)
+  useEffect(() => {
+    if (mounted && isInitialized && !isTyping && content !== lastContentRef.current) {
+      if (editorRef.current) {
+        const fixedContent = fixExistingLinks(content);
+        editorRef.current.innerHTML = fixedContent;
+        lastContentRef.current = fixedContent;
+      }
+    }
+  }, [mounted, isInitialized, content, isTyping]);
 
   const handleInput = () => {
-    if (editorRef.current && !isMarkdownMode) {
-      onChange(editorRef.current.innerHTML);
-    }
-  };
-
-  const handleMarkdownChange = (value: string) => {
-    setMarkdownContent(value);
-    onChange(value);
-  };
-
-  const toggleMarkdown = () => {
-    if (isMarkdownMode) {
-      // Convert markdown to HTML (basic conversion)
-      const htmlContent = convertMarkdownToHtml(markdownContent);
-      if (editorRef.current) {
-        editorRef.current.innerHTML = htmlContent;
+    if (editorRef.current) {
+      let newContent = editorRef.current.innerHTML;
+      
+      // Update placeholder state based on content
+      if (newContent.trim() === '') {
+        setShowPlaceholder(true);
+      } else {
+        setShowPlaceholder(false);
       }
-      onChange(htmlContent);
-    } else {
-      // Convert HTML to markdown (basic conversion)
-      const markdown = convertHtmlToMarkdown(content);
-      setMarkdownContent(markdown);
+      
+      // Fix any links that might not have proper protocols
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = newContent;
+      const links = tempDiv.querySelectorAll('a[href]');
+      let contentChanged = false;
+      
+      links.forEach(link => {
+        const href = link.getAttribute('href');
+        if (href && !href.startsWith('http://') && !href.startsWith('https://') && !href.startsWith('//') && !href.startsWith('#')) {
+          link.setAttribute('href', 'https://' + href);
+          contentChanged = true;
+          console.log('Fixed link before saving:', href, '→', 'https://' + href);
+        }
+      });
+      
+      if (contentChanged) {
+        newContent = tempDiv.innerHTML;
+        // Update the editor with the fixed content
+        editorRef.current.innerHTML = newContent;
+      }
+      
+      setIsTyping(true);
+      
+      // Clear existing timeout
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      
+      // Debounce the onChange call to parent
+      timeoutRef.current = setTimeout(() => {
+        onChange(newContent);
+        lastContentRef.current = newContent;
+        setIsTyping(false);
+      }, 300); // 300ms delay
     }
-    setIsMarkdownMode(!isMarkdownMode);
   };
+
+  const updateActiveFormatting = useCallback(() => {
+    if (editorRef.current) {
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        const container = range.commonAncestorContainer;
+        
+        // Check parent elements for formatting
+        let element = container.nodeType === Node.TEXT_NODE ? container.parentElement : container as Element;
+        
+        const newFormatting = {
+          bold: false,
+          italic: false,
+          underline: false,
+          strike: false,
+          alignLeft: false,
+          alignCenter: false,
+          alignRight: false,
+          unorderedList: false,
+          orderedList: false,
+        };
+        
+        // Reset all alignment flags first
+        let hasAlignment = false;
+        
+        while (element && element !== editorRef.current) {
+          if (element.tagName === 'STRONG' || element.tagName === 'B') {
+            newFormatting.bold = true;
+          } else if (element.tagName === 'EM' || element.tagName === 'I') {
+            newFormatting.italic = true;
+          } else if ((element as HTMLElement).style.textDecoration === 'underline') {
+            newFormatting.underline = true;
+          } else if ((element as HTMLElement).style.textDecoration === 'line-through') {
+            newFormatting.strike = true;
+          } else if ((element as HTMLElement).style.textAlign) {
+            // Only set one alignment at a time
+            if (!hasAlignment) {
+              const textAlign = (element as HTMLElement).style.textAlign;
+              if (textAlign === 'left') {
+                newFormatting.alignLeft = true;
+                hasAlignment = true;
+              } else if (textAlign === 'center') {
+                newFormatting.alignCenter = true;
+                hasAlignment = true;
+              } else if (textAlign === 'right') {
+                newFormatting.alignRight = true;
+                hasAlignment = true;
+              }
+            }
+          } else if (element.tagName === 'UL') {
+            newFormatting.unorderedList = true;
+          } else if (element.tagName === 'OL') {
+            newFormatting.orderedList = true;
+          }
+          element = element.parentElement;
+        }
+        
+        setActiveFormatting(newFormatting);
+      } else {
+        // No selection, reset formatting
+        setActiveFormatting({
+          bold: false,
+          italic: false,
+          underline: false,
+          strike: false,
+          alignLeft: false,
+          alignCenter: false,
+          alignRight: false,
+          unorderedList: false,
+          orderedList: false,
+        });
+      }
+    }
+  }, []);
 
   const formatText = (command: string, value?: string) => {
-    document.execCommand(command, false, value);
-    editorRef.current?.focus();
-    handleInput();
+    if (editorRef.current) {
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        
+        switch (command) {
+          case 'bold':
+            const boldSpan = document.createElement('strong');
+            boldSpan.style.fontWeight = 'bold';
+                    try {
+          range.surroundContents(boldSpan);
+        } catch {
+          // If surroundContents fails, use insertNode
+          const contents = range.extractContents();
+          boldSpan.appendChild(contents);
+          range.insertNode(boldSpan);
+        }
+            break;
+            
+          case 'italic':
+            const italicSpan = document.createElement('em');
+            italicSpan.style.fontStyle = 'italic';
+                    try {
+          range.surroundContents(italicSpan);
+        } catch {
+          const contents = range.extractContents();
+          italicSpan.appendChild(contents);
+          range.insertNode(italicSpan);
+        }
+            break;
+            
+          case 'underline':
+            const underlineSpan = document.createElement('span');
+            underlineSpan.style.textDecoration = 'underline';
+                    try {
+          range.surroundContents(underlineSpan);
+        } catch {
+          const contents = range.extractContents();
+          underlineSpan.appendChild(contents);
+          range.insertNode(underlineSpan);
+        }
+            break;
+            
+          case 'strikeThrough':
+            const strikeSpan = document.createElement('span');
+            strikeSpan.style.textDecoration = 'line-through';
+                    try {
+          range.surroundContents(strikeSpan);
+        } catch {
+          const contents = range.extractContents();
+          strikeSpan.appendChild(contents);
+          range.insertNode(strikeSpan);
+        }
+            break;
+            
+          case 'formatBlock':
+            const blockElement = document.createElement(value || 'p');
+                    try {
+          range.surroundContents(blockElement);
+        } catch {
+          const contents = range.extractContents();
+          blockElement.appendChild(contents);
+          range.insertNode(blockElement);
+        }
+            break;
+            
+          case 'insertUnorderedList':
+            // Check if selection is already in a list
+            let parentList = range.commonAncestorContainer.parentElement;
+            while (parentList && parentList.tagName !== 'UL' && parentList.tagName !== 'OL') {
+              parentList = parentList.parentElement;
+            }
+            
+            if (parentList && parentList.tagName === 'UL') {
+              // Already in unordered list, do nothing
+              break;
+            }
+            
+            const ul = document.createElement('ul');
+            ul.style.margin = '8px 0';
+            ul.style.paddingLeft = '24px';
+            ul.style.listStyleType = 'disc';
+            ul.style.color = '#374151';
+            
+            const li = document.createElement('li');
+            li.style.margin = '4px 0';
+            li.style.lineHeight = '1.5';
+            
+            const contents = range.extractContents();
+            li.appendChild(contents);
+            ul.appendChild(li);
+            range.insertNode(ul);
+            break;
+            
+          case 'insertOrderedList':
+            // Check if selection is already in a list
+            let parentOrderedList = range.commonAncestorContainer.parentElement;
+            while (parentOrderedList && parentOrderedList.tagName !== 'UL' && parentOrderedList.tagName !== 'OL') {
+              parentOrderedList = parentOrderedList.parentElement;
+            }
+            
+            if (parentOrderedList && parentOrderedList.tagName === 'OL') {
+              // Already in ordered list, do nothing
+              break;
+            }
+            
+            const ol = document.createElement('ol');
+            ol.style.margin = '8px 0';
+            ol.style.paddingLeft = '24px';
+            ol.style.listStyleType = 'decimal';
+            ol.style.color = '#374151';
+            
+            const oli = document.createElement('li');
+            oli.style.margin = '4px 0';
+            oli.style.lineHeight = '1.5';
+            
+            const ocontents = range.extractContents();
+            oli.appendChild(ocontents);
+            ol.appendChild(oli);
+            range.insertNode(ol);
+            break;
+            
+          case 'justifyLeft':
+            const leftDiv = document.createElement('div');
+            leftDiv.style.textAlign = 'left';
+                    try {
+          range.surroundContents(leftDiv);
+        } catch {
+          const contents = range.extractContents();
+          leftDiv.appendChild(contents);
+          range.insertNode(leftDiv);
+        }
+            break;
+            
+          case 'justifyCenter':
+            const centerDiv = document.createElement('div');
+            centerDiv.style.textAlign = 'center';
+                    try {
+          range.surroundContents(centerDiv);
+        } catch {
+          const contents = range.extractContents();
+          centerDiv.appendChild(contents);
+          range.insertNode(centerDiv);
+        }
+            break;
+            
+          case 'justifyRight':
+            const rightDiv = document.createElement('div');
+            rightDiv.style.textAlign = 'right';
+                    try {
+          range.surroundContents(rightDiv);
+        } catch {
+          const contents = range.extractContents();
+          rightDiv.appendChild(contents);
+          range.insertNode(rightDiv);
+        }
+            break;
+            
+          default:
+            // Fallback to execCommand for other commands
+            document.execCommand(command, false, value);
+        }
+        
+        // Clear selection and focus
+        selection.removeAllRanges();
+        editorRef.current.focus();
+        handleInput();
+        
+        // Update active formatting state
+        setTimeout(updateActiveFormatting, 10);
+      }
+    }
   };
 
   const insertLink = () => {
-    const url = prompt('Enter URL:');
-    if (url) {
-      formatText('createLink', url);
+    // If no text is selected, create a text node at cursor position
+    if (editorRef.current) {
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        if (range.collapsed) {
+          // Insert a space if cursor is at empty position
+          const spaceNode = document.createTextNode('\u00A0'); // Non-breaking space
+          range.insertNode(spaceNode);
+          range.setStartAfter(spaceNode);
+          range.setEndAfter(spaceNode);
+          selection.removeAllRanges();
+          selection.addRange(range);
+        }
+      }
     }
+    setShowLinkEditor(true);
+    setEmbeddedLinkUrl('');
+    setEmbeddedLinkText('');
   };
 
-  const insertCodeBlock = () => {
-    const code = prompt('Enter code:');
-    if (code) {
-      const codeBlock = `<pre><code>${code}</code></pre>`;
+  const handleInsertLink = () => {
+    if (embeddedLinkUrl) {
       if (editorRef.current) {
         const selection = window.getSelection();
         if (selection && selection.rangeCount > 0) {
           const range = selection.getRangeAt(0);
+          const linkElement = document.createElement('a');
+          
+          // Ensure URL has proper protocol
+          let url = embeddedLinkUrl.trim();
+          if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('//')) {
+            url = 'https://' + url;
+          }
+          
+          // Log for debugging
+          console.log('Original URL:', embeddedLinkUrl);
+          console.log('Processed URL:', url);
+          
+          linkElement.href = url;
+          linkElement.textContent = embeddedLinkText || embeddedLinkUrl;
+          linkElement.style.color = 'inherit'; // Use inherited text color
+          linkElement.style.textDecoration = 'underline';
+          linkElement.style.cursor = 'pointer';
+          linkElement.style.fontWeight = 'bold';
+          linkElement.style.backgroundColor = 'transparent'; // No background
+          linkElement.style.padding = '0'; // No padding
+          linkElement.style.borderRadius = '0'; // No border radius
+          linkElement.className = 'inline-link';
+          
+          // Insert the link element
           range.deleteContents();
-          range.insertNode(document.createRange().createContextualFragment(codeBlock));
+          range.insertNode(linkElement);
+          
+          // Move cursor after the link and focus
+          range.setStartAfter(linkElement);
+          range.setEndAfter(linkElement);
+          selection.removeAllRanges();
+          selection.addRange(range);
+          
+          // Focus the editor and trigger input
+          editorRef.current.focus();
+          handleInput();
         }
-        handleInput();
       }
     }
+    setShowLinkEditor(false);
   };
 
-  const insertQuote = () => {
-    const quote = prompt('Enter quote text:');
-    if (quote) {
-      const quoteBlock = `<blockquote>${quote}</blockquote>`;
-      if (editorRef.current) {
-        const selection = window.getSelection();
-        if (selection && selection.rangeCount > 0) {
-          const range = selection.getRangeAt(0);
-          range.deleteContents();
-          range.insertNode(document.createRange().createContextualFragment(quoteBlock));
-        }
-        handleInput();
-      }
-    }
-  };
 
-  // Basic markdown to HTML conversion
-  const convertMarkdownToHtml = (markdown: string): string => {
-    return markdown
-      .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-      .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-      .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-      .replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>')
-      .replace(/\*(.*)\*/gim, '<em>$1</em>')
-      .replace(/`(.*)`/gim, '<code>$1</code>')
-      .replace(/^> (.*$)/gim, '<blockquote>$1</blockquote>')
-      .replace(/^\- (.*$)/gim, '<li>$1</li>')
-      .replace(/^(\d+)\. (.*$)/gim, '<li>$2</li>')
-      .replace(/\n/g, '<br>');
-  };
-
-  // Basic HTML to markdown conversion
-  const convertHtmlToMarkdown = (html: string): string => {
-    return html
-      .replace(/<h1>(.*?)<\/h1>/gim, '# $1\n')
-      .replace(/<h2>(.*?)<\/h2>/gim, '## $1\n')
-      .replace(/<h3>(.*?)<\/h3>/gim, '### $1\n')
-      .replace(/<strong>(.*?)<\/strong>/gim, '**$1**')
-      .replace(/<em>(.*?)<\/em>/gim, '*$1*')
-      .replace(/<code>(.*?)<\/code>/gim, '`$1`')
-      .replace(/<blockquote>(.*?)<\/blockquote>/gim, '> $1\n')
-      .replace(/<li>(.*?)<\/li>/gim, '- $1\n')
-      .replace(/<br\s*\/?>/gim, '\n')
-      .replace(/<[^>]*>/g, '');
-  };
 
   if (!mounted) {
     return (
@@ -146,145 +492,293 @@ export default function RichTextEditor({
   return (
     <div className={`border border-gray-300 rounded-lg bg-white ${className}`}>
       {/* Toolbar */}
-      <div className="border-b border-gray-200 p-3 bg-gray-50 rounded-t-lg">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            {/* Text Formatting */}
-            <button
-              onClick={() => formatText('bold')}
-              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded transition-colors"
-              title="Bold"
-            >
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M5 4a1 1 0 011-1h5.5a3.5 3.5 0 013.5 3.5v1a3.5 3.5 0 01-3.5 3.5H6a1 1 0 00-1 1v2a1 1 0 001 1h4.5a3.5 3.5 0 013.5 3.5v1a3.5 3.5 0 01-3.5 3.5H6a1 1 0 01-1-1V4z"/>
-              </svg>
-            </button>
-            <button
-              onClick={() => formatText('italic')}
-              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded transition-colors"
-              title="Italic"
-            >
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M8 3a1 1 0 000 2h1.5l-3 8H6a1 1 0 100 2h4a1 1 0 100-2h-1.5l3-8H12a1 1 0 100-2H8z"/>
-              </svg>
-            </button>
-            <button
-              onClick={() => formatText('underline')}
-              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded transition-colors"
-              title="Underline"
-            >
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"/>
-              </svg>
-            </button>
+      <div className="border-b border-gray-200 p-4 bg-gray-50 rounded-t-lg">
+        {/* Row 1: Text Formatting & Style */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-6">
+            {/* Text Formatting Group */}
+            <div className="flex items-center space-x-3">
+              <span className="text-sm font-medium text-gray-600 mr-2">Format:</span>
+              <button
+                onClick={() => formatText('bold')}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+                  activeFormatting.bold
+                    ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                    : 'text-gray-700 hover:text-gray-900 hover:bg-gray-200'
+                }`}
+                title="Bold"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 12h8a4 4 0 100-8H6v8zm0 0h8a4 4 0 110 8H6v-8z" />
+                </svg>
+                <span className="text-sm font-medium">Bold</span>
+              </button>
+              <button
+                onClick={() => formatText('italic')}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+                  activeFormatting.italic
+                    ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                    : 'text-gray-700 hover:text-gray-900 hover:bg-gray-200'
+                }`}
+                title="Italic"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                </svg>
+                <span className="text-sm font-medium">Italic</span>
+              </button>
+              <button
+                onClick={() => formatText('underline')}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+                  activeFormatting.underline
+                    ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                    : 'text-gray-700 hover:text-gray-900 hover:bg-gray-200'
+                }`}
+                title="Underline"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                </svg>
+                <span className="text-sm font-medium">Underline</span>
+              </button>
+              <button
+                onClick={() => formatText('strikeThrough')}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+                  activeFormatting.strike
+                    ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                    : 'text-gray-700 hover:text-gray-900 hover:bg-gray-200'
+                }`}
+                title="Strikethrough"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15l1.5 1.5M7 9l1.5-1.5M3 3l18 18" />
+                </svg>
+                <span className="text-sm font-medium">Strike</span>
+              </button>
+            </div>
             
-            <div className="w-px h-6 bg-gray-300 mx-2"></div>
+            {/* Vertical Divider */}
+            <div className="w-px h-8 bg-gray-300"></div>
             
-            {/* Headings */}
-            <select
-              onChange={(e) => {
-                if (e.target.value === 'p') {
-                  formatText('formatBlock', 'p');
-                } else {
-                  formatText('formatBlock', e.target.value);
-                }
-              }}
-              className="px-2 py-1 text-sm border border-gray-300 rounded focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
-            >
-              <option value="p">Paragraph</option>
-              <option value="h1">Heading 1</option>
-              <option value="h2">Heading 2</option>
-              <option value="h3">Heading 3</option>
-              <option value="h4">Heading 4</option>
-            </select>
+            {/* Headings Group */}
+            <div className="flex items-center space-x-2">
+              <span className="text-sm font-medium text-gray-600">Style:</span>
+              <select
+                onChange={(e) => {
+                  if (e.target.value === 'p') {
+                    formatText('formatBlock', 'p');
+                  } else {
+                    formatText('formatBlock', e.target.value);
+                  }
+                }}
+                className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white text-gray-900 font-medium"
+              >
+                <option value="p">Paragraph</option>
+                <option value="h1">Heading 1</option>
+                <option value="h2">Heading 2</option>
+                <option value="h3">Heading 3</option>
+                <option value="h4">Heading 4</option>
+              </select>
+            </div>
             
-            <div className="w-px h-6 bg-gray-300 mx-2"></div>
+            {/* Vertical Divider */}
+            <div className="w-px h-8 bg-gray-300"></div>
             
-            {/* Lists */}
+
+          </div>
+        </div>
+        
+        {/* Row 2: Text Alignment, Lists & Insert Elements */}
+        <div className="flex items-center space-x-6">
+          {/* Text Alignment Group */}
+          <div className="flex items-center space-x-3">
+            <span className="text-sm font-medium text-gray-600 mr-2">Align:</span>
             <button
-              onClick={() => formatText('insertUnorderedList')}
-              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded transition-colors"
-              title="Bullet List"
+              onClick={() => formatText('justifyLeft')}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+                activeFormatting.alignLeft
+                  ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                  : 'text-gray-700 hover:text-gray-900 hover:bg-gray-200'
+              }`}
+              title="Align Left"
             >
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M3 4a1 1 0 000 2h1a1 1 0 000-2H3zm0 4a1 1 0 000 2h1a1 1 0 000-2H3zm0 4a1 1 0 000 2h1a1 1 0 000-2H3zm4-8a1 1 0 011-1h9a1 1 0 110 2H8a1 1 0 01-1-1zm0 4a1 1 0 011-1h9a1 1 0 110 2H8a1 1 0 01-1-1zm0 4a1 1 0 011-1h9a1 1 0 110 2H8a1 1 0 01-1-1z"/>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
+              <span className="text-sm font-medium">Left</span>
             </button>
             <button
-              onClick={() => formatText('insertOrderedList')}
-              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded transition-colors"
-              title="Numbered List"
+              onClick={() => formatText('justifyCenter')}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+                activeFormatting.alignCenter
+                  ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                  : 'text-gray-700 hover:text-gray-900 hover:bg-gray-200'
+              }`}
+              title="Align Center"
             >
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M3 4a1 1 0 000 2h1a1 1 0 000-2H3zm0 4a1 1 0 000 2h1a1 1 0 000-2H3zm0 4a1 1 0 000 2h1a1 1 0 000-2H3zm4-8a1 1 0 011-1h9a1 1 0 110 2H8a1 1 0 01-1-1zm0 4a1 1 0 011-1h9a1 1 0 110 2H8a1 1 0 01-1-1zm0 4a1 1 0 011-1h9a1 1 0 110 2H8a1 1 0 01-1-1z"/>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
-            </button>
-            
-            <div className="w-px h-6 bg-gray-300 mx-2"></div>
-            
-            {/* Special Elements */}
-            <button
-              onClick={insertLink}
-              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded transition-colors"
-              title="Insert Link"
-            >
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z"/>
-              </svg>
+              <span className="text-sm font-medium">Center</span>
             </button>
             <button
-              onClick={insertCodeBlock}
-              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded transition-colors"
-              title="Insert Code Block"
+              onClick={() => formatText('justifyRight')}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+                activeFormatting.alignRight
+                  ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                  : 'text-gray-700 hover:text-gray-900 hover:bg-gray-200'
+              }`}
+              title="Align Right"
             >
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M3 4a1 1 0 000 2h1a1 1 0 000-2H3zm0 4a1 1 0 000 2h1a1 1 0 000-2H3zm0 4a1 1 0 000 2h1a1 1 0 000-2H3zm4-8a1 1 0 011-1h9a1 1 0 110 2H8a1 1 0 01-1-1zm0 4a1 1 0 011-1h9a1 1 0 110 2H8a1 1 0 01-1-1zm0 4a1 1 0 011-1h9a1 1 0 110 2H8a1 1 0 01-1-1z"/>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
-            </button>
-            <button
-              onClick={insertQuote}
-              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded transition-colors"
-              title="Insert Quote"
-            >
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M3 4a1 1 0 000 2h1a1 1 0 000-2H3zm0 4a1 1 0 000 2h1a1 1 0 000-2H3zm0 4a1 1 0 000 2h1a1 1 0 000-2H3zm4-8a1 1 0 011-1h9a1 1 0 110 2H8a1 1 0 01-1-1zm0 4a1 1 0 011-1h9a1 1 0 110 2H8a1 1 0 01-1-1zm0 4a1 1 0 011-1h9a1 1 0 110 2H8a1 1 0 01-1-1z"/>
-              </svg>
+              <span className="text-sm font-medium">Right</span>
             </button>
           </div>
           
-          {/* Markdown Toggle */}
-          <button
-            onClick={toggleMarkdown}
-            className={`px-3 py-1 text-sm font-medium rounded transition-colors ${
-              isMarkdownMode 
-                ? 'bg-blue-600 text-white' 
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            {isMarkdownMode ? 'Rich Text' : 'Markdown'}
-          </button>
+          {/* Vertical Divider */}
+          <div className="w-px h-8 bg-gray-300"></div>
+          
+          {/* Lists Group */}
+          <div className="flex items-center space-x-3">
+            <span className="text-sm font-medium text-gray-600 mr-2">Lists:</span>
+            <button
+              onClick={() => formatText('insertUnorderedList')}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+                activeFormatting.unorderedList
+                  ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                  : 'text-gray-700 hover:text-gray-900 hover:bg-gray-200'
+              }`}
+              title="Bullet List"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+              <span className="text-sm font-medium">Bullet</span>
+            </button>
+            <button
+              onClick={() => formatText('insertOrderedList')}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+                activeFormatting.orderedList
+                  ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                  : 'text-gray-700 hover:text-gray-900 hover:bg-gray-200'
+              }`}
+              title="Numbered List"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20h14M7 4h14M7 12h14M3 20h.01M3 4h.01M3 12h.01" />
+              </svg>
+              <span className="text-sm font-medium">Numbered</span>
+            </button>
+          </div>
+          
+          {/* Vertical Divider */}
+          <div className="w-px h-8 bg-gray-300"></div>
+          
+          {/* Insert Elements Group */}
+          <div className="flex items-center space-x-3">
+            <span className="text-sm font-medium text-gray-600 mr-2">Insert:</span>
+            <button
+              onClick={insertLink}
+              className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-200 rounded-lg transition-colors"
+              title="Insert Link"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+              </svg>
+              <span className="text-sm font-medium">Link</span>
+            </button>
+
+
+          </div>
         </div>
       </div>
 
-      {/* Editor Content */}
-      <div className="p-4">
-        {isMarkdownMode ? (
-          <textarea
-            value={markdownContent}
-            onChange={(e) => handleMarkdownChange(e.target.value)}
-            placeholder={placeholder}
-            className="w-full h-64 p-3 border border-gray-200 rounded-lg resize-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 font-mono text-sm"
-          />
-        ) : (
+
+
+      {showLinkEditor && (
+        <div className="border-t border-gray-200 p-4 bg-gray-50">
+          <div className="mb-3">
+            <h4 className="text-sm font-medium text-gray-900 mb-3">Insert Link</h4>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-800 mb-2">URL:</label>
+                <input
+                  type="url"
+                  value={embeddedLinkUrl}
+                  onChange={(e) => setEmbeddedLinkUrl(e.target.value)}
+                  placeholder="https://example.com"
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-gray-900 placeholder-gray-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-800 mb-2">Link Text (optional):</label>
+                <input
+                  type="text"
+                  value={embeddedLinkText}
+                  onChange={(e) => setEmbeddedLinkText(e.target.value)}
+                  placeholder="Enter link text..."
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-gray-900 placeholder-gray-500"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end space-x-3 mt-4">
+              <button
+                onClick={() => setShowLinkEditor(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleInsertLink}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Insert Link
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+              {/* Editor Content */}
+        <div className="p-4">
           <div
             ref={editorRef}
             contentEditable
             onInput={handleInput}
-            dangerouslySetInnerHTML={{ __html: content }}
-            className="min-h-64 p-3 border border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
+            onMouseUp={updateActiveFormatting}
+            onKeyUp={updateActiveFormatting}
+            onSelect={updateActiveFormatting}
+            onFocus={() => {
+              // Hide placeholder instantly when focused
+              setShowPlaceholder(false);
+
+            }}
+            onBlur={() => {
+              // Show placeholder when empty and not focused
+              if (editorRef.current && editorRef.current.textContent === '') {
+                setShowPlaceholder(true);
+
+              }
+            }}
+            onKeyDown={(e) => {
+              // Hide placeholder on first keystroke
+              if (e.key.length === 1) {
+                setShowPlaceholder(false);
+
+              }
+            }}
+            className={`min-h-64 p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none text-gray-900 rich-text-editor ${!showPlaceholder ? 'no-placeholder' : ''}`}
             style={{ minHeight: '200px' }}
-            data-placeholder={placeholder}
+            data-placeholder={isEditing ? placeholder : "Click edit button to create your paragraph"}
+
           />
+        {isTyping && (
+          <div className="mt-2 text-sm text-gray-500 flex items-center gap-2">
+            <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+            Saving...
+          </div>
         )}
       </div>
     </div>

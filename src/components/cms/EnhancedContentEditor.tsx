@@ -96,10 +96,42 @@ export default function EnhancedContentEditor({
   };
 
   const tabs = [
-    { id: 'content', label: 'Content', icon: '📝' },
-    { id: 'seo', label: 'SEO', icon: '🔍' },
-    { id: 'publish', label: 'Publish', icon: '🚀' },
-    { id: 'blocks', label: 'Blocks', icon: '🧱' }
+    { 
+      id: 'content', 
+      label: 'Content', 
+      icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      )
+    },
+    { 
+      id: 'seo', 
+      label: 'SEO', 
+      icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+      )
+    },
+    { 
+      id: 'publish', 
+      label: 'Publish', 
+      icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+      )
+    },
+    { 
+      id: 'blocks', 
+      label: 'Blocks', 
+      icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+        </svg>
+      )
+    }
   ];
 
   return (
@@ -130,18 +162,18 @@ export default function EnhancedContentEditor({
 
       {/* Tabs */}
       <div className="border-b border-gray-200">
-        <nav className="flex space-x-8 px-6">
+        <nav className="flex space-x-6 px-6">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as 'content' | 'seo' | 'publish' | 'blocks')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+              className={`py-4 px-3 border-b-2 font-medium text-sm transition-colors flex items-center ${
                 activeTab === tab.id
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              <span className="mr-2">{tab.icon}</span>
+              <span className="mr-2 flex items-center">{tab.icon}</span>
               {tab.label}
             </button>
           ))}
@@ -240,9 +272,9 @@ export default function EnhancedContentEditor({
 
         {activeTab === 'seo' && (
           <div className="space-y-6">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h3 className="text-blue-900 font-medium mb-2">SEO Optimization</h3>
-              <p className="text-blue-700 text-sm">Optimize your content for search engines and social media sharing.</p>
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+              <h3 className="text-gray-900 font-medium mb-2">SEO Optimization</h3>
+              <p className="text-gray-700 text-sm">Optimize your content for search engines and social media sharing.</p>
             </div>
 
             <div>
@@ -295,9 +327,9 @@ export default function EnhancedContentEditor({
 
         {activeTab === 'publish' && (
           <div className="space-y-6">
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <h3 className="text-green-900 font-medium mb-2">Publishing Options</h3>
-              <p className="text-green-700 text-sm">Control when and how your content is published.</p>
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+              <h3 className="text-gray-900 font-medium mb-2">Publishing Options</h3>
+              <p className="text-gray-700 text-sm">Control when and how your content is published.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -349,9 +381,9 @@ export default function EnhancedContentEditor({
 
         {activeTab === 'blocks' && (
           <div>
-            <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-6">
-              <h3 className="text-purple-900 font-medium mb-2">Content Blocks</h3>
-              <p className="text-purple-700 text-sm">Build your content using modular blocks. Drag and drop to reorder.</p>
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+              <h3 className="text-gray-900 font-medium mb-2">Content Blocks</h3>
+              <p className="text-gray-700 text-sm">Build your content using modular blocks. Drag and drop to reorder.</p>
             </div>
             
             <BlockBuilder

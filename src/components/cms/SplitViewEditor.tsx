@@ -94,7 +94,7 @@ export default function SplitViewEditor({
               value={markdownContent}
               onChange={(e) => handleMarkdownChange(e.target.value)}
               placeholder={placeholder}
-              className="w-full h-full p-4 resize-none border-0 focus:ring-0 focus:outline-none font-mono text-sm leading-relaxed"
+              className="w-full h-full p-4 resize-none border-0 focus:ring-0 focus:outline-none font-mono text-sm leading-relaxed text-gray-900 placeholder-gray-600"
               style={{ minHeight: '350px' }}
             />
           </div>

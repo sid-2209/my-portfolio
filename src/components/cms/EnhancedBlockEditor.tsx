@@ -170,8 +170,9 @@ export default function EnhancedBlockEditor({
             <RichTextEditor
               content={paragraphData.text || ''}
               onChange={(content) => setEditData({ ...paragraphData, text: content })}
-              placeholder="Start writing..."
+              placeholder="Start typing your paragraph here..."
               className="w-full"
+              isEditing={isEditing}
             />
           );
         }
@@ -228,7 +229,10 @@ export default function EnhancedBlockEditor({
         {/* Block Content Preview */}
         <div className="block-content-preview">
           {block.blockType === 'PARAGRAPH' && (
-            <p className="text-gray-700 leading-relaxed">{(editData as ParagraphData).text || `Empty paragraph...`}</p>
+            <div 
+              className="text-gray-700 leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: (editData as ParagraphData).text || `Empty paragraph...` }}
+            />
           )}
           
           {block.blockType === 'HEADING' && (

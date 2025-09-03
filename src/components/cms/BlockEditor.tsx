@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { ContentBlock } from '@prisma/client';
 import BlockTypeIcon from './BlockTypeIcon';
 import RichTextEditor from './RichTextEditor';
@@ -87,9 +87,12 @@ export default function BlockEditor({
     setMounted(true);
   }, []);
 
+  // Only sync editData when block.data changes from external sources, not during editing
   useEffect(() => {
-    setEditData(block.data as unknown as BlockData);
-  }, [block.data]);
+    if (!isEditing) {
+      setEditData(block.data as unknown as BlockData);
+    }
+  }, [block.data, isEditing]);
 
   const handleSave = () => {
     onUpdate(editData);
@@ -115,7 +118,7 @@ export default function BlockEditor({
   };
 
   // Render the appropriate advanced editor based on block type and user preference
-  const renderAdvancedEditor = () => {
+  const renderAdvancedEditor = useMemo(() => {
     const mode = getEditorMode();
     
     switch (mode) {
@@ -123,6 +126,7 @@ export default function BlockEditor({
         const codeData = editData as CodeBlockData;
         return (
           <CodeBlockEditor
+            key={`code-${block.id}`}
             code={codeData.code || ''}
             language={codeData.language || 'javascript'}
             onChange={(code, language) => setEditData({ ...codeData, code, language })}
@@ -136,6 +140,7 @@ export default function BlockEditor({
           const paragraphData = editData as ParagraphData;
           return (
             <SplitViewEditor
+              key={`markdown-${block.id}`}
               content={paragraphData.text || ''}
               onChange={(content) => setEditData({ ...paragraphData, text: content })}
               placeholder="Start writing in markdown..."
@@ -148,8 +153,14 @@ export default function BlockEditor({
           const headingData = editData as HeadingData;
           return (
             <RichTextEditor
+              key={`heading-${block.id}`}
               content={headingData.text || ''}
-              onChange={(content) => setEditData({ ...headingData, text: content })}
+              onChange={(content) => {
+                // Only update if content is actually different
+                if (content !== headingData.text) {
+                  setEditData({ ...headingData, text: content });
+                }
+              }}
               placeholder="Start writing..."
               className="w-full"
             />
@@ -160,8 +171,14 @@ export default function BlockEditor({
           const paragraphData = editData as ParagraphData;
           return (
             <RichTextEditor
+              key={`paragraph-${block.id}`}
               content={paragraphData.text || ''}
-              onChange={(content) => setEditData({ ...paragraphData, text: content })}
+              onChange={(content) => {
+                // Only update if content is actually different
+                if (content !== paragraphData.text) {
+                  setEditData({ ...paragraphData, text: content });
+                }
+              }}
               placeholder="Start writing..."
               className="w-full"
             />
@@ -170,7 +187,7 @@ export default function BlockEditor({
         
         return null;
     }
-  };
+  }, [block.blockType, block.id, editData, editorMode]);
 
   // Render basic form for non-text blocks
   const renderBasicForm = () => {
@@ -178,105 +195,132 @@ export default function BlockEditor({
       case 'IMAGE':
         const imageData = editData as ImageData;
         return (
-          <div className="space-y-3">
-            <input
-              type="text"
-              value={imageData.src || ''}
-              onChange={(e) => setEditData({ ...imageData, src: e.target.value })}
-              className="w-full p-4 bg-white border-2 border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-white transition-all duration-200 text-base"
-              placeholder="Image URL..."
-            />
-            <input
-              type="text"
-              value={imageData.alt || ''}
-              onChange={(e) => setEditData({ ...imageData, alt: e.target.value })}
-              className="w-full p-4 bg-white border-2 border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-white transition-all duration-200 text-base"
-              placeholder="Alt text..."
-            />
-            <input
-              type="text"
-              value={imageData.caption || ''}
-              onChange={(e) => setEditData({ ...imageData, caption: e.target.value })}
-              className="w-full p-4 bg-white border-2 border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-white transition-all duration-200 text-base"
-              placeholder="Caption (optional)..."
-            />
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Image URL *</label>
+              <input
+                type="text"
+                value={imageData.src || ''}
+                onChange={(e) => setEditData({ ...imageData, src: e.target.value })}
+                className="w-full p-4 bg-white border-2 border-gray-300 rounded-lg text-gray-900 placeholder-gray-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-white transition-all duration-200 text-base"
+                placeholder="Enter image URL..."
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Alt Text *</label>
+              <input
+                type="text"
+                value={imageData.alt || ''}
+                onChange={(e) => setEditData({ ...imageData, alt: e.target.value })}
+                className="w-full p-4 bg-white border-2 border-gray-300 rounded-lg text-gray-900 placeholder-gray-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-white transition-all duration-200 text-base"
+                placeholder="Enter alt text for accessibility..."
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Caption (Optional)</label>
+              <input
+                type="text"
+                value={imageData.caption || ''}
+                onChange={(e) => setEditData({ ...imageData, caption: e.target.value })}
+                className="w-full p-4 bg-white border-2 border-gray-300 rounded-lg text-gray-900 placeholder-gray-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-white transition-all duration-200 text-base"
+                placeholder="Enter image caption..."
+              />
+            </div>
           </div>
         );
 
       case 'QUOTE':
         const quoteData = editData as QuoteData;
         return (
-          <div className="space-y-3">
-            <textarea
-              value={quoteData.text || ''}
-              onChange={(e) => setEditData({ ...quoteData, text: e.target.value })}
-              className="w-full p-4 bg-white border-2 border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 resize-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-white transition-all duration-200 text-base leading-relaxed"
-              rows={4}
-              placeholder="Enter quote text..."
-            />
-            <input
-              type="text"
-              value={quoteData.author || ''}
-              onChange={(e) => setEditData({ ...quoteData, author: e.target.value })}
-              className="w-full p-4 bg-white border-2 border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-white transition-all duration-200 text-base"
-              placeholder="Author name..."
-            />
-            <input
-              type="text"
-              value={quoteData.source || ''}
-              onChange={(e) => setEditData({ ...quoteData, source: e.target.value })}
-              className="w-full p-4 bg-white border-2 border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-white transition-all duration-200 text-base"
-              placeholder="Source (optional)..."
-            />
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Quote Text *</label>
+              <textarea
+                value={quoteData.text || ''}
+                onChange={(e) => setEditData({ ...quoteData, text: e.target.value })}
+                className="w-full p-4 bg-white border-2 border-gray-300 rounded-lg text-gray-900 placeholder-gray-600 resize-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-white transition-all duration-200 text-base leading-relaxed"
+                rows={4}
+                placeholder="Enter your quote text here..."
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Author Name</label>
+              <input
+                type="text"
+                value={quoteData.author || ''}
+                onChange={(e) => setEditData({ ...quoteData, author: e.target.value })}
+                className="w-full p-4 bg-white border-2 border-gray-300 rounded-lg text-gray-900 placeholder-gray-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-white transition-all duration-200 text-base"
+                placeholder="Enter author name..."
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Source (Optional)</label>
+              <input
+                type="text"
+                value={quoteData.source || ''}
+                onChange={(e) => setEditData({ ...quoteData, source: e.target.value })}
+                className="w-full p-4 bg-white border-2 border-gray-300 rounded-lg text-gray-900 placeholder-gray-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-white transition-all duration-200 text-base"
+                placeholder="Enter source or reference..."
+              />
+            </div>
           </div>
         );
 
       case 'LIST':
         const listData = editData as ListData;
         return (
-          <div className="space-y-3">
-            <select
-              value={listData.type || 'unordered'}
-              onChange={(e) => setEditData({ ...listData, type: e.target.value as 'unordered' | 'ordered' })}
-              className="w-full p-4 bg-white border-2 border-gray-300 rounded-lg text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-white transition-all duration-200 text-base"
-            >
-              <option value="unordered">Unordered List</option>
-              <option value="ordered">Ordered List</option>
-            </select>
-            <div className="space-y-2">
-              {(listData.items || []).map((item: string, index: number) => (
-                <div key={index} className="flex gap-2">
-                  <input
-                    type="text"
-                    value={item}
-                    onChange={(e) => {
-                      const newItems = [...(listData.items || [])];
-                      newItems[index] = e.target.value;
-                      setEditData({ ...listData, items: newItems });
-                    }}
-                    className="flex-1 p-3 bg-white border-2 border-gray-300 rounded text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-white transition-all duration-200 text-base"
-                    placeholder={`List item ${index + 1}...`}
-                  />
-                  <button
-                    onClick={() => {
-                      const newItems = (listData.items || []).filter((_: string, i: number) => i !== index);
-                      setEditData({ ...listData, items: newItems });
-                    }}
-                    className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition-colors duration-200"
-                  >
-                    Remove
-                  </button>
-                </div>
-              ))}
-              <button
-                onClick={() => {
-                  const newItems = [...(listData.items || []), ''];
-                  setEditData({ ...listData, items: newItems });
-                }}
-                className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors duration-200 font-medium"
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">List Type</label>
+              <select
+                value={listData.type || 'unordered'}
+                onChange={(e) => setEditData({ ...listData, type: e.target.value as 'unordered' | 'ordered' })}
+                className="w-full p-4 bg-white border-2 border-gray-300 rounded-lg text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-white transition-all duration-200 text-base font-medium"
               >
-                + Add Item
-              </button>
+                <option value="unordered">Bullet List (Unordered)</option>
+                <option value="ordered">Numbered List (Ordered)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">List Items</label>
+              <div className="space-y-3">
+                {(listData.items || []).map((item: string, index: number) => (
+                  <div key={index} className="flex gap-3">
+                    <input
+                      type="text"
+                      value={item}
+                      onChange={(e) => {
+                        const newItems = [...(listData.items || [])];
+                        newItems[index] = e.target.value;
+                        setEditData({ ...listData, items: newItems });
+                      }}
+                      className="flex-1 p-3 bg-white border-2 border-gray-300 rounded-lg text-gray-900 placeholder-gray-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-white transition-all duration-200 text-base"
+                      placeholder={`Enter list item ${index + 1}...`}
+                    />
+                    <button
+                      onClick={() => {
+                        const newItems = (listData.items || []).filter((_: string, i: number) => i !== index);
+                        setEditData({ ...listData, items: newItems });
+                      }}
+                      className="px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors duration-200 font-medium"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+                <button
+                  onClick={() => {
+                    const newItems = [...(listData.items || []), ''];
+                    setEditData({ ...listData, items: newItems });
+                  }}
+                  className="w-full px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors duration-200 font-medium flex items-center justify-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  Add New Item
+                </button>
+              </div>
             </div>
           </div>
         );
@@ -284,39 +328,59 @@ export default function BlockEditor({
       case 'DIVIDER':
         const dividerData = editData as DividerData;
         return (
-          <div className="space-y-3">
-            <select
-              value={dividerData.style || 'solid'}
-              onChange={(e) => setEditData({ ...dividerData, style: e.target.value as 'solid' | 'dashed' | 'dotted' | 'double' })}
-              className="w-full p-4 bg-white border-2 border-gray-300 rounded-lg text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-white transition-all duration-200 text-base"
-            >
-              <option value="solid">Solid Line</option>
-              <option value="dashed">Dashed Line</option>
-              <option value="dotted">Dotted Line</option>
-              <option value="double">Double Line</option>
-            </select>
-            <input
-              type="color"
-              value={dividerData.color || '#000000'}
-              onChange={(e) => setEditData({ ...dividerData, color: e.target.value })}
-              className="w-full p-2 bg-white border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-white transition-all duration-200"
-            />
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Divider Style</label>
+              <select
+                value={dividerData.style || 'solid'}
+                onChange={(e) => setEditData({ ...dividerData, style: e.target.value as 'solid' | 'dashed' | 'dotted' | 'double' })}
+                className="w-full p-4 bg-white border-2 border-gray-300 rounded-lg text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-white transition-all duration-200 text-base font-medium"
+              >
+                <option value="solid">Solid Line</option>
+                <option value="dashed">Dashed Line</option>
+                <option value="dotted">Dotted Line</option>
+                <option value="double">Double Line</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Divider Color</label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={dividerData.color || '#000000'}
+                  onChange={(e) => setEditData({ ...dividerData, color: e.target.value })}
+                  className="w-16 h-12 bg-white border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-white transition-all duration-200 cursor-pointer"
+                />
+                <span className="text-sm text-gray-600 font-mono">{dividerData.color || '#000000'}</span>
+              </div>
+            </div>
           </div>
         );
 
       case 'CUSTOM':
         const customData = editData as CustomData;
         return (
-          <div className="space-y-3">
-            <textarea
-              value={customData.html || ''}
-              onChange={(e) => setEditData({ ...customData, html: e.target.value })}
-              className="w-full p-4 bg-white border-2 border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 font-mono resize-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-white transition-all duration-200 text-base leading-relaxed"
-              rows={6}
-              placeholder="Enter custom HTML..."
-            />
-            <div className="text-sm text-gray-600">
-              <p>⚠️ Warning: Custom HTML can include scripts and may pose security risks.</p>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Custom HTML Code</label>
+              <textarea
+                value={customData.html || ''}
+                onChange={(e) => setEditData({ ...customData, html: e.target.value })}
+                className="w-full p-4 bg-white border-2 border-gray-300 rounded-lg text-gray-900 placeholder-gray-600 font-mono resize-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-white transition-all duration-200 text-base leading-relaxed"
+                rows={8}
+                placeholder="Enter your custom HTML code here..."
+              />
+            </div>
+            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="flex items-start gap-3">
+                <svg className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+                <div className="text-sm text-yellow-800">
+                  <p className="font-medium mb-1">Security Warning</p>
+                  <p>Custom HTML can include scripts and may pose security risks. Only use HTML from trusted sources.</p>
+                </div>
+              </div>
             </div>
           </div>
         );
@@ -375,7 +439,10 @@ export default function BlockEditor({
         {/* Block Content Preview */}
         <div className="block-content-preview">
           {block.blockType === 'PARAGRAPH' && (
-            <p className="text-gray-700 leading-relaxed">{(editData as ParagraphData).text || `Empty paragraph...`}</p>
+            <div 
+              className="text-gray-700 leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: (editData as ParagraphData).text || `Empty paragraph...` }}
+            />
           )}
           
           {block.blockType === 'HEADING' && (
@@ -401,8 +468,11 @@ export default function BlockEditor({
             <div className="bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-sm overflow-x-auto">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-gray-400">{(editData as CodeBlockData).language || 'javascript'}</span>
-                <button className="text-gray-400 hover:text-white transition-colors">
-                  📋 Copy
+                <button className="text-gray-400 hover:text-white transition-colors flex items-center gap-1">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  Copy
                 </button>
               </div>
               <pre>{(editData as CodeBlockData).code || `// No code yet...`}</pre>
@@ -486,24 +556,30 @@ export default function BlockEditor({
           <div className="flex items-center space-x-2 bg-gray-100 rounded-lg p-1">
             <button
               onClick={() => setEditorMode('rich')}
-              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
                 editorMode === 'rich' 
                   ? 'bg-white text-blue-600 shadow-sm' 
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
               Rich Text
             </button>
-                             <button
-                   onClick={() => setEditorMode('markdown')}
-                   className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                     editorMode === 'markdown' 
-                       ? 'bg-white text-blue-600 shadow-sm' 
-                       : 'text-gray-600 hover:text-gray-900'
-                   }`}
-                 >
-                   Markdown
-                 </button>
+            <button
+              onClick={() => setEditorMode('markdown')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
+                editorMode === 'markdown' 
+                  ? 'bg-white text-blue-600 shadow-sm' 
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4-4-4-4M6 16l-4-4 4-4" />
+              </svg>
+              Markdown
+            </button>
           </div>
         )}
       </div>
@@ -511,7 +587,7 @@ export default function BlockEditor({
       {/* Editor Content */}
       <div className="mb-6">
         {(block.blockType === 'PARAGRAPH' || block.blockType === 'HEADING' || block.blockType === 'CODE_BLOCK') 
-          ? renderAdvancedEditor() 
+          ? renderAdvancedEditor 
           : renderBasicForm()
         }
       </div>

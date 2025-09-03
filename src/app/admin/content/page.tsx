@@ -30,8 +30,6 @@ interface ContentStats {
     title: string;
     status: string;
     timestamp: string;
-    icon: string;
-    color: string;
   }>;
 }
 
@@ -84,23 +82,15 @@ export default function AdminContentPage() {
           const isPublished = item.status === 'PUBLISHED';
           const isUpdated = new Date(item.updatedAt).getTime() > new Date(item.createdAt).getTime() + 1000;
           
-          let action, icon, color;
+          let action;
           if (isNew) {
             action = 'New content created';
-            icon = '📝';
-            color = 'blue';
           } else if (isPublished) {
             action = 'Content published';
-            icon = '✅';
-            color = 'green';
           } else if (isUpdated) {
             action = 'Content updated';
-            icon = '✏️';
-            color = 'yellow';
           } else {
             action = 'Content modified';
-            icon = '📄';
-            color = 'gray';
           }
           
           return {
@@ -108,9 +98,7 @@ export default function AdminContentPage() {
             action,
             title: item.title,
             status: item.status || 'DRAFT',
-            timestamp: getTimeAgo(item.updatedAt),
-            icon,
-            color
+            timestamp: getTimeAgo(item.updatedAt)
           };
         });
       
@@ -150,12 +138,12 @@ export default function AdminContentPage() {
     return `${diffInMonths} month${diffInMonths > 1 ? 's' : ''} ago`;
   };
 
-  // Get status color
+  // Get status color - Updated to use gray scale
   const getStatusColor = (status: string): string => {
     switch (status) {
-      case 'PUBLISHED': return 'text-green-600';
-      case 'DRAFT': return 'text-yellow-600';
-      case 'ARCHIVED': return 'text-gray-600';
+      case 'PUBLISHED': return 'text-gray-700';
+      case 'DRAFT': return 'text-gray-600';
+      case 'ARCHIVED': return 'text-gray-500';
       default: return 'text-gray-600';
     }
   };
@@ -202,7 +190,7 @@ export default function AdminContentPage() {
             <p className="text-red-700 mb-4">{error}</p>
             <button
               onClick={fetchContent}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors"
             >
               Try Again
             </button>
@@ -224,13 +212,13 @@ export default function AdminContentPage() {
           <div className="flex items-center space-x-4">
             <Link
               href="/admin/content-creation-guide"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors"
             >
               Content Guide
             </Link>
             <Link
               href="/admin/test-phase3"
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors"
             >
               Test Features
             </Link>
@@ -241,8 +229,10 @@ export default function AdminContentPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
             <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <span className="text-2xl">📝</span>
+              <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">Create Content</h3>
@@ -251,7 +241,7 @@ export default function AdminContentPage() {
             </div>
             <Link
               href="/admin"
-              className="mt-4 inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+              className="mt-4 inline-block px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors text-sm"
             >
               Get Started
             </Link>
@@ -259,8 +249,10 @@ export default function AdminContentPage() {
 
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
             <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <span className="text-2xl">📊</span>
+              <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">Content Analytics</h3>
@@ -269,7 +261,7 @@ export default function AdminContentPage() {
             </div>
             <Link
               href="/admin"
-              className="mt-4 inline-block px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
+              className="mt-4 inline-block px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors text-sm"
             >
               View Analytics
             </Link>
@@ -277,8 +269,10 @@ export default function AdminContentPage() {
 
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
             <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                <span className="text-2xl">🔍</span>
+              <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">Search & Filter</h3>
@@ -287,7 +281,7 @@ export default function AdminContentPage() {
             </div>
             <Link
               href="/admin"
-              className="mt-4 inline-block px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm"
+              className="mt-4 inline-block px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors text-sm"
             >
               Search Content
             </Link>
@@ -298,9 +292,11 @@ export default function AdminContentPage() {
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Content Types</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
+            <div className="p-4 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors">
               <div className="flex items-center space-x-3">
-                <span className="text-2xl">📄</span>
+                <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
                 <div>
                   <h4 className="font-medium text-gray-900">Blog Posts</h4>
                   <p className="text-sm text-gray-600">
@@ -310,9 +306,11 @@ export default function AdminContentPage() {
               </div>
             </div>
 
-            <div className="p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
+            <div className="p-4 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors">
               <div className="flex items-center space-x-3">
-                <span className="text-2xl">📚</span>
+                <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13" />
+                </svg>
                 <div>
                   <h4 className="font-medium text-gray-900">Documentation</h4>
                   <p className="text-sm text-gray-600">
@@ -322,9 +320,11 @@ export default function AdminContentPage() {
               </div>
             </div>
 
-            <div className="p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
+            <div className="p-4 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors">
               <div className="flex items-center space-x-3">
-                <span className="text-2xl">🎯</span>
+                <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                </svg>
                 <div>
                   <h4 className="font-medium text-gray-900">Landing Pages</h4>
                   <p className="text-sm text-gray-600">
@@ -334,9 +334,11 @@ export default function AdminContentPage() {
               </div>
             </div>
 
-            <div className="p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
+            <div className="p-4 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors">
               <div className="flex items-center space-x-3">
-                <span className="text-2xl">📰</span>
+                <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
                 <div>
                   <h4 className="font-medium text-gray-900">Newsletters</h4>
                   <p className="text-sm text-gray-600">
@@ -355,12 +357,14 @@ export default function AdminContentPage() {
             <div className="space-y-4">
               {stats.recentActivity.map((activity) => (
                 <div key={activity.id} className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg">
-                  <div className={`w-10 h-10 bg-${activity.color}-100 rounded-full flex items-center justify-center`}>
-                    <span className={`text-${activity.color}-600`}>{activity.icon}</span>
+                  <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                    <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
                   </div>
                   <div className="flex-1">
                     <p className="text-sm font-medium text-gray-900">{activity.action}</p>
-                                         <p className="text-xs text-gray-600">&ldquo;{activity.title}&rdquo; - {activity.timestamp}</p>
+                    <p className="text-xs text-gray-600">&ldquo;{activity.title}&rdquo; - {activity.timestamp}</p>
                   </div>
                   <span className={`text-xs ${getStatusColor(activity.status)}`}>{activity.status}</span>
                 </div>
@@ -368,7 +372,11 @@ export default function AdminContentPage() {
             </div>
           ) : (
             <div className="text-center py-8">
-              <div className="text-gray-400 text-4xl mb-2">📝</div>
+              <div className="flex justify-center mb-2">
+                <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </div>
               <p className="text-gray-500 text-lg">No recent activity to display yet</p>
               <p className="text-gray-400 text-sm">Start creating content to see activity here</p>
             </div>
@@ -379,8 +387,10 @@ export default function AdminContentPage() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
             <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <span className="text-2xl text-blue-600">📊</span>
+              <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
               </div>
               <div>
                 <p className="text-2xl font-bold text-gray-900">
@@ -393,8 +403,10 @@ export default function AdminContentPage() {
 
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
             <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <span className="text-2xl text-green-600">✅</span>
+              <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
               </div>
               <div>
                 <p className="text-2xl font-bold text-gray-900">
@@ -407,8 +419,10 @@ export default function AdminContentPage() {
 
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
             <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-                <span className="text-2xl text-yellow-600">✏️</span>
+              <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
               </div>
               <div>
                 <p className="text-2xl font-bold text-gray-900">
@@ -421,8 +435,10 @@ export default function AdminContentPage() {
 
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
             <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                <span className="text-2xl text-purple-600">⭐</span>
+              <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                </svg>
               </div>
               <div>
                 <p className="text-2xl font-bold text-gray-900">
@@ -436,15 +452,19 @@ export default function AdminContentPage() {
 
         {/* Empty State Message */}
         {!isLoading && stats.totalPosts === 0 && (
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-8 text-center">
-            <div className="text-blue-600 text-4xl mb-4">🚀</div>
-            <h3 className="text-xl font-semibold text-blue-900 mb-2">Welcome to Content Management!</h3>
-                           <p className="text-blue-700 mb-4">
-                 You haven&apos;t created any content yet. Start building your content library by creating your first post.
-               </p>
+          <div className="bg-gray-50 border border-gray-200 rounded-xl p-8 text-center">
+            <div className="flex justify-center mb-4">
+              <svg className="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Welcome to Content Management!</h3>
+            <p className="text-gray-700 mb-4">
+              You haven&apos;t created any content yet. Start building your content library by creating your first post.
+            </p>
             <Link
               href="/admin"
-              className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              className="inline-block px-6 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors font-medium"
             >
               Create Your First Content
             </Link>

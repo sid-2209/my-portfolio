@@ -65,9 +65,10 @@ export default function BlockRenderer({ blocks }: BlockRendererProps) {
         const paragraphData = data as ParagraphData;
         return (
           <div key={block.id} className="mb-6">
-            <p className="text-white/80 text-lg leading-relaxed">
-              {paragraphData.text || 'No content'}
-            </p>
+            <div 
+              className="text-white/80 text-lg leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: paragraphData.text || 'No content' }}
+            />
           </div>
         );
       

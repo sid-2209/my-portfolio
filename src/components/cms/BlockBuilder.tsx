@@ -201,8 +201,11 @@ export default function BlockBuilder({ contentId, initialBlocks, onBlocksChange 
         <h3 className="text-2xl font-bold text-gray-900">Content Blocks</h3>
         <button
           onClick={() => setIsAddingBlock(true)}
-          className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
+          className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-all duration-200 shadow-sm hover:shadow-md flex items-center gap-2"
         >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+          </svg>
           Add Block
         </button>
       </div>
@@ -228,16 +231,16 @@ export default function BlockBuilder({ contentId, initialBlocks, onBlocksChange 
                 <button
                   key={blockType.type}
                   onClick={() => addBlock(blockType.type)}
-                  className="p-6 text-left border border-gray-200 rounded-xl hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 group"
+                  className="p-6 text-left border border-gray-200 rounded-xl hover:border-gray-300 hover:bg-gray-50 transition-all duration-200 group"
                 >
                   <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                      <span className="text-blue-600 font-bold text-sm">
-                        {blockType.label.charAt(0)}
-                      </span>
+                    <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center group-hover:bg-gray-200 transition-colors">
+                      <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
                     </div>
                     <div>
-                      <h4 className="font-semibold text-gray-900 group-hover:text-blue-700 transition-colors">
+                      <h4 className="font-semibold text-gray-900 group-hover:text-gray-700 transition-colors">
                         {blockType.label}
                       </h4>
                       <p className="text-sm text-gray-600 group-hover:text-gray-700">

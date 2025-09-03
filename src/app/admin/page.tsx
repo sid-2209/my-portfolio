@@ -1,10 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import BlockBuilder from "../../components/cms/BlockBuilder";
 import EnhancedContentEditor from "../../components/cms/EnhancedContentEditor";
 import ContentAnalytics from "../../components/cms/ContentAnalytics";
 import { BlockType } from "@prisma/client";
+import { StatCard, EmptyState, ContentCard } from "../../components/data-display";
+import { LoadingSpinner } from "../../components/feedback";
+import { SearchAndFilterBar } from "../../components/navigation";
 
 // Import the same interfaces used in BlockEditor for consistency
 interface ParagraphData {
@@ -58,16 +61,7 @@ type BlockData =
   | DividerData 
   | CustomData;
 
-// Extended ContentBlock interface with proper typing
-interface TypedContentBlock {
-  id: string;
-  contentId: string;
-  blockType: string;
-  order: number;
-  data: BlockData;
-  createdAt: Date;
-  updatedAt: Date;
-}
+
 
 interface Content {
   id: string;
@@ -128,6 +122,138 @@ export default function AdminPage() {
     readingTime: 0
   });
 
+  // Filtering and Search State
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const [filterContentType, setFilterContentType] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterFeatured, setFilterFeatured] = useState('');
+  const [filterDateRange, setFilterDateRange] = useState('');
+  const [sortBy, setSortBy] = useState('newest');
+
+
+
+  // Filtering and Search Logic
+  const filteredContent = useMemo(() => {
+    let filtered = content;
+
+    // Search filtering
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(item =>
+        item.title.toLowerCase().includes(query) ||
+        item.description.toLowerCase().includes(query) ||
+        (item.tags && item.tags.some(tag => tag.toLowerCase().includes(query))) ||
+        (item.category && item.category.toLowerCase().includes(query)) ||
+        // Search within content blocks
+        (item.contentBlocks && item.contentBlocks.some(block => {
+          if (block.data && typeof block.data === 'object') {
+            const blockData = block.data as Record<string, unknown>;
+            // Search in text content
+            if (blockData.text && typeof blockData.text === 'string') {
+              return blockData.text.toLowerCase().includes(query);
+            }
+            // Search in code content
+            if (blockData.code && typeof blockData.code === 'string') {
+              return blockData.code.toLowerCase().includes(query);
+            }
+            // Search in HTML content
+            if (blockData.html && typeof blockData.html === 'string') {
+              return blockData.html.toLowerCase().includes(query);
+            }
+          }
+          return false;
+        }))
+      );
+    }
+
+    // Content type filtering
+    if (filterContentType) {
+      filtered = filtered.filter(item => item.contentType === filterContentType);
+    }
+
+    // Status filtering
+    if (filterStatus) {
+      filtered = filtered.filter(item => item.status === filterStatus);
+    }
+
+    // Featured filtering
+    if (filterFeatured !== '') {
+      const isFeatured = filterFeatured === 'true';
+      filtered = filtered.filter(item => item.featured === isFeatured);
+    }
+
+    // Date range filtering
+    if (filterDateRange) {
+      const now = new Date();
+      const itemDate = new Date();
+      
+      switch (filterDateRange) {
+        case 'today':
+          filtered = filtered.filter(item => {
+            itemDate.setTime(new Date(item.createdAt).getTime());
+            return itemDate.toDateString() === now.toDateString();
+          });
+          break;
+        case 'week':
+          const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          filtered = filtered.filter(item => new Date(item.createdAt) >= weekAgo);
+          break;
+        case 'month':
+          const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          filtered = filtered.filter(item => new Date(item.createdAt) >= monthAgo);
+          break;
+        case 'quarter':
+          const quarterAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+          filtered = filtered.filter(item => new Date(item.createdAt) >= quarterAgo);
+          break;
+        case 'year':
+          const yearAgo = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+          filtered = filtered.filter(item => new Date(item.createdAt) >= yearAgo);
+          break;
+      }
+    }
+
+    // Sorting
+    switch (sortBy) {
+      case 'newest':
+        filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        break;
+      case 'oldest':
+        filtered.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        break;
+      case 'title':
+        filtered.sort((a, b) => a.title.localeCompare(b.title));
+        break;
+      case 'title-desc':
+        filtered.sort((a, b) => b.title.localeCompare(a.title));
+        break;
+      case 'status':
+        filtered.sort((a, b) => (a.status || '').localeCompare(b.status || ''));
+        break;
+      case 'type':
+        filtered.sort((a, b) => a.contentType.localeCompare(b.contentType));
+        break;
+    }
+
+    return filtered;
+  }, [content, searchQuery, filterContentType, filterStatus, filterFeatured, filterDateRange, sortBy]);
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setFilterContentType('');
+    setFilterStatus('');
+    setFilterFeatured('');
+    setFilterDateRange('');
+    setSortBy('newest');
+  };
+
+
+
+
+
+
+
   const fetchAllContent = async () => {
     try {
       setIsLoading(true);
@@ -171,58 +297,7 @@ export default function AdminPage() {
     }
   };
 
-  const addNewPost = async () => {
-    try {
-      setIsUpdating(true);
-      
-      const slug = newPost.slug || newPost.title.toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)/g, '');
 
-      const response = await fetch('/api/content', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...newPost,
-          tags: newPost.tags.split(',').map(tag => tag.trim()).filter(tag => tag),
-          author: 'Sid',
-          slug
-        }),
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to create post');
-      }
-      
-      const createdPost = await response.json();
-      setContent(prev => [createdPost, ...prev]);
-      setNewPost({
-        title: '',
-        description: '',
-        contentType: 'blog',
-        category: '',
-        imageUrl: '',
-        contentUrl: '',
-        tags: '',
-        featured: false,
-        status: 'DRAFT',
-        slug: '',
-        author: 'Sid',
-        seoTitle: '',
-        seoDescription: '',
-        seoKeywords: '',
-        publishDate: '',
-        readingTime: 0
-      });
-      setShowAddForm(false);
-    } catch (error) {
-      console.error('Error creating post:', error);
-    } finally {
-      setIsUpdating(false);
-    }
-  };
 
   const startEditing = (post: Content) => {
     setEditingId(post.id);
@@ -327,14 +402,14 @@ export default function AdminPage() {
   }, []);
 
   const featuredContent = content.filter(item => item.featured);
-  const nonFeaturedContent = content.filter(item => !item.featured);
+
   const totalContent = content.length;
   const publishedContent = content.filter(item => item.status === 'PUBLISHED').length;
   const draftContent = content.filter(item => item.status === 'DRAFT').length;
 
   // Don't render until mounted to prevent hydration mismatch
   if (!mounted) {
-    return (
+  return (
       <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="animate-pulse space-y-8">
           <div className="h-8 bg-gray-200 rounded w-1/3"></div>
@@ -359,7 +434,7 @@ export default function AdminPage() {
             <span>/</span>
             <button 
               onClick={() => setActiveView('overview')}
-              className="text-blue-600 hover:text-blue-700"
+              className="text-gray-700 hover:text-gray-900"
             >
               {activeView === 'content' ? 'Content' : 'Analytics'}
             </button>
@@ -370,48 +445,57 @@ export default function AdminPage() {
       {/* Dashboard Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between">
-          <div>
+            <div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
               {activeView === 'overview' ? 'Content Manager' : 
                activeView === 'content' ? 'Content Editor' : 'Content Analytics'}
-            </h1>
+              </h1>
             <p className="text-gray-600">
               {activeView === 'overview' ? 'Manage content, toggle featured posts, and edit content blocks' :
                activeView === 'content' ? 'Create and edit content with advanced features' :
                'Track content performance and insights'}
-            </p>
-          </div>
+              </p>
+            </div>
           <div className="flex items-center space-x-3">
-            {activeView === 'overview' && (
-              <button
-                onClick={() => setActiveView('analytics')}
-                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors"
-              >
-                📊 Analytics
-              </button>
-            )}
+                          {activeView === 'overview' && (
+                <button
+                  onClick={() => setActiveView('analytics')}
+                  className="flex items-center gap-2 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                  Analytics
+                </button>
+              )}
             {activeView === 'overview' && (
               <button
                 onClick={() => setShowAddForm(true)}
-                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
+                className="flex items-center gap-2 bg-gray-800 text-white px-6 py-3 rounded-lg hover:bg-gray-900 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
               >
-                + Add Post
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                Add Post
               </button>
             )}
             {activeView !== 'overview' && (
               <button
                 onClick={() => setActiveView('overview')}
-                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors"
+                className="flex items-center gap-2 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors"
               >
-                ← Back to Overview
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Back to Overview
               </button>
             )}
           </div>
         </div>
-      </div>
-
+          </div>
+          
       {/* Enhanced Content Editor */}
-      {showAddForm && (
+              {showAddForm && (
         <div className="mb-8">
           <EnhancedContentEditor
             content={{
@@ -458,71 +542,134 @@ export default function AdminPage() {
       {/* Content Overview */}
       {activeView === 'overview' && (
         <>
+          {/* Advanced Search and Filtering */}
+          <SearchAndFilterBar
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            filterContentType={filterContentType}
+            onFilterContentTypeChange={setFilterContentType}
+            filterStatus={filterStatus}
+            onFilterStatusChange={setFilterStatus}
+            filterFeatured={filterFeatured}
+            onFilterFeaturedChange={setFilterFeatured}
+            filterDateRange={filterDateRange}
+            onFilterDateRangeChange={setFilterDateRange}
+            sortBy={sortBy}
+            onSortByChange={setSortBy}
+            onClearFilters={clearFilters}
+            totalResults={filteredContent.length}
+          />
+
+
+
+
+
+
+
+
+
+
+
+          {/* Search Results */}
+          {(searchQuery || filterContentType || filterStatus || filterFeatured || filterDateRange) && (
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 mb-8">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold text-gray-900">Search Results</h3>
+                <span className="text-sm text-gray-500">
+                  {filteredContent.length} result{filteredContent.length !== 1 ? 's' : ''} found
+                </span>
+              </div>
+              
+                            {filteredContent.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredContent.map((item) => (
+                    <ContentCard
+                      key={item.id}
+                      content={{
+                        id: item.id,
+                        title: item.title,
+                        description: item.description,
+                        contentType: item.contentType,
+                        status: item.status,
+                        featured: item.featured,
+                        publishedDate: item.publishedDate,
+                        createdAt: item.createdAt
+                      }}
+                      isEditing={editingId === item.id}
+                      editForm={editForm}
+                      onEditFormChange={(field, value) => setEditForm(prev => ({ ...prev, [field]: value }))}
+                      onStartEditing={() => startEditing(item)}
+                      onSaveEdit={saveEdit}
+                      onCancelEdit={() => setEditingId(null)}
+                      onToggleFeatured={() => !isUpdating && toggleFeatured(item.id, !item.featured)}
+                      onOpenBlocks={() => setSelectedContentId(item.id)}
+                      isUpdating={isUpdating}
+                      searchQuery={searchQuery}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  title="No Results Found"
+                  description="Try adjusting your search terms or filters."
+                  icon={
+                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  }
+                  actionText="Clear All Filters"
+                  onAction={clearFilters}
+                />
+              )}
+            </div>
+          )}
+
           {/* Quick Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-              <div className="flex items-center">
-                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
-                  </svg>
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Content</p>
-                  <p className="text-2xl font-bold text-gray-900">{totalContent}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-              <div className="flex items-center">
-                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                  <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Published</p>
-                  <p className="text-2xl font-bold text-gray-900">{publishedContent}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-              <div className="flex items-center">
-                <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-                  <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Drafts</p>
-                  <p className="text-2xl font-bold text-gray-900">{draftContent}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-              <div className="flex items-center">
-                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                  <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                  </svg>
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Featured</p>
-                  <p className="text-2xl font-bold text-gray-900">{featuredContent.length}</p>
-                </div>
-              </div>
-            </div>
+            <StatCard
+              label="Total Content"
+              value={totalContent}
+              icon={
+                <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                </svg>
+              }
+            />
+            
+            <StatCard
+              label="Published"
+              value={publishedContent}
+              icon={
+                <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              }
+            />
+            
+            <StatCard
+              label="Drafts"
+              value={draftContent}
+              icon={
+                <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              }
+            />
+            
+            <StatCard
+              label="Featured"
+              value={featuredContent.length}
+              icon={
+                <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                </svg>
+              }
+            />
           </div>
 
           {/* Loading State */}
           {isLoading ? (
-            <div className="bg-white rounded-xl p-12 text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-600 font-medium">Loading content...</p>
-            </div>
+            <LoadingSpinner variant="default" />
           ) : (
             <>
               {/* Content Blocks Editor */}
@@ -566,236 +713,114 @@ export default function AdminPage() {
                   {/* Featured Content Section */}
                   <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-200">
                     <div className="flex items-center justify-between mb-8">
-                      <h2 className="text-2xl font-bold text-gray-900">Featured Content</h2>
-                      <span className="bg-blue-100 text-blue-800 px-4 py-2 rounded-full font-medium text-sm">
-                        {featuredContent.length} posts
+                      <div className="flex items-center gap-3">
+                        <div className="w-1 h-8 bg-gray-800 rounded-full"></div>
+                        <h2 className="text-2xl font-bold text-gray-900">Featured Content</h2>
+                      </div>
+                      <span className="text-sm text-gray-500 font-medium">
+                        {filteredContent.filter(item => item.featured).length} posts
                       </span>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {featuredContent.map((item) => (
-                        <div key={item.id} className="bg-gray-50 border border-gray-200 rounded-xl p-6 hover:shadow-md transition-all duration-200">
-                          {editingId === item.id ? (
-                            <div className="space-y-4">
-                              <input
-                                type="text"
-                                value={editForm.title}
-                                onChange={(e) => setEditForm(prev => ({ ...prev, title: e.target.value }))}
-                                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-500 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                                placeholder="Title"
-                              />
-                              <textarea
-                                value={editForm.description}
-                                onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
-                                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm h-20 text-gray-900 placeholder-gray-500 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 resize-none"
-                                placeholder="Description"
-                              />
-                              <select
-                                value={editForm.status}
-                                onChange={(e) => setEditForm(prev => ({ ...prev, status: e.target.value }))}
-                                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                              >
-                                <option value="DRAFT">Draft</option>
-                                <option value="PUBLISHED">Published</option>
-                                <option value="ARCHIVED">Archived</option>
-                              </select>
-                              <div className="flex items-center gap-2">
-                                <label className="flex items-center text-xs">
-                                  <input
-                                    type="checkbox"
-                                    checked={editForm.featured}
-                                    onChange={(e) => setEditForm(prev => ({ ...prev, featured: e.target.checked }))}
-                                    className="mr-2 w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-                                  />
-                                  Featured
-                                </label>
-                              </div>
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={saveEdit}
-                                  disabled={isUpdating}
-                                  className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50 font-medium"
-                                >
-                                  Save
-                                </button>
-                                <button
-                                  onClick={cancelEdit}
-                                  className="bg-gray-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-600 font-medium"
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <>
-                              <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-gray-900 font-semibold truncate">{item.title}</h3>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs text-green-600 bg-green-100 px-3 py-1 rounded-full font-medium">
-                                    Featured
-                                  </span>
-                                  <span className={`text-xs px-3 py-1 rounded-full font-medium ${
-                                    item.status === 'PUBLISHED' ? 'text-blue-600 bg-blue-100' :
-                                    item.status === 'DRAFT' ? 'text-yellow-600 bg-yellow-100' :
-                                    'text-gray-600 bg-gray-100'
-                                  }`}>
-                                    {item.status || 'DRAFT'}
-                                  </span>
-                                </div>
-                              </div>
-                              <p className="text-gray-600 text-sm mb-4 line-clamp-2">{item.description}</p>
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-                                  {item.contentType}
-                                </span>
-                                <div className="flex gap-2">
-                                  <button
-                                    onClick={() => startEditing(item)}
-                                    className="text-blue-600 hover:text-blue-700 text-xs font-medium"
-                                  >
-                                    Edit
-                                  </button>
-                                  <button
-                                    onClick={() => setSelectedContentId(item.id)}
-                                    className="text-green-600 hover:text-green-700 text-xs font-medium"
-                                  >
-                                    Blocks
-                                  </button>
-                                  <button
-                                    onClick={() => !isUpdating && toggleFeatured(item.id, true)}
-                                    disabled={isUpdating}
-                                    className="text-red-600 hover:text-red-700 text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                                  >
-                                    Remove
-                                  </button>
-                                </div>
-                              </div>
-                            </>
-                          )}
-                        </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                      {filteredContent.filter(item => item.featured).map((item) => (
+                        <ContentCard
+                          key={item.id}
+                          content={{
+                            id: item.id,
+                            title: item.title,
+                            description: item.description,
+                            contentType: item.contentType,
+                            status: item.status,
+                            featured: item.featured,
+                            publishedDate: item.publishedDate,
+                            createdAt: item.createdAt
+                          }}
+                          isEditing={editingId === item.id}
+                          editForm={editForm}
+                          onEditFormChange={(field, value) => setEditForm(prev => ({ ...prev, [field]: value }))}
+                          onStartEditing={() => startEditing(item)}
+                          onSaveEdit={saveEdit}
+                          onCancelEdit={() => setEditingId(null)}
+                          onToggleFeatured={() => !isUpdating && toggleFeatured(item.id, true)}
+                          onOpenBlocks={() => setSelectedContentId(item.id)}
+                          isUpdating={isUpdating}
+                          searchQuery={searchQuery}
+                        />
                       ))}
                     </div>
+                    {filteredContent.filter(item => item.featured).length === 0 && (
+                      <EmptyState
+                        title="No Featured Content Yet"
+                        description="Start by creating content and marking it as featured to showcase your best work."
+                        icon={
+                          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                          </svg>
+                        }
+                        actionText="+ Create Content"
+                        onAction={() => setShowAddForm(true)}
+                      />
+                    )}
                   </div>
 
                   {/* Non-Featured Content Section */}
                   <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-200">
                     <div className="flex items-center justify-between mb-8">
-                      <h2 className="text-2xl font-bold text-gray-900">All Content</h2>
-                      <span className="bg-gray-100 text-gray-800 px-4 py-2 rounded-full font-medium text-sm">
-                        {nonFeaturedContent.length} posts
+                      <div className="flex items-center gap-3">
+                        <div className="w-1 h-8 bg-gray-800 rounded-full"></div>
+                        <h2 className="text-2xl font-bold text-gray-900">All Content</h2>
+                      </div>
+                      <span className="text-sm text-gray-500 font-medium">
+                        {filteredContent.filter(item => !item.featured).length} posts
                       </span>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {nonFeaturedContent.map((item) => (
-                        <div key={item.id} className="bg-gray-50 border border-gray-200 rounded-xl p-6 hover:shadow-md transition-all duration-200">
-                          {editingId === item.id ? (
-                            <div className="space-y-4">
-                              <input
-                                type="text"
-                                value={editForm.title}
-                                onChange={(e) => setEditForm(prev => ({ ...prev, title: e.target.value }))}
-                                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-500 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                                placeholder="Title"
-                              />
-                              <textarea
-                                value={editForm.description}
-                                onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
-                                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm h-20 text-gray-900 placeholder-gray-500 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 resize-none"
-                                placeholder="Description"
-                              />
-                              <select
-                                value={editForm.status}
-                                onChange={(e) => setEditForm(prev => ({ ...prev, status: e.target.value }))}
-                                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                              >
-                                <option value="DRAFT">Draft</option>
-                                <option value="PUBLISHED">Published</option>
-                                <option value="ARCHIVED">Archived</option>
-                              </select>
-                              <div className="flex items-center gap-2">
-                                <label className="flex items-center text-xs">
-                                  <label className="flex items-center text-xs">
-                                    <input
-                                      type="checkbox"
-                                      checked={editForm.featured}
-                                      onChange={(e) => setEditForm(prev => ({ ...prev, featured: e.target.checked }))}
-                                      className="mr-2 w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-                                    />
-                                    Featured
-                                  </label>
-                                </label>
-                              </div>
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={saveEdit}
-                                  disabled={isUpdating}
-                                  className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50 font-medium"
-                                >
-                                  Save
-                                </button>
-                                <button
-                                  onClick={cancelEdit}
-                                  className="bg-gray-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-600 font-medium"
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <>
-                              <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-gray-900 font-semibold truncate">{item.title}</h3>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-                                    {item.contentType}
-                                  </span>
-                                  <span className={`text-xs px-3 py-1 rounded-full font-medium ${
-                                    item.status === 'PUBLISHED' ? 'text-blue-600 bg-blue-100' :
-                                    item.status === 'DRAFT' ? 'text-yellow-600 bg-yellow-100' :
-                                    'text-gray-600 bg-gray-100'
-                                  }`}>
-                                    {item.status || 'DRAFT'}
-                                  </span>
-                                </div>
-                              </div>
-                              <p className="text-gray-600 text-sm mb-4 line-clamp-2">{item.description}</p>
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs text-gray-500">
-                                  {new Date(item.publishedDate).toLocaleDateString()}
-                                </span>
-                                <div className="flex gap-2">
-                                  <button
-                                    onClick={() => startEditing(item)}
-                                    className="text-blue-600 hover:text-blue-700 text-xs font-medium"
-                                  >
-                                    Edit
-                                  </button>
-                                  <button
-                                    onClick={() => setSelectedContentId(item.id)}
-                                    className="text-green-600 hover:text-green-700 text-xs font-medium"
-                                  >
-                                    Blocks
-                                  </button>
-                                  <button
-                                    onClick={() => !isUpdating && toggleFeatured(item.id, false)}
-                                    disabled={isUpdating}
-                                    className="text-blue-600 hover:text-blue-700 text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                                  >
-                                    Feature
-                                  </button>
-                                </div>
-                              </div>
-                            </>
-                          )}
-                        </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                      {filteredContent.filter(item => !item.featured).map((item) => (
+                        <ContentCard
+                          key={item.id}
+                          content={{
+                            id: item.id,
+                            title: item.title,
+                            description: item.description,
+                            contentType: item.contentType,
+                            status: item.status,
+                            featured: item.featured,
+                            publishedDate: item.publishedDate,
+                            createdAt: item.createdAt
+                          }}
+                          isEditing={editingId === item.id}
+                          editForm={editForm}
+                          onEditFormChange={(field, value) => setEditForm(prev => ({ ...prev, [field]: value }))}
+                          onStartEditing={() => startEditing(item)}
+                          onSaveEdit={saveEdit}
+                          onCancelEdit={() => setEditingId(null)}
+                          onToggleFeatured={() => !isUpdating && toggleFeatured(item.id, false)}
+                          onOpenBlocks={() => setSelectedContentId(item.id)}
+                          isUpdating={isUpdating}
+                          searchQuery={searchQuery}
+                        />
                       ))}
                     </div>
+                    {filteredContent.filter(item => !item.featured).length === 0 && (
+                      <EmptyState
+                        title="No Content Yet"
+                        description="Create your first piece of content to get started with your portfolio."
+                        icon={
+                          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                        }
+                        actionText="+ Create Content"
+                        onAction={() => setShowAddForm(true)}
+                      />
+                    )}
                   </div>
                 </div>
               )}
             </>
+              )}
+            </>
           )}
-        </>
-      )}
     </div>
   );
 }

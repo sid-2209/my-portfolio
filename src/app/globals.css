@@ -83,3 +83,182 @@ body::before {
   font-weight: normal;
   letter-spacing: 0.02em;
 }
+
+/* ContentEditable placeholder styling */
+[contenteditable]:empty:before {
+  content: attr(data-placeholder);
+  color: #6b7280;
+  font-style: italic;
+  pointer-events: none;
+  position: absolute;
+  top: 0.75rem; /* 12px */
+  left: 0.75rem; /* 12px */
+}
+
+[contenteditable]:focus:empty:before {
+  color: #9ca3af;
+}
+
+/* Ensure contentEditable has relative positioning for placeholder */
+[contenteditable] {
+  position: relative;
+}
+
+/* Rich Text Editor embedded components styling */
+.inline-link {
+  color: inherit !important;
+  text-decoration: underline !important;
+  cursor: pointer !important;
+  font-weight: bold !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  background-color: transparent !important;
+  transition: all 0.2s ease !important;
+}
+
+.inline-link:hover {
+  color: inherit !important;
+  background-color: transparent !important;
+  text-decoration: underline !important;
+}
+
+.inline-code {
+  background-color: #f3f4f6 !important;
+  color: #1f2937 !important;
+  padding: 4px 8px !important;
+  border-radius: 6px !important;
+  font-family: 'Courier New', monospace !important;
+  font-size: 0.875rem !important;
+  border: 1px solid #e5e7eb !important;
+  display: inline-block !important;
+  margin: 0 2px !important;
+  transition: all 0.2s ease !important;
+}
+
+.inline-quote {
+  border-left: 4px solid #3b82f6 !important;
+  padding: 12px 16px !important;
+  margin: 8px 0 !important;
+  font-style: italic !important;
+  color: #374151 !important;
+  background-color: #f9fafb !important;
+  border-radius: 4px !important;
+}
+
+.inline-quote cite {
+  display: block !important;
+  margin-top: 8px !important;
+  font-size: 0.875rem !important;
+  color: #6b7280 !important;
+  font-style: normal !important;
+}
+
+/* Dark theme for code blocks */
+.inline-code.dark-theme {
+  background-color: #1f2937 !important;
+  color: #f9fafb !important;
+  border: 1px solid #374151 !important;
+}
+
+/* Rich text editor placeholder styling */
+.rich-text-editor[data-placeholder]:empty:before {
+  content: attr(data-placeholder);
+  color: #9ca3af;
+  font-style: italic;
+  pointer-events: none;
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  z-index: 1;
+}
+
+.rich-text-editor[data-placeholder]:focus:before,
+.rich-text-editor[data-placeholder]:not(:empty):before {
+  display: none;
+}
+
+/* Hide placeholder when showPlaceholder is false */
+.rich-text-editor.no-placeholder:before {
+  display: none !important;
+}
+
+/* Alternative placeholder approach for contentEditable */
+.rich-text-editor[data-placeholder]:empty:not(:focus):before {
+  content: attr(data-placeholder);
+  color: #9ca3af;
+  font-style: italic;
+  pointer-events: none;
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  z-index: 1;
+}
+
+/* Rich text editor content styling */
+[contenteditable] strong {
+  font-weight: bold !important;
+}
+
+[contenteditable] em {
+  font-style: italic !important;
+}
+
+[contenteditable] u {
+  text-decoration: underline !important;
+}
+
+[contenteditable] s {
+  text-decoration: line-through !important;
+}
+
+[contenteditable] h1 {
+  font-size: 2rem !important;
+  font-weight: bold !important;
+  margin: 1rem 0 !important;
+}
+
+[contenteditable] h2 {
+  font-size: 1.5rem !important;
+  font-weight: bold !important;
+  margin: 0.875rem 0 !important;
+}
+
+[contenteditable] h3 {
+  font-size: 1.25rem !important;
+  font-weight: bold !important;
+  margin: 0.75rem 0 !important;
+}
+
+[contenteditable] h4 {
+  font-size: 1.125rem !important;
+  font-weight: bold !important;
+  margin: 0.625rem 0 !important;
+}
+
+[contenteditable] ul, [contenteditable] ol {
+  margin: 0.5rem 0 !important;
+  padding-left: 1.5rem !important;
+  display: block !important;
+}
+
+[contenteditable] ul {
+  list-style-type: disc !important;
+}
+
+[contenteditable] ol {
+  list-style-type: decimal !important;
+}
+
+[contenteditable] li {
+  margin: 0.25rem 0 !important;
+  display: list-item !important;
+  line-height: 1.5 !important;
+  color: #374151 !important;
+}
+
+/* Ensure list markers are visible */
+[contenteditable] ul li::marker,
+[contenteditable] ol li::marker {
+  color: #374151 !important;
+  font-weight: 500 !important;
+}
