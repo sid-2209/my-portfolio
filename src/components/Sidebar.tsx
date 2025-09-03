@@ -44,12 +44,12 @@ export default function Sidebar({ isCollapsed, onToggle, onItemClick }: SidebarP
             </a>
             
             <a 
-              href="#blog" 
+              href="#notes" 
               className="relative flex items-center space-x-4 text-white/90 hover:text-white transition-all duration-300 hover:scale-105 group/item"
               onClick={() => onItemClick('blog')}
             >
               <BlogIcon size={18} className="text-white/80 group-hover/item:text-white transition-colors duration-300 flex-shrink-0" />
-              <span className={`absolute left-10 font-medium transition-all duration-1200 ease-out michroma ${isCollapsed ? 'opacity-0 translate-x-4 pointer-events-none' : 'opacity-100 translate-x-0'}`}>Blog</span>
+              <span className={`absolute left-10 font-medium transition-all duration-1200 ease-out michroma ${isCollapsed ? 'opacity-0 translate-x-4 pointer-events-none' : 'opacity-100 translate-x-0'}`}>Notes</span>
             </a>
           </div>
         </div>

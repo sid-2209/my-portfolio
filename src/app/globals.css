@@ -13,6 +13,7 @@
   --background: #ffffff;
   --foreground: #171717;
   --font-michroma: 'Michroma', serif;
+  --homepage-bg-image: url('/images/pixeliota-nLbMbYVmeD0-unsplash (1).svg');
 }
 
 @theme inline {
@@ -46,7 +47,7 @@ body::before {
   left: 0;
   width: 100%;
   height: 100%;
-  background-image: url('/images/pixeliota-nLbMbYVmeD0-unsplash (1).svg');
+  background-image: var(--homepage-bg-image);
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;

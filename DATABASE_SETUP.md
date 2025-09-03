@@ -80,7 +80,7 @@ The system supports three content types:
 
 1. **Projects** (`project`) - Portfolio projects and applications
 2. **Case Studies** (`case_study`) - Detailed project analysis
-3. **Blog** (`blog`) - Articles and technical writing
+3. **Notes** (`blog`) - Articles and technical writing
 
 ## 🎯 Features
 

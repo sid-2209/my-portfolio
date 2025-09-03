@@ -22,10 +22,51 @@ model Content {
   category      String?
   featured      Boolean  @default(false)
   imageUrl      String?
-
+  
+  // New CMS fields
+  status        ContentStatus @default(DRAFT)
+  contentBlocks ContentBlock[]
+  slug          String?       @unique // URL-friendly version of title
+  
   @@index([contentType])
   @@index([publishedDate])
   @@index([tags])
   @@index([featured])
   @@index([category])
+  @@index([status])
+  @@index([slug])
+}
+
+model ContentBlock {
+  id        String   @id @default(cuid())
+  contentId String
+  content   Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  
+  blockType BlockType
+  order     Int
+  data      Json     // Flexible data storage for block content
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([contentId, order])
+  @@index([contentId])
+  @@index([blockType])
+}
+
+enum BlockType {
+  PARAGRAPH
+  HEADING
+  IMAGE
+  CODE_BLOCK
+  QUOTE
+  LIST
+  DIVIDER
+  CUSTOM
+}
+
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
 }

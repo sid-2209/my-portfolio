@@ -23,6 +23,11 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
+    // Generate slug from title if not provided
+    const slug = body.slug || body.title.toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
+    
     const newContent = await prisma.content.create({
       data: {
         title: body.title,
@@ -34,7 +39,20 @@ export async function POST(request: NextRequest) {
         tags: body.tags,
         featured: body.featured || false,
         author: body.author || 'Sid',
+        status: body.status || 'DRAFT',
+        slug: slug,
+        // Create initial content blocks if provided
+        contentBlocks: body.contentBlocks ? {
+          create: body.contentBlocks.map((block: { blockType: string; data: unknown }, index: number) => ({
+            blockType: block.blockType,
+            order: index,
+            data: block.data
+          }))
+        } : undefined
       },
+      include: {
+        contentBlocks: true
+      }
     });
     
     return NextResponse.json(newContent, { status: 201 });

@@ -1,0 +1,536 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { ContentBlock } from '@prisma/client';
+import BlockTypeIcon from './BlockTypeIcon';
+import RichTextEditor from './RichTextEditor';
+import SplitViewEditor from './SplitViewEditor';
+import CodeBlockEditor from './CodeBlockEditor';
+
+// Type-safe interfaces for block data
+interface ParagraphData {
+  text: string;
+}
+
+interface HeadingData {
+  text: string;
+  level: number;
+}
+
+interface ImageData {
+  src: string;
+  alt: string;
+  caption?: string;
+}
+
+interface CodeBlockData {
+  code: string;
+  language: string;
+}
+
+interface QuoteData {
+  text: string;
+  author?: string;
+  source?: string;
+}
+
+interface ListData {
+  type: 'unordered' | 'ordered';
+  items: string[];
+}
+
+interface DividerData {
+  style: 'solid' | 'dashed' | 'dotted' | 'double';
+  color: string;
+}
+
+interface CustomData {
+  html: string;
+}
+
+// Union type for all possible block data
+type BlockData = 
+  | ParagraphData 
+  | HeadingData 
+  | ImageData 
+  | CodeBlockData 
+  | QuoteData 
+  | ListData 
+  | DividerData 
+  | CustomData;
+
+interface BlockEditorProps {
+  block: ContentBlock;
+  onUpdate: (data: BlockData) => void;
+  onDelete?: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  isFirst?: boolean;
+  isLast?: boolean;
+}
+
+export default function BlockEditor({
+  block,
+  onUpdate,
+  onDelete,
+  onMoveUp,
+  onMoveDown,
+  isFirst,
+  isLast
+}: BlockEditorProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editData, setEditData] = useState<BlockData>(block.data as unknown as BlockData);
+  const [editorMode, setEditorMode] = useState<'rich' | 'markdown' | 'code'>('rich');
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    setEditData(block.data as unknown as BlockData);
+  }, [block.data]);
+
+  const handleSave = () => {
+    onUpdate(editData);
+    setIsEditing(false);
+  };
+
+  const handleCancel = () => {
+    setEditData(block.data as unknown as BlockData);
+    setIsEditing(false);
+  };
+
+  // Get the appropriate editor mode for each block type
+  const getEditorMode = () => {
+    switch (block.blockType) {
+      case 'CODE_BLOCK':
+        return 'code';
+      case 'PARAGRAPH':
+      case 'HEADING':
+        return 'rich';
+      default:
+        return 'rich';
+    }
+  };
+
+  // Render the appropriate advanced editor based on block type and user preference
+  const renderAdvancedEditor = () => {
+    const mode = getEditorMode();
+    
+    switch (mode) {
+      case 'code':
+        const codeData = editData as CodeBlockData;
+        return (
+          <CodeBlockEditor
+            code={codeData.code || ''}
+            language={codeData.language || 'javascript'}
+            onChange={(code, language) => setEditData({ ...codeData, code, language })}
+            className="w-full"
+          />
+        );
+      
+      default:
+        // For PARAGRAPH and HEADING blocks, check if user wants markdown mode
+        if (block.blockType === 'PARAGRAPH' && editorMode === 'markdown') {
+          const paragraphData = editData as ParagraphData;
+          return (
+            <SplitViewEditor
+              content={paragraphData.text || ''}
+              onChange={(content) => setEditData({ ...paragraphData, text: content })}
+              placeholder="Start writing in markdown..."
+              className="w-full"
+            />
+          );
+        }
+        
+        if (block.blockType === 'HEADING') {
+          const headingData = editData as HeadingData;
+          return (
+            <RichTextEditor
+              content={headingData.text || ''}
+              onChange={(content) => setEditData({ ...headingData, text: content })}
+              placeholder="Start writing..."
+              className="w-full"
+            />
+          );
+        }
+        
+        if (block.blockType === 'PARAGRAPH') {
+          const paragraphData = editData as ParagraphData;
+          return (
+            <RichTextEditor
+              content={paragraphData.text || ''}
+              onChange={(content) => setEditData({ ...paragraphData, text: content })}
+              placeholder="Start writing..."
+              className="w-full"
+            />
+          );
+        }
+        
+        return null;
+    }
+  };
+
+  // Render basic form for non-text blocks
+  const renderBasicForm = () => {
+    switch (block.blockType) {
+      case 'IMAGE':
+        const imageData = editData as ImageData;
+        return (
+          <div className="space-y-3">
+            <input
+              type="text"
+              value={imageData.src || ''}
+              onChange={(e) => setEditData({ ...imageData, src: e.target.value })}
+              className="w-full p-4 bg-white border-2 border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-white transition-all duration-200 text-base"
+              placeholder="Image URL..."
+            />
+            <input
+              type="text"
+              value={imageData.alt || ''}
+              onChange={(e) => setEditData({ ...imageData, alt: e.target.value })}
+              className="w-full p-4 bg-white border-2 border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-white transition-all duration-200 text-base"
+              placeholder="Alt text..."
+            />
+            <input
+              type="text"
+              value={imageData.caption || ''}
+              onChange={(e) => setEditData({ ...imageData, caption: e.target.value })}
+              className="w-full p-4 bg-white border-2 border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-white transition-all duration-200 text-base"
+              placeholder="Caption (optional)..."
+            />
+          </div>
+        );
+
+      case 'QUOTE':
+        const quoteData = editData as QuoteData;
+        return (
+          <div className="space-y-3">
+            <textarea
+              value={quoteData.text || ''}
+              onChange={(e) => setEditData({ ...quoteData, text: e.target.value })}
+              className="w-full p-4 bg-white border-2 border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 resize-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-white transition-all duration-200 text-base leading-relaxed"
+              rows={4}
+              placeholder="Enter quote text..."
+            />
+            <input
+              type="text"
+              value={quoteData.author || ''}
+              onChange={(e) => setEditData({ ...quoteData, author: e.target.value })}
+              className="w-full p-4 bg-white border-2 border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-white transition-all duration-200 text-base"
+              placeholder="Author name..."
+            />
+            <input
+              type="text"
+              value={quoteData.source || ''}
+              onChange={(e) => setEditData({ ...quoteData, source: e.target.value })}
+              className="w-full p-4 bg-white border-2 border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-white transition-all duration-200 text-base"
+              placeholder="Source (optional)..."
+            />
+          </div>
+        );
+
+      case 'LIST':
+        const listData = editData as ListData;
+        return (
+          <div className="space-y-3">
+            <select
+              value={listData.type || 'unordered'}
+              onChange={(e) => setEditData({ ...listData, type: e.target.value as 'unordered' | 'ordered' })}
+              className="w-full p-4 bg-white border-2 border-gray-300 rounded-lg text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-white transition-all duration-200 text-base"
+            >
+              <option value="unordered">Unordered List</option>
+              <option value="ordered">Ordered List</option>
+            </select>
+            <div className="space-y-2">
+              {(listData.items || []).map((item: string, index: number) => (
+                <div key={index} className="flex gap-2">
+                  <input
+                    type="text"
+                    value={item}
+                    onChange={(e) => {
+                      const newItems = [...(listData.items || [])];
+                      newItems[index] = e.target.value;
+                      setEditData({ ...listData, items: newItems });
+                    }}
+                    className="flex-1 p-3 bg-white border-2 border-gray-300 rounded text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-white transition-all duration-200 text-base"
+                    placeholder={`List item ${index + 1}...`}
+                  />
+                  <button
+                    onClick={() => {
+                      const newItems = (listData.items || []).filter((_: string, i: number) => i !== index);
+                      setEditData({ ...listData, items: newItems });
+                    }}
+                    className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition-colors duration-200"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+              <button
+                onClick={() => {
+                  const newItems = [...(listData.items || []), ''];
+                  setEditData({ ...listData, items: newItems });
+                }}
+                className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors duration-200 font-medium"
+              >
+                + Add Item
+              </button>
+            </div>
+          </div>
+        );
+
+      case 'DIVIDER':
+        const dividerData = editData as DividerData;
+        return (
+          <div className="space-y-3">
+            <select
+              value={dividerData.style || 'solid'}
+              onChange={(e) => setEditData({ ...dividerData, style: e.target.value as 'solid' | 'dashed' | 'dotted' | 'double' })}
+              className="w-full p-4 bg-white border-2 border-gray-300 rounded-lg text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-white transition-all duration-200 text-base"
+            >
+              <option value="solid">Solid Line</option>
+              <option value="dashed">Dashed Line</option>
+              <option value="dotted">Dotted Line</option>
+              <option value="double">Double Line</option>
+            </select>
+            <input
+              type="color"
+              value={dividerData.color || '#000000'}
+              onChange={(e) => setEditData({ ...dividerData, color: e.target.value })}
+              className="w-full p-2 bg-white border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-white transition-all duration-200"
+            />
+          </div>
+        );
+
+      case 'CUSTOM':
+        const customData = editData as CustomData;
+        return (
+          <div className="space-y-3">
+            <textarea
+              value={customData.html || ''}
+              onChange={(e) => setEditData({ ...customData, html: e.target.value })}
+              className="w-full p-4 bg-white border-2 border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 font-mono resize-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-white transition-all duration-200 text-base leading-relaxed"
+              rows={6}
+              placeholder="Enter custom HTML..."
+            />
+            <div className="text-sm text-gray-600">
+              <p>⚠️ Warning: Custom HTML can include scripts and may pose security risks.</p>
+            </div>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  if (!mounted) {
+    return (
+      <div className="animate-pulse">
+        <div className="h-32 bg-gray-200 rounded-lg"></div>
+      </div>
+    );
+  }
+
+  if (!isEditing) {
+    return (
+      <div className="group relative bg-white border-2 border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-all duration-200">
+        {/* Block Header */}
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center space-x-2">
+            <BlockTypeIcon blockType={block.blockType} />
+            <span className="text-sm font-medium text-gray-700 capitalize">
+              {block.blockType.replace('_', ' ').toLowerCase()}
+            </span>
+          </div>
+          
+          {/* Action Buttons */}
+          <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            <button
+              onClick={() => setIsEditing(true)}
+              className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200"
+              title="Edit block"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+            </button>
+            
+            {onDelete && (
+              <button
+                onClick={onDelete}
+                className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
+                title="Delete block"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Block Content Preview */}
+        <div className="block-content-preview">
+          {block.blockType === 'PARAGRAPH' && (
+            <p className="text-gray-700 leading-relaxed">{(editData as ParagraphData).text || `Empty paragraph...`}</p>
+          )}
+          
+          {block.blockType === 'HEADING' && (
+            <div className={`font-semibold text-gray-900 ${(editData as HeadingData).level === 1 ? 'text-3xl' : (editData as HeadingData).level === 2 ? 'text-2xl' : (editData as HeadingData).level === 3 ? 'text-xl' : 'text-lg'}`}>
+               {(editData as HeadingData).text || `Empty heading...`}
+             </div>
+          )}
+          
+          {block.blockType === 'IMAGE' && (
+            <div className="text-center py-4">
+              {(editData as ImageData).src ? (
+                <img src={(editData as ImageData).src} alt={(editData as ImageData).alt || ''} className="max-w-full h-auto rounded-lg" />
+              ) : (
+                <div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
+                  📷 No image
+                </div>
+              )}
+              {(editData as ImageData).caption && <p className="text-sm text-gray-600 mt-2">{(editData as ImageData).caption}</p>}
+            </div>
+          )}
+          
+          {block.blockType === 'CODE_BLOCK' && (
+            <div className="bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-sm overflow-x-auto">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-gray-400">{(editData as CodeBlockData).language || 'javascript'}</span>
+                <button className="text-gray-400 hover:text-white transition-colors">
+                  📋 Copy
+                </button>
+              </div>
+              <pre>{(editData as CodeBlockData).code || `// No code yet...`}</pre>
+            </div>
+          )}
+          
+          {block.blockType === 'QUOTE' && (
+            <blockquote className="border-l-4 border-blue-500 pl-4 py-2 italic text-gray-700">
+               &ldquo;{(editData as QuoteData).text || `Empty quote...`}&rdquo;
+               {(editData as QuoteData).author && (
+                 <footer className="text-sm text-gray-500 mt-2">— {(editData as QuoteData).author}</footer>
+               )}
+             </blockquote>
+          )}
+          
+          {block.blockType === 'LIST' && (
+            <div className={(editData as ListData).type === 'ordered' ? 'list-decimal' : 'list-disc'}>
+               {((editData as ListData).items || []).map((item: string, index: number) => (
+                 <li key={index} className="text-gray-700">{item || `Item ${index + 1}...`}</li>
+               ))}
+             </div>
+          )}
+          
+          {block.blockType === 'DIVIDER' && (
+            <hr className={`border-t-2 ${(editData as DividerData).style === 'dashed' ? 'border-dashed' : (editData as DividerData).style === 'dotted' ? 'border-dotted' : (editData as DividerData).style === 'double' ? 'border-double' : 'border-solid'}`} style={{ borderColor: (editData as DividerData).color || '#000000' }} />
+          )}
+          
+          {block.blockType === 'CUSTOM' && (
+            <div className="bg-gray-50 p-3 rounded-lg">
+              <div className="text-sm text-gray-600 mb-2">Custom HTML Block</div>
+              <div className="bg-white p-2 rounded border text-xs text-gray-500 font-mono overflow-x-auto">
+                 {(editData as CustomData).html || `No HTML content...`}
+               </div>
+             </div>
+          )}
+        </div>
+
+        {/* Move Controls */}
+        <div className="flex items-center justify-center space-x-2 mt-3 pt-3 border-t border-gray-100 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+          {onMoveUp && !isFirst && (
+            <button
+              onClick={onMoveUp}
+              className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors duration-200"
+              title="Move up"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+              </svg>
+            </button>
+          )}
+          
+          {onMoveDown && !isLast && (
+            <button
+              onClick={onMoveDown}
+              className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors duration-200"
+              title="Move down"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white border-2 border-blue-500 rounded-lg p-6 shadow-lg">
+      {/* Editor Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center space-x-3">
+          <BlockTypeIcon blockType={block.blockType} />
+          <h3 className="text-lg font-semibold text-gray-900 capitalize">
+            Edit {block.blockType.replace('_', ' ').toLowerCase()}
+          </h3>
+        </div>
+        
+        {/* Editor Mode Toggle for text blocks */}
+        {(block.blockType === 'PARAGRAPH' || block.blockType === 'HEADING') && (
+          <div className="flex items-center space-x-2 bg-gray-100 rounded-lg p-1">
+            <button
+              onClick={() => setEditorMode('rich')}
+              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                editorMode === 'rich' 
+                  ? 'bg-white text-blue-600 shadow-sm' 
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Rich Text
+            </button>
+                             <button
+                   onClick={() => setEditorMode('markdown')}
+                   className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                     editorMode === 'markdown' 
+                       ? 'bg-white text-blue-600 shadow-sm' 
+                       : 'text-gray-600 hover:text-gray-900'
+                   }`}
+                 >
+                   Markdown
+                 </button>
+          </div>
+        )}
+      </div>
+
+      {/* Editor Content */}
+      <div className="mb-6">
+        {(block.blockType === 'PARAGRAPH' || block.blockType === 'HEADING' || block.blockType === 'CODE_BLOCK') 
+          ? renderAdvancedEditor() 
+          : renderBasicForm()
+        }
+      </div>
+
+      {/* Editor Actions */}
+      <div className="flex items-center justify-end space-x-3 pt-4 border-t border-gray-200">
+        <button
+          onClick={handleCancel}
+          className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-200 font-medium"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleSave}
+          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium shadow-sm hover:shadow-md"
+        >
+          Save Changes
+        </button>
+      </div>
+    </div>
+  );
+}
