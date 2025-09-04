@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import BlockEditor from "./BlockEditor";
-import { BlockType, Prisma } from "@prisma/client";
+import EnhancedBlockEditor from "./EnhancedBlockEditor";
+import { BlockType } from "@prisma/client";
 
 // Import the same interfaces used in BlockEditor for consistency
 interface ParagraphData {
@@ -12,6 +12,7 @@ interface ParagraphData {
 interface HeadingData {
   text: string;
   level: number;
+  anchor?: string;
 }
 
 interface ImageData {
@@ -269,40 +270,7 @@ export default function BlockBuilder({ contentId, initialBlocks, onBlocksChange 
           </div>
         ) : (
           blocks.map((block, index) => (
-            <div key={block.id} className="relative">
-              {/* Block Controls */}
-              <div className="absolute -top-3 -right-3 z-10 flex items-center space-x-2">
-                <button
-                  onClick={() => moveBlock(block.id, 'up')}
-                  disabled={index === 0}
-                  className="w-8 h-8 bg-white border border-gray-200 rounded-lg flex items-center justify-center text-gray-600 hover:text-blue-600 hover:border-blue-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm"
-                  title="Move up"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                  </svg>
-                </button>
-                <button
-                  onClick={() => moveBlock(block.id, 'down')}
-                  disabled={index === blocks.length - 1}
-                  className="w-8 h-8 bg-white border border-gray-200 rounded-lg flex items-center justify-center text-gray-600 hover:text-blue-600 hover:border-blue-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm"
-                  title="Move down"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-                <button
-                  onClick={() => deleteBlock(block.id)}
-                  className="w-8 h-8 bg-white border border-gray-200 rounded-lg flex items-center justify-center text-gray-600 hover:text-red-600 hover:border-red-300 transition-all duration-200 shadow-sm"
-                  title="Delete block"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
-              </div>
-
+                        <div key={block.id} className="relative">
               {/* Block Number Badge */}
               <div className="absolute -top-3 -left-3 z-10">
                 <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-medium shadow-sm">
@@ -311,12 +279,17 @@ export default function BlockBuilder({ contentId, initialBlocks, onBlocksChange 
               </div>
 
               {/* Block Content */}
-              <BlockEditor
+              <EnhancedBlockEditor
                 block={{
                   ...block,
-                  data: block.data as unknown as Prisma.JsonValue
+                  data: block.data as unknown as BlockData
                 }}
                 onUpdate={(data) => updateBlock(block.id, data)}
+                onDelete={() => deleteBlock(block.id)}
+                onMoveUp={() => moveBlock(block.id, 'up')}
+                onMoveDown={() => moveBlock(block.id, 'down')}
+                isFirst={index === 0}
+                isLast={index === blocks.length - 1}
               />
             </div>
           ))

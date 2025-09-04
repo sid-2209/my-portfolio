@@ -194,6 +194,22 @@ body::before {
   z-index: 1;
 }
 
+/* Heading editor placeholder styling */
+.heading-editor[data-placeholder]:empty:not(:focus):before {
+  content: attr(data-placeholder);
+  color: #9ca3af;
+  font-style: italic;
+  pointer-events: none;
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  z-index: 1;
+}
+
+.heading-editor.no-placeholder:before {
+  display: none !important;
+}
+
 /* Rich text editor content styling */
 [contenteditable] strong {
   font-weight: bold !important;

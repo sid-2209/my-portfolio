@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import RichTextEditor from "./RichTextEditor";
+import HeadingEditor from "./HeadingEditor";
 import SplitViewEditor from "./SplitViewEditor";
 import CodeBlockEditor from "./CodeBlockEditor";
 
@@ -13,6 +14,7 @@ interface ParagraphData {
 interface HeadingData {
   text: string;
   level: number;
+  anchor?: string;
 }
 
 interface ImageData {
@@ -155,11 +157,14 @@ export default function EnhancedBlockEditor({
         if (block.blockType === 'HEADING') {
           const headingData = editData as HeadingData;
           return (
-            <RichTextEditor
+            <HeadingEditor
               content={headingData.text || ''}
-              onChange={(content) => setEditData({ ...headingData, text: content })}
-              placeholder="Start writing..."
+              level={headingData.level || 2}
+              anchor={headingData.anchor || ''}
+              onChange={(data) => setEditData({ ...headingData, ...data })}
+              placeholder="Enter your heading text here..."
               className="w-full"
+              isEditing={isEditing}
             />
           );
         }
