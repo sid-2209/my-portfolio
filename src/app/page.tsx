@@ -159,7 +159,6 @@ export default function Home() {
         onContentClick={handleContentClick}
         isLoading={sectionsLoading.notes}
       />
-      <MinimalistDivider />
     </div>
   );
 }
