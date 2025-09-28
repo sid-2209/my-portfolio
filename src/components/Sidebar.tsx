@@ -8,9 +8,11 @@ interface SidebarProps {
   isCollapsed: boolean;
   onToggle: () => void;
   onItemClick: (type: 'project' | 'case_study' | 'blog') => void;
+  currentPath?: string;
 }
 
-export default function Sidebar({ isCollapsed, onToggle, onItemClick }: SidebarProps) {
+export default function Sidebar({ isCollapsed, onToggle, onItemClick, currentPath }: SidebarProps) {
+  const isActive = (path: string) => currentPath === path;
   return (
     <div className={`fixed left-8 top-1/2 transform -translate-y-1/2 z-40 transition-all duration-1200 ease-out ${isCollapsed ? 'w-20' : 'w-48'}`}>
       <GlassmorphismContainer variant="sidebar" className="px-6 py-8 transition-all duration-1200 ease-out group h-64 relative">
@@ -25,31 +27,40 @@ export default function Sidebar({ isCollapsed, onToggle, onItemClick }: SidebarP
         
         <div className="flex flex-col justify-center h-full">
           <div className="space-y-12">
-            <a 
-              href="#projects" 
-              className="relative flex items-center space-x-4 text-white/90 hover:text-white transition-all duration-300 hover:scale-105 group/item"
-              onClick={() => onItemClick('project')}
+            <a
+              href="/projects"
+              className={`relative flex items-center space-x-4 text-white/90 hover:text-white transition-all duration-300 hover:scale-105 group/item ${isActive('/projects') ? 'text-white' : ''}`}
+              onClick={(e) => {
+                e.preventDefault();
+                onItemClick('project');
+              }}
             >
-              <ProjectsIcon size={18} className="text-white/80 group-hover/item:text-white transition-colors duration-300 flex-shrink-0" />
-              <span className={`absolute left-10 font-medium transition-all duration-1200 ease-out michroma ${isCollapsed ? 'opacity-0 translate-x-4 pointer-events-none' : 'opacity-100 translate-x-0'}`}>Projects</span>
+              <ProjectsIcon size={18} className={`text-white/80 group-hover/item:text-white transition-colors duration-300 flex-shrink-0 ${isActive('/projects') ? 'text-white' : ''}`} />
+              <span className={`absolute left-10 font-medium transition-all duration-1200 ease-out michroma ${isCollapsed ? 'opacity-0 translate-x-4 pointer-events-none' : 'opacity-100 translate-x-0'} ${isActive('/projects') ? 'underline decoration-2 underline-offset-4' : ''}`}>Projects</span>
             </a>
             
-            <a 
-              href="#case-studies" 
-              className="relative flex items-center space-x-4 text-white/90 hover:text-white transition-all duration-300 hover:scale-105 group/item"
-              onClick={() => onItemClick('case_study')}
+            <a
+              href="/case-studies"
+              className={`relative flex items-center space-x-4 text-white/90 hover:text-white transition-all duration-300 hover:scale-105 group/item ${isActive('/case-studies') ? 'text-white' : ''}`}
+              onClick={(e) => {
+                e.preventDefault();
+                onItemClick('case_study');
+              }}
             >
-              <CaseStudiesIcon size={18} className="text-white/80 group-hover/item:text-white transition-colors duration-300 flex-shrink-0" />
-              <span className={`absolute left-10 font-medium transition-all duration-1200 ease-out michroma ${isCollapsed ? 'opacity-0 translate-x-4 pointer-events-none' : 'opacity-100 translate-x-0'}`}>Case Studies</span>
+              <CaseStudiesIcon size={18} className={`text-white/80 group-hover/item:text-white transition-colors duration-300 flex-shrink-0 ${isActive('/case-studies') ? 'text-white' : ''}`} />
+              <span className={`absolute left-10 font-medium transition-all duration-1200 ease-out michroma ${isCollapsed ? 'opacity-0 translate-x-4 pointer-events-none' : 'opacity-100 translate-x-0'} ${isActive('/case-studies') ? 'underline decoration-2 underline-offset-4' : ''}`}>Case Studies</span>
             </a>
             
-            <a 
-              href="#notes" 
-              className="relative flex items-center space-x-4 text-white/90 hover:text-white transition-all duration-300 hover:scale-105 group/item"
-              onClick={() => onItemClick('blog')}
+            <a
+              href="/notes"
+              className={`relative flex items-center space-x-4 text-white/90 hover:text-white transition-all duration-300 hover:scale-105 group/item ${isActive('/notes') ? 'text-white' : ''}`}
+              onClick={(e) => {
+                e.preventDefault();
+                onItemClick('blog');
+              }}
             >
-              <BlogIcon size={18} className="text-white/80 group-hover/item:text-white transition-colors duration-300 flex-shrink-0" />
-              <span className={`absolute left-10 font-medium transition-all duration-1200 ease-out michroma ${isCollapsed ? 'opacity-0 translate-x-4 pointer-events-none' : 'opacity-100 translate-x-0'}`}>Notes</span>
+              <BlogIcon size={18} className={`text-white/80 group-hover/item:text-white transition-colors duration-300 flex-shrink-0 ${isActive('/notes') ? 'text-white' : ''}`} />
+              <span className={`absolute left-10 font-medium transition-all duration-1200 ease-out michroma ${isCollapsed ? 'opacity-0 translate-x-4 pointer-events-none' : 'opacity-100 translate-x-0'} ${isActive('/notes') ? 'underline decoration-2 underline-offset-4' : ''}`}>Notes</span>
             </a>
           </div>
         </div>

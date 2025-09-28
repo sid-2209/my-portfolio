@@ -69,6 +69,36 @@ body.homepage::after {
   pointer-events: none;
 }
 
+/* Projects page background image - CSS-based approach */
+body.projects-page::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url('/images/norbert-kowalczyk-dFHjgp-5woo-unsplash.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* Projects page overlay for text readability */
+body.projects-page::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 20;
+  pointer-events: none;
+}
+
 
 /* Michroma font classes for headings */
 .michroma {
@@ -290,4 +320,17 @@ body.homepage::after {
 [contenteditable] ol li::marker {
   color: #374151 !important;
   font-weight: 500 !important;
+}
+
+/* Projects page text shadows for enhanced readability */
+body.projects-page .michroma {
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8), 0 1px 2px rgba(0, 0, 0, 0.9);
+}
+
+body.projects-page h1,
+body.projects-page h2,
+body.projects-page p,
+body.projects-page span,
+body.projects-page time {
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8), 0 1px 2px rgba(0, 0, 0, 0.9);
 }

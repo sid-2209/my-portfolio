@@ -18,28 +18,47 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
   const isAdminPage = pathname?.startsWith('/admin');
   const isContentPage = pathname?.startsWith('/content/');
   const isHomePage = pathname === '/';
+  const isProjectsPage = pathname === '/projects';
 
   // Ensure component is mounted before rendering
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Apply homepage class to body for CSS background/overlay
+  // Apply page-specific classes to body for CSS background/overlay
   useEffect(() => {
-    if (mounted && isHomePage) {
-      document.body.classList.add('homepage');
-    } else {
-      document.body.classList.remove('homepage');
+    if (mounted) {
+      // Remove all page classes first
+      document.body.classList.remove('homepage', 'projects-page');
+
+      // Add appropriate class based on current page
+      if (isHomePage) {
+        document.body.classList.add('homepage');
+      } else if (isProjectsPage) {
+        document.body.classList.add('projects-page');
+      }
     }
 
     // Cleanup on unmount
     return () => {
-      document.body.classList.remove('homepage');
+      document.body.classList.remove('homepage', 'projects-page');
     };
-  }, [mounted, isHomePage]);
+  }, [mounted, isHomePage, isProjectsPage]);
 
   const handleSidebarItemClick = (type: 'project' | 'case_study' | 'blog') => {
-    console.log('Sidebar item clicked:', type);
+    switch (type) {
+      case 'project':
+        window.location.href = '/projects';
+        break;
+      case 'case_study':
+        window.location.href = '/case-studies';
+        break;
+      case 'blog':
+        window.location.href = '/notes';
+        break;
+      default:
+        console.log('Sidebar item clicked:', type);
+    }
   };
 
   const handleSidebarToggle = () => {
@@ -72,6 +91,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
           isCollapsed={isSidebarCollapsed}
           onToggle={handleSidebarToggle}
           onItemClick={handleSidebarItemClick}
+          currentPath={pathname}
         />
 
         <div className={`${isContentPage ? '' : 'pt-32 px-8'} transition-all duration-500 ease-out`}>
