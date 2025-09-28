@@ -52,7 +52,7 @@ export default function ProjectsPage() {
   }
 
   return (
-    <div className="w-full h-full">
+    <div className="w-full min-h-full pb-24">
       <div className="w-full max-w-full md:max-w-4xl lg:max-w-[45vw] mx-auto px-4 md:px-0 pt-12">
 
         {/* Projects List */}

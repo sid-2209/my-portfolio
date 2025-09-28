@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
+import Footer from "../components/Footer";
 
 interface ClientLayoutProps {
   children: React.ReactNode;
@@ -91,9 +92,9 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
   }
 
   return (
-    <div className={`${isContentPage || isHomePage ? 'min-h-screen' : 'h-screen overflow-hidden'} relative`}>
+    <div className="min-h-screen relative flex flex-col">
       {/* All content positioned above CSS background/overlay */}
-      <div className="relative z-30">
+      <div className="relative z-30 flex flex-col min-h-screen">
         <Navbar />
 
         <Sidebar
@@ -103,9 +104,12 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
           currentPath={pathname}
         />
 
-        <div className={`${isContentPage ? '' : 'pt-32 px-8'} transition-all duration-500 ease-out`}>
+        <div className={`${isContentPage ? 'flex-1' : 'flex-1 pt-32 px-8'} transition-all duration-500 ease-out`}>
           {children}
         </div>
+
+        {/* Footer - visible on all pages */}
+        <Footer />
       </div>
     </div>
   );

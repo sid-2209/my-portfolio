@@ -174,7 +174,9 @@ export default function ContentPage() {
 
           {/* Tags Section */}
           {content.tags.length > 0 && (
-            <div className="pt-12 border-t border-white/10 mt-16">
+            <div className="pt-12 mt-16">
+              {/* Tags divider using MinimalistDivider style */}
+              <div className="w-full h-px bg-gradient-to-r from-transparent via-white/40 to-transparent mb-12" />
               <h3 className="text-white/90 text-xl font-semibold mb-6 text-center">Related Tags</h3>
               <div className="flex flex-wrap justify-center gap-3">
                 {content.tags.map((tag, index) => (
@@ -191,78 +193,6 @@ export default function ContentPage() {
         </div>
       </div>
 
-      {/* Footer - Transparent with #0d0d0d backdrop */}
-      <footer className="w-full bg-[#0d0d0d]/90 backdrop-blur-sm border-t border-white/10">
-        <div className="max-w-6xl mx-auto px-8 py-12">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* Brand Section */}
-            <div>
-              <h3 className="michroma text-white text-xl font-bold mb-4">Sid&apos;s Notes</h3>
-              <p className="text-white/70 text-sm leading-relaxed">
-                Exploring the intersection of technology, creativity, and innovation. 
-                Sharing insights on development, design, and digital experiences.
-              </p>
-            </div>
-
-            {/* Quick Links */}
-            <div>
-              <h4 className="text-white/90 text-lg font-semibold mb-4">Quick Links</h4>
-              <ul className="space-y-2">
-                <li>
-                  <Link href="/" className="text-white/70 hover:text-white transition-colors duration-300 text-sm">
-                    Home
-                  </Link>
-                </li>
-                <li>
-                  <a href="#about-me" className="text-white/70 hover:text-white transition-colors duration-300 text-sm">
-                    About Me
-                  </a>
-                </li>
-                <li>
-                  <a href="#projects" className="text-white/70 hover:text-white transition-colors duration-300 text-sm">
-                    Projects
-                  </a>
-                </li>
-                <li>
-                  <a href="#notes" className="text-white/70 hover:text-white transition-colors duration-300 text-sm">
-                    Notes
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            {/* Social & Contact */}
-            <div>
-              <h4 className="text-white/90 text-lg font-semibold mb-4">Connect</h4>
-              <div className="space-y-2">
-                <a 
-                  href="https://www.linkedin.com/in/realsiddhartha/" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-white/70 hover:text-white transition-colors duration-300 text-sm"
-                >
-                  <span>LinkedIn</span>
-                </a>
-                <a 
-                  href="https://github.com/sid-2209" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-white/70 hover:text-white transition-colors duration-300 text-sm"
-                >
-                  <span>GitHub</span>
-                </a>
-              </div>
-            </div>
-          </div>
-
-          {/* Copyright */}
-          <div className="mt-8 pt-8 border-t border-white/10 text-center">
-            <p className="text-white/50 text-sm">
-              © {new Date().getFullYear()} Sid&apos;s Notes. All rights reserved.
-            </p>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }
