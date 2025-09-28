@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from "react";
+import Link from "next/link";
 import NavigationLink from "./ui/NavigationLink";
 import SearchBar from "./ui/SearchBar";
 import GlassmorphismContainer from "./ui/GlassmorphismContainer";
@@ -19,10 +20,10 @@ export default function Navbar() {
   return (
     <>
       {/* Fixed Project Title - Top Left Corner, Vertically Centered with Navbar */}
-      <div className="fixed top-0 left-8 z-40 flex items-center h-20">
-        <h1 className="michroma text-white/90 text-2xl font-bold tracking-wide hover:text-white transition-colors duration-300">
+      <div className="fixed top-0 left-8 z-50 flex items-center h-20">
+        <Link href="/" className="michroma text-white/90 text-2xl font-bold tracking-wide hover:text-white transition-colors duration-300 cursor-pointer block">
           Sid&apos;s Notes
-        </h1>
+        </Link>
       </div>
 
       {/* Main Navigation Bar */}
