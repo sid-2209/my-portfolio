@@ -29,7 +29,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
   useEffect(() => {
     if (mounted && containerRef.current && !isAdminPage) {
       const container = containerRef.current;
-      container.style.backgroundImage = 'url(/images/pixeliota-nLbMbYVmeD0-unsplash (1).svg)';
+      container.style.backgroundImage = 'url(/images/norbert-kowalczyk-HuvxHRcOY6E-unsplash.jpg)';
       container.style.backgroundSize = 'cover';
       container.style.backgroundPosition = 'center';
       container.style.backgroundRepeat = 'no-repeat';
