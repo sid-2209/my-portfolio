@@ -58,18 +58,18 @@ export default function ContentSection({
   if (contentItems.length === 0) {
     return (
       <section className="w-full max-w-full md:max-w-4xl lg:max-w-[45vw] mx-auto px-4 md:px-0 mb-16">
-        <header className="mb-8">
-          <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">
+        <header className="mb-8 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+          <h2 className="michroma text-2xl md:text-3xl font-bold text-white">
             {title}
           </h2>
           <Link
             href={linkHref}
-            className="text-white/70 hover:text-white transition-colors duration-300 underline decoration-2 underline-offset-4"
+            className="michroma text-white/70 hover:text-white transition-colors duration-300 underline decoration-2 underline-offset-4"
           >
             {linkText}
           </Link>
         </header>
-        <div className="text-white/60 text-center py-8">
+        <div className="michroma text-white/60 text-center py-8">
           No {title.toLowerCase()} available
         </div>
       </section>
@@ -78,13 +78,13 @@ export default function ContentSection({
 
   return (
     <section className="w-full max-w-full md:max-w-4xl lg:max-w-[45vw] mx-auto px-4 md:px-0 mb-16">
-      <header className="mb-8">
-        <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">
+      <header className="mb-8 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+        <h2 className="michroma text-2xl md:text-3xl font-bold text-white">
           {title}
         </h2>
         <Link
           href={linkHref}
-          className="text-white/70 hover:text-white transition-colors duration-300 underline decoration-2 underline-offset-4"
+          className="michroma text-white/70 hover:text-white transition-colors duration-300 underline decoration-2 underline-offset-4"
         >
           {linkText}
         </Link>

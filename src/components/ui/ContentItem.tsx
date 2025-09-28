@@ -97,7 +97,7 @@ export default function ContentItem({
               />
             ) : (
               <div className="w-full h-full bg-gradient-to-br from-gray-800 via-gray-900 to-black flex items-center justify-center">
-                <div className="text-white/40 text-sm font-medium text-center">
+                <div className="michroma text-white/40 text-sm font-medium text-center">
                   {contentTypeLabel}
                 </div>
               </div>
@@ -108,15 +108,15 @@ export default function ContentItem({
 
       {/* Content Section */}
       <div className="flex-1 min-w-0">
-        <h3 className="text-xl md:text-2xl lg:text-3xl font-semibold text-white mb-4 transition-all duration-300 ease-out group-hover:underline decoration-2 underline-offset-4 line-clamp-2">
+        <h3 className="michroma text-xl md:text-2xl lg:text-3xl font-semibold text-white mb-4 transition-all duration-300 ease-out group-hover:underline decoration-2 underline-offset-4 line-clamp-2">
           {title}
         </h3>
 
-        <p className="text-base md:text-lg lg:text-xl text-white/80 leading-relaxed mb-4 line-clamp-3">
+        <p className="michroma text-sm md:text-base lg:text-lg text-white/80 leading-relaxed mb-4 line-clamp-3">
           {truncatedDescription}
         </p>
 
-        <div className="text-sm md:text-base text-white/60 flex flex-wrap items-center gap-2">
+        <div className="michroma text-xs md:text-sm text-white/60 flex flex-wrap items-center gap-2">
           <span className="font-medium">{contentTypeLabel}</span>
           <span aria-hidden="true" className="text-white/40">•</span>
           <time

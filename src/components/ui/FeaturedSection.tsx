@@ -112,15 +112,15 @@ export default function FeaturedSection({ content, onContentClick }: FeaturedSec
 
       {/* Content Section - Below Image */}
       <header className="text-center">
-        <h1 className="text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold text-white mb-4 transition-all duration-300 ease-out group-hover:underline decoration-2 underline-offset-4">
+        <h1 className="michroma text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold text-white mb-4 transition-all duration-300 ease-out group-hover:underline decoration-2 underline-offset-4">
           {content.title}
         </h1>
 
-        <p className="text-base md:text-lg lg:text-xl text-white/90 leading-relaxed mb-6 max-w-2xl mx-auto">
+        <p className="michroma text-base md:text-lg lg:text-xl text-white/90 leading-relaxed mb-6 max-w-2xl mx-auto">
           {truncatedDescription}
         </p>
 
-        <div className="text-sm md:text-base text-white/70 flex flex-wrap items-center justify-center gap-2">
+        <div className="michroma text-sm md:text-base text-white/70 flex flex-wrap items-center justify-center gap-2">
           <span className="font-medium">{contentTypeLabel}</span>
           <span aria-hidden="true" className="text-white/50">•</span>
           <time

@@ -105,7 +105,7 @@ export default function Home() {
   if (isLoading) {
     return (
       <div className="w-full h-full flex items-center justify-center min-h-[60vh]">
-        <div className="text-white/60 text-lg">Loading...</div>
+        <div className="michroma text-white/60 text-lg">Loading...</div>
       </div>
     );
   }
@@ -122,7 +122,7 @@ export default function Home() {
         </>
       ) : (
         <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="text-white/60 text-lg text-center">
+          <div className="michroma text-white/60 text-lg text-center">
             No featured content available
           </div>
         </div>
