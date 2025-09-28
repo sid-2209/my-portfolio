@@ -32,8 +32,8 @@ export default function Navbar() {
             <NavigationLink href="/">
               Home
             </NavigationLink>
-            <NavigationLink href="#about-me">
-              About Me
+            <NavigationLink href="/about">
+              About
             </NavigationLink>
             <GlassmorphismButton
               onClick={() => setIsSearchOpen(true)}

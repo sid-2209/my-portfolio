@@ -19,6 +19,9 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
   const isContentPage = pathname?.startsWith('/content/');
   const isHomePage = pathname === '/';
   const isProjectsPage = pathname === '/projects';
+  const isCaseStudiesPage = pathname === '/case-studies';
+  const isNotesPage = pathname === '/notes';
+  const isAboutPage = pathname === '/about';
 
   // Ensure component is mounted before rendering
   useEffect(() => {
@@ -29,21 +32,27 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
   useEffect(() => {
     if (mounted) {
       // Remove all page classes first
-      document.body.classList.remove('homepage', 'projects-page');
+      document.body.classList.remove('homepage', 'projects-page', 'case-studies-page', 'notes-page', 'about-page');
 
       // Add appropriate class based on current page
       if (isHomePage) {
         document.body.classList.add('homepage');
       } else if (isProjectsPage) {
         document.body.classList.add('projects-page');
+      } else if (isCaseStudiesPage) {
+        document.body.classList.add('case-studies-page');
+      } else if (isNotesPage) {
+        document.body.classList.add('notes-page');
+      } else if (isAboutPage) {
+        document.body.classList.add('about-page');
       }
     }
 
     // Cleanup on unmount
     return () => {
-      document.body.classList.remove('homepage', 'projects-page');
+      document.body.classList.remove('homepage', 'projects-page', 'case-studies-page', 'notes-page', 'about-page');
     };
-  }, [mounted, isHomePage, isProjectsPage]);
+  }, [mounted, isHomePage, isProjectsPage, isCaseStudiesPage, isNotesPage, isAboutPage]);
 
   const handleSidebarItemClick = (type: 'project' | 'case_study' | 'blog') => {
     switch (type) {
