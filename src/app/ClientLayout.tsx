@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
@@ -12,30 +12,31 @@ interface ClientLayoutProps {
 export default function ClientLayout({ children }: ClientLayoutProps) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [backgroundApplied, setBackgroundApplied] = useState(false);
   const pathname = usePathname();
-  const containerRef = useRef<HTMLDivElement>(null);
-  
+
   // Check if we're on admin pages or content pages
   const isAdminPage = pathname?.startsWith('/admin');
   const isContentPage = pathname?.startsWith('/content/');
+  const isHomePage = pathname === '/';
 
   // Ensure component is mounted before rendering
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Apply background styles after mount to prevent hydration mismatch
+  // Apply homepage class to body for CSS background/overlay
   useEffect(() => {
-    if (mounted && containerRef.current && !isAdminPage) {
-      const container = containerRef.current;
-      container.style.backgroundImage = 'url(/images/norbert-kowalczyk-HuvxHRcOY6E-unsplash.jpg)';
-      container.style.backgroundSize = 'cover';
-      container.style.backgroundPosition = 'center';
-      container.style.backgroundRepeat = 'no-repeat';
-      setBackgroundApplied(true);
+    if (mounted && isHomePage) {
+      document.body.classList.add('homepage');
+    } else {
+      document.body.classList.remove('homepage');
     }
-  }, [mounted, isAdminPage]);
+
+    // Cleanup on unmount
+    return () => {
+      document.body.classList.remove('homepage');
+    };
+  }, [mounted, isHomePage]);
 
   const handleSidebarItemClick = (type: 'project' | 'case_study' | 'blog') => {
     console.log('Sidebar item clicked:', type);
@@ -62,20 +63,20 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
   }
 
   return (
-    <div 
-      ref={containerRef}
-      className={`${isContentPage ? 'min-h-screen' : 'h-screen overflow-hidden'}`}
-    >
-      <Navbar />
-      
-      <Sidebar 
-        isCollapsed={isSidebarCollapsed}
-        onToggle={handleSidebarToggle}
-        onItemClick={handleSidebarItemClick}
-      />
+    <div className={`${isContentPage || isHomePage ? 'min-h-screen' : 'h-screen overflow-hidden'} relative`}>
+      {/* All content positioned above CSS background/overlay */}
+      <div className="relative z-30">
+        <Navbar />
 
-      <div className={`${isContentPage ? '' : 'pt-32 px-8'} transition-all duration-500 ease-out`}>
-        {children}
+        <Sidebar
+          isCollapsed={isSidebarCollapsed}
+          onToggle={handleSidebarToggle}
+          onItemClick={handleSidebarItemClick}
+        />
+
+        <div className={`${isContentPage ? '' : 'pt-32 px-8'} transition-all duration-500 ease-out`}>
+          {children}
+        </div>
       </div>
     </div>
   );

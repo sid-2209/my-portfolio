@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 
-interface FeaturedContent {
+interface ContentItemProps {
   id: string;
   title: string;
   description: string;
@@ -12,32 +12,30 @@ interface FeaturedContent {
   publishedDate: string;
   author: string;
   tags: string[];
-}
-
-interface FeaturedSectionProps {
-  content: FeaturedContent;
   onContentClick: (id: string) => void;
 }
 
-export default function FeaturedSection({ content, onContentClick }: FeaturedSectionProps) {
-  const truncateDescription = (text: string, maxLength: number = 200): string => {
+export default function ContentItem({
+  id,
+  title,
+  description,
+  contentType,
+  category,
+  imageUrl,
+  publishedDate,
+  onContentClick
+}: ContentItemProps) {
+  const truncateDescription = (text: string, maxLength: number = 120): string => {
     if (text.length <= maxLength) return text;
     const truncated = text.substring(0, maxLength);
     const lastSpace = truncated.lastIndexOf(' ');
     return truncated.substring(0, lastSpace) + '...';
   };
 
-  const calculateReadingTime = (description: string): string => {
-    const wordsPerMinute = 200;
-    const words = description.split(' ').length;
-    const minutes = Math.max(1, Math.ceil(words / wordsPerMinute));
-    return `${minutes} min read`;
-  };
-
   const formatDate = (dateString: string): string => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
-      month: 'long',
+      month: 'short',
       day: 'numeric'
     });
   };
@@ -52,32 +50,31 @@ export default function FeaturedSection({ content, onContentClick }: FeaturedSec
   };
 
   const handleClick = () => {
-    onContentClick(content.id);
+    onContentClick(id);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
-      onContentClick(content.id);
+      onContentClick(id);
     }
   };
 
-  const truncatedDescription = truncateDescription(content.description);
-  const contentTypeLabel = getContentTypeLabel(content.contentType);
-  const formattedDate = formatDate(content.publishedDate);
-  const readingTime = calculateReadingTime(content.description);
+  const truncatedDescription = truncateDescription(description);
+  const contentTypeLabel = getContentTypeLabel(contentType);
+  const formattedDate = formatDate(publishedDate);
 
   return (
     <article
-      className="w-full max-w-full md:max-w-4xl lg:max-w-[45vw] mx-auto px-4 md:px-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-transparent rounded-lg transition-all duration-300 group"
-      role="main"
-      aria-label="Featured content"
+      className="flex gap-8 p-6 cursor-pointer focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-transparent rounded-lg transition-all duration-300 group"
+      role="article"
+      aria-label={`${contentTypeLabel}: ${title}`}
       tabIndex={0}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
     >
       {/* Image Section */}
-      <div className="relative w-full aspect-[16/9] mb-6">
+      <div className="flex-shrink-0 w-48 h-36 sm:w-56 sm:h-40 md:w-64 md:h-48 lg:w-72 lg:h-52">
         {/* Transparent Fade Border Container */}
         <div
           className="w-full h-full rounded-2xl"
@@ -90,18 +87,17 @@ export default function FeaturedSection({ content, onContentClick }: FeaturedSec
             className="relative w-full h-full rounded-xl overflow-hidden"
             style={{ backgroundColor: '#0d0d0d' }}
           >
-            {content.imageUrl ? (
+            {imageUrl ? (
               <Image
-                src={content.imageUrl}
-                alt={content.title}
+                src={imageUrl}
+                alt={title}
                 fill
                 className="object-cover"
-                priority
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 45vw"
+                sizes="(max-width: 640px) 192px, (max-width: 768px) 224px, (max-width: 1024px) 256px, 288px"
               />
             ) : (
               <div className="w-full h-full bg-gradient-to-br from-gray-800 via-gray-900 to-black flex items-center justify-center">
-                <div className="text-white/40 text-lg font-medium">
+                <div className="text-white/40 text-sm font-medium text-center">
                   {contentTypeLabel}
                 </div>
               </div>
@@ -110,29 +106,33 @@ export default function FeaturedSection({ content, onContentClick }: FeaturedSec
         </div>
       </div>
 
-      {/* Content Section - Below Image */}
-      <header className="text-center">
-        <h1 className="text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold text-white mb-4 transition-all duration-300 ease-out group-hover:underline decoration-2 underline-offset-4">
-          {content.title}
-        </h1>
+      {/* Content Section */}
+      <div className="flex-1 min-w-0">
+        <h3 className="text-xl md:text-2xl lg:text-3xl font-semibold text-white mb-4 transition-all duration-300 ease-out group-hover:underline decoration-2 underline-offset-4 line-clamp-2">
+          {title}
+        </h3>
 
-        <p className="text-base md:text-lg lg:text-xl text-white/90 leading-relaxed mb-6 max-w-2xl mx-auto">
+        <p className="text-base md:text-lg lg:text-xl text-white/80 leading-relaxed mb-4 line-clamp-3">
           {truncatedDescription}
         </p>
 
-        <div className="text-sm md:text-base text-white/70 flex flex-wrap items-center justify-center gap-2">
+        <div className="text-sm md:text-base text-white/60 flex flex-wrap items-center gap-2">
           <span className="font-medium">{contentTypeLabel}</span>
-          <span aria-hidden="true" className="text-white/50">•</span>
+          <span aria-hidden="true" className="text-white/40">•</span>
           <time
-            dateTime={content.publishedDate}
+            dateTime={publishedDate}
             className="font-medium"
           >
             {formattedDate}
           </time>
-          <span aria-hidden="true" className="text-white/50">•</span>
-          <span className="font-medium">{readingTime}</span>
+          {category && (
+            <>
+              <span aria-hidden="true" className="text-white/40">•</span>
+              <span className="font-medium">{category}</span>
+            </>
+          )}
         </div>
-      </header>
+      </div>
     </article>
   );
 }

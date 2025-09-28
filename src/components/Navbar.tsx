@@ -19,14 +19,14 @@ export default function Navbar() {
   return (
     <>
       {/* Fixed Project Title - Top Left Corner, Vertically Centered with Navbar */}
-      <div className="fixed top-0 left-8 z-50 flex items-center h-20">
+      <div className="fixed top-0 left-8 z-40 flex items-center h-20">
         <h1 className="michroma text-white/90 text-2xl font-bold tracking-wide hover:text-white transition-colors duration-300">
           Sid&apos;s Notes
         </h1>
       </div>
 
       {/* Main Navigation Bar */}
-      <nav className="fixed top-0 left-0 right-0 z-50 flex justify-center items-center py-4">
+      <nav className="fixed top-0 left-0 right-0 z-40 flex justify-center items-center py-4">
         <GlassmorphismContainer variant="navbar" className="px-12 py-3 transition-all duration-1200 ease-out">
           <div className="flex items-center space-x-12">
             <NavigationLink href="/">

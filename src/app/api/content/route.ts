@@ -1,11 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAllContent, prisma } from '../../../lib/db';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const content = await getAllContent();
-    
-    return NextResponse.json(content, {
+    const { searchParams } = new URL(request.url);
+    const contentType = searchParams.get('type');
+    const limit = searchParams.get('limit');
+    const exclude = searchParams.get('exclude');
+
+    // If no specific parameters, return all content
+    if (!contentType && !limit && !exclude) {
+      const content = await getAllContent();
+      return NextResponse.json(content, {
+        headers: {
+          'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
+        },
+      });
+    }
+
+    // Build filtered query
+    const where: Record<string, unknown> = {};
+
+    if (contentType) {
+      where.contentType = contentType;
+    }
+
+    if (exclude) {
+      where.id = {
+        not: exclude
+      };
+    }
+
+    const content = await prisma.content.findMany({
+      where,
+      orderBy: {
+        publishedDate: 'desc'
+      },
+      take: limit ? parseInt(limit) : undefined,
+      include: {
+        contentBlocks: true
+      }
+    });
+
+    return NextResponse.json({ content }, {
       headers: {
         'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
       },
