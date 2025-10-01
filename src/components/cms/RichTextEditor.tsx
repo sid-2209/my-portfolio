@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { sanitizeRichText } from "../../lib/sanitize";
 
 interface RichTextEditorProps {
   content: string;
@@ -149,8 +150,10 @@ export default function RichTextEditor({
       
       // Debounce the onChange call to parent
       timeoutRef.current = setTimeout(() => {
-        onChange(newContent);
-        lastContentRef.current = newContent;
+        // Sanitize content before saving
+        const sanitizedContent = sanitizeRichText(newContent);
+        onChange(sanitizedContent);
+        lastContentRef.current = sanitizedContent;
         setIsTyping(false);
       }, 300); // 300ms delay
     }
@@ -391,8 +394,9 @@ export default function RichTextEditor({
             break;
             
           default:
-            // Fallback to execCommand for other commands
-            document.execCommand(command, false, value);
+            // For any other commands, we can either implement them specifically
+            // or simply log that they're not implemented rather than using deprecated execCommand
+            console.warn(`Command "${command}" is not implemented with modern Selection API. Consider implementing it if needed.`);
         }
         
         // Clear selection and focus

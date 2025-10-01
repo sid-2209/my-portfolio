@@ -64,8 +64,8 @@ body.homepage::after {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.5);
-  z-index: 20;
+  background: rgba(0, 0, 0, 0.80);
+  z-index: 15;
   pointer-events: none;
 }
 
@@ -94,8 +94,8 @@ body.projects-page::after {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.85);
-  z-index: 20;
+  background: rgba(0, 0, 0, 0.80);
+  z-index: 15;
   pointer-events: none;
 }
 
@@ -124,8 +124,8 @@ body.case-studies-page::after {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.85);
-  z-index: 20;
+  background: rgba(0, 0, 0, 0.80);
+  z-index: 15;
   pointer-events: none;
 }
 
@@ -154,8 +154,8 @@ body.notes-page::after {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.85);
-  z-index: 20;
+  background: rgba(0, 0, 0, 0.80);
+  z-index: 15;
   pointer-events: none;
 }
 
@@ -184,8 +184,8 @@ body.about-page::after {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.85);
-  z-index: 20;
+  background: rgba(0, 0, 0, 0.80);
+  z-index: 15;
   pointer-events: none;
 }
 

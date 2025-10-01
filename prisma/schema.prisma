@@ -10,7 +10,7 @@ datasource db {
 model Content {
   id            String   @id @default(cuid())
   title         String
-  description   String
+  description   String?
   contentType   String
   posterImage   String?
   contentUrl    String?
@@ -22,12 +22,14 @@ model Content {
   category      String?
   featured      Boolean  @default(false)
   imageUrl      String?
-  
+
   // New CMS fields
   status        ContentStatus @default(DRAFT)
   contentBlocks ContentBlock[]
+  revisions     ContentRevision[]
   slug          String?       @unique // URL-friendly version of title
-  
+  version       Int           @default(1) // Optimistic locking version
+
   @@index([contentType])
   @@index([publishedDate])
   @@index([tags])
@@ -41,17 +43,72 @@ model ContentBlock {
   id        String   @id @default(cuid())
   contentId String
   content   Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
-  
+
   blockType BlockType
   order     Int
   data      Json     // Flexible data storage for block content
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@unique([contentId, order])
   @@index([contentId])
   @@index([blockType])
+}
+
+model ContentRevision {
+  id            String   @id @default(cuid())
+  contentId     String
+  content       Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+
+  // Snapshot of content at this revision
+  revisionNumber Int
+  title         String
+  description   String?
+  contentType   String
+  posterImage   String?
+  contentUrl    String?
+  author        String
+  tags          String[]
+  category      String?
+  featured      Boolean
+  imageUrl      String?
+  status        ContentStatus
+  slug          String?
+
+  // Revision metadata
+  changesSummary String?        // Brief description of what changed
+  changeType     RevisionType   @default(EDIT)
+  createdBy      String
+  createdAt      DateTime       @default(now())
+
+  // Related block revisions
+  blockRevisions ContentBlockRevision[]
+
+  @@unique([contentId, revisionNumber])
+  @@index([contentId])
+  @@index([createdAt])
+  @@index([changeType])
+}
+
+model ContentBlockRevision {
+  id               String          @id @default(cuid())
+  revisionId       String
+  revision         ContentRevision @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+
+  // Original block info
+  originalBlockId  String?         // Reference to original block (null if deleted)
+  blockType        BlockType
+  order            Int
+  data             Json
+
+  // Revision metadata
+  changeType       BlockChangeType @default(MODIFIED)
+  createdAt        DateTime        @default(now())
+
+  @@index([revisionId])
+  @@index([originalBlockId])
+  @@index([changeType])
 }
 
 enum BlockType {
@@ -65,8 +122,142 @@ enum BlockType {
   CUSTOM
 }
 
+model Media {
+  id          String   @id @default(cuid())
+
+  // File information
+  filename    String
+  originalName String
+  mimetype    String
+  size        Int
+
+  // Vercel Blob specific
+  blobUrl     String   @unique  // Vercel Blob URL
+  blobId      String   @unique  // Vercel Blob ID for deletion
+
+  // Metadata
+  altText     String?
+  caption     String?
+  width       Int?
+  height      Int?
+
+  // Organization
+  folder      String?  // e.g., "content-blocks", "featured-images", "general"
+  source      String   // "content-editor", "image-block", "featured-upload"
+
+  // Relationships
+  uploadedBy  String   // Author who uploaded
+  contentId   String?  // If linked to specific content
+  blockId     String?  // If from content block
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([mimetype])
+  @@index([folder])
+  @@index([source])
+  @@index([contentId])
+  @@index([createdAt])
+}
+
 enum ContentStatus {
   DRAFT
   PUBLISHED
   ARCHIVED
+}
+
+enum RevisionType {
+  CREATE
+  EDIT
+  PUBLISH
+  UNPUBLISH
+  FEATURE
+  UNFEATURE
+  ARCHIVE
+  RESTORE
+}
+
+enum BlockChangeType {
+  ADDED
+  MODIFIED
+  REMOVED
+  REORDERED
+}
+
+// Templates and Snippets for content creation
+model ContentTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  category    String?  // e.g., "Article", "Project", "Blog Post"
+  tags        String[]
+
+  // Template metadata
+  contentType String
+  isPublic    Boolean  @default(false) // Whether this template is visible to all users
+  createdBy   String   // Author who created the template
+  usageCount  Int      @default(0)     // Track how many times template was used
+
+  // Template content structure
+  defaultTitle       String?
+  defaultDescription String?
+  defaultAuthor      String?
+  defaultTags        String[]
+  defaultCategory    String?
+  defaultFeatured    Boolean @default(false)
+
+  // Block structure for the template
+  templateBlocks TemplateBlock[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
+  @@index([contentType])
+  @@index([isPublic])
+  @@index([createdBy])
+  @@index([usageCount])
+}
+
+model TemplateBlock {
+  id         String          @id @default(cuid())
+  templateId String
+  template   ContentTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  blockType  BlockType
+  order      Int
+  data       Json            // Default data for this block type
+  isRequired Boolean         @default(false) // Whether this block is required
+
+  createdAt DateTime @default(now())
+
+  @@unique([templateId, order])
+  @@index([templateId])
+  @@index([blockType])
+}
+
+model ContentSnippet {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  category    String?  // e.g., "Introduction", "Code Examples", "Quotes"
+  tags        String[]
+
+  // Snippet metadata
+  blockType   BlockType
+  isPublic    Boolean  @default(false) // Whether this snippet is visible to all users
+  createdBy   String   // Author who created the snippet
+  usageCount  Int      @default(0)     // Track how many times snippet was used
+
+  // Snippet content
+  data        Json     // The actual snippet data
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
+  @@index([blockType])
+  @@index([isPublic])
+  @@index([createdBy])
+  @@index([usageCount])
 }

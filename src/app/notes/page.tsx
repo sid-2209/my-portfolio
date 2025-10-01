@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 interface NoteItem {
   id: string;
   title: string;
-  description: string;
+  description?: string | null;
   contentType: 'project' | 'case_study' | 'blog';
   category?: string | null;
   imageUrl?: string | null;
@@ -80,9 +80,9 @@ export default function NotesPage() {
                   </h2>
 
                   <p className="michroma text-base md:text-lg lg:text-xl text-white/80 leading-relaxed max-w-3xl mx-auto">
-                    {note.description.length > 150
+                    {note.description && note.description.length > 150
                       ? note.description.substring(0, 150).substring(0, note.description.substring(0, 150).lastIndexOf(' ')) + '...'
-                      : note.description
+                      : note.description || ''
                     }
                   </p>
 

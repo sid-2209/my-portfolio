@@ -13,7 +13,7 @@ if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 export interface Content {
   id: string;
   title: string;
-  description: string;
+  description?: string | null;
   contentType: 'project' | 'case_study' | 'blog';
   category?: string | null;
   featured?: boolean;
@@ -29,12 +29,74 @@ export interface Content {
 
 // Content fetching functions
 
+export async function getCurrentFeaturedContent(): Promise<Content | null> {
+  try {
+    const featured = await prisma.content.findFirst({
+      where: { featured: true },
+      orderBy: { updatedAt: 'desc' }
+    });
+
+    return featured as Content | null;
+  } catch (error) {
+    console.error('Error fetching current featured content:', error);
+    return null;
+  }
+}
+
+export async function replaceFeaturedContent(oldId: string, newId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    await prisma.$transaction(async (tx) => {
+      // Unfeatured the old content
+      await tx.content.update({
+        where: { id: oldId },
+        data: { featured: false }
+      });
+
+      // Feature the new content
+      await tx.content.update({
+        where: { id: newId },
+        data: { featured: true }
+      });
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error replacing featured content:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to replace featured content'
+    };
+  }
+}
+
+export async function unfeaturedContent(id: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    await prisma.content.update({
+      where: { id },
+      data: { featured: false }
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error unfeaturing content:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to unfeature content'
+    };
+  }
+}
+
 export async function getAllContent(): Promise<Content[]> {
   try {
     const content = await prisma.content.findMany({
       orderBy: { publishedDate: 'desc' },
+      include: {
+        contentBlocks: {
+          orderBy: { order: 'asc' }
+        }
+      }
     });
-    
+
     return content as Content[];
   } catch (error) {
     console.error('Error fetching all content:', error);

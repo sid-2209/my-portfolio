@@ -1,15 +1,18 @@
 'use client';
 
+import { useState } from 'react';
 import FormInput from '../forms/FormInput';
 import FormTextarea from '../forms/FormTextarea';
 import FormSelect from '../forms/FormSelect';
 import FormButton from '../forms/FormButton';
+import TagInput from '../forms/TagInput';
+import ImagePicker from '../media/ImagePicker';
 
 interface ContentCardProps {
   content: {
     id: string;
     title: string;
-    description: string;
+    description?: string | null;
     contentType: string;
     status?: string;
     featured: boolean;
@@ -19,16 +22,23 @@ interface ContentCardProps {
   isEditing: boolean;
   editForm: {
     title: string;
-    description: string;
+    description?: string | null;
     featured: boolean;
     status: string;
+    contentType: string;
+    category?: string | null;
+    author: string;
+    imageUrl?: string | null;
+    contentUrl?: string | null;
+    tags: string[];
   };
-  onEditFormChange: (field: string, value: string | boolean) => void;
+  onEditFormChange: (field: string, value: string | boolean | string[]) => void;
   onStartEditing: () => void;
   onSaveEdit: () => void;
   onCancelEdit: () => void;
   onToggleFeatured: () => void;
   onOpenBlocks: () => void;
+  onRemove: () => void;
   isUpdating: boolean;
   searchQuery?: string;
   className?: string;
@@ -44,10 +54,13 @@ export default function ContentCard({
   onCancelEdit,
   onToggleFeatured,
   onOpenBlocks,
+  onRemove,
   isUpdating,
   searchQuery,
   className = ''
 }: ContentCardProps) {
+  const [activeTab, setActiveTab] = useState<'basic' | 'details'>('basic');
+
   const contentTypeLabels = {
     blog: 'Blog',
     project: 'Project',
@@ -73,47 +86,138 @@ export default function ContentCard({
     if (isEditing) {
       return (
         <div className="space-y-4">
-          <FormInput
-            label="Title"
-            value={editForm.title}
-            onChange={(e) => onEditFormChange('title', e.target.value)}
-            placeholder="Enter title"
-            inputSize="md"
-          />
-          
-          <FormTextarea
-            label="Description"
-            value={editForm.description}
-            onChange={(e) => onEditFormChange('description', e.target.value)}
-            placeholder="Enter description"
-            size="md"
-          />
-          
-          <FormSelect
-            label="Status"
-            options={[
-              { value: 'DRAFT', label: 'Draft' },
-              { value: 'PUBLISHED', label: 'Published' },
-              { value: 'ARCHIVED', label: 'Archived' }
-            ]}
-            value={editForm.status}
-            onChange={(e) => onEditFormChange('status', e.target.value)}
-            selectSize="md"
-          />
-          
-          <div className="flex items-center gap-2">
-            <label className="flex items-center text-xs">
-              <input
-                type="checkbox"
-                checked={editForm.featured}
-                onChange={(e) => onEditFormChange('featured', e.target.checked)}
-                className="mr-2 w-4 h-4 text-gray-800 bg-gray-100 border-gray-300 rounded focus:ring-gray-800 focus:ring-2"
-              />
-              Featured
-            </label>
+          {/* Tab Navigation */}
+          <div className="flex border-b border-gray-200">
+            <button
+              onClick={() => setActiveTab('basic')}
+              className={`px-4 py-2 text-sm font-medium transition-colors ${
+                activeTab === 'basic'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Basic Info
+            </button>
+            <button
+              onClick={() => setActiveTab('details')}
+              className={`px-4 py-2 text-sm font-medium transition-colors ${
+                activeTab === 'details'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Details
+            </button>
           </div>
-          
-          <div className="flex gap-2">
+
+          {/* Tab Content */}
+          <div className="space-y-4">
+            {activeTab === 'basic' && (
+              <>
+                <FormInput
+                  label="Title"
+                  value={editForm.title}
+                  onChange={(e) => onEditFormChange('title', e.target.value)}
+                  placeholder="Enter title"
+                  inputSize="md"
+                />
+
+                <FormTextarea
+                  label="Description (Optional)"
+                  value={editForm.description || ''}
+                  onChange={(e) => onEditFormChange('description', e.target.value)}
+                  placeholder="Enter description (optional)"
+                  size="md"
+                />
+
+                <FormSelect
+                  label="Status"
+                  options={[
+                    { value: 'DRAFT', label: 'Draft' },
+                    { value: 'PUBLISHED', label: 'Published' },
+                    { value: 'ARCHIVED', label: 'Archived' }
+                  ]}
+                  value={editForm.status}
+                  onChange={(e) => onEditFormChange('status', e.target.value)}
+                  selectSize="md"
+                />
+
+                <div className="flex items-center gap-2">
+                  <label className="flex items-center text-xs">
+                    <input
+                      type="checkbox"
+                      checked={editForm.featured}
+                      onChange={(e) => onEditFormChange('featured', e.target.checked)}
+                      className="mr-2 w-4 h-4 text-gray-800 bg-gray-100 border-gray-300 rounded focus:ring-gray-800 focus:ring-2"
+                    />
+                    Featured
+                  </label>
+                </div>
+              </>
+            )}
+
+            {activeTab === 'details' && (
+              <>
+                <FormSelect
+                  label="Content Type"
+                  options={[
+                    { value: 'blog', label: 'Blog' },
+                    { value: 'project', label: 'Project' },
+                    { value: 'case_study', label: 'Case Study' }
+                  ]}
+                  value={editForm.contentType}
+                  onChange={(e) => onEditFormChange('contentType', e.target.value)}
+                  selectSize="md"
+                />
+
+                <FormInput
+                  label="Category (Optional)"
+                  value={editForm.category || ''}
+                  onChange={(e) => onEditFormChange('category', e.target.value)}
+                  placeholder="Enter category"
+                  inputSize="md"
+                />
+
+                <FormInput
+                  label="Author"
+                  value={editForm.author}
+                  onChange={(e) => onEditFormChange('author', e.target.value)}
+                  placeholder="Enter author name"
+                  inputSize="md"
+                />
+
+                <ImagePicker
+                  label="Featured Image"
+                  value={editForm.imageUrl || ''}
+                  onChange={(media) => onEditFormChange('imageUrl', media?.blobUrl || '')}
+                  onUrlChange={(url) => onEditFormChange('imageUrl', url)}
+                  source="content"
+                  contentId={content.id}
+                  folder="content"
+                  placeholder="No featured image selected"
+                />
+
+                <FormInput
+                  label="Content URL (Optional)"
+                  value={editForm.contentUrl || ''}
+                  onChange={(e) => onEditFormChange('contentUrl', e.target.value)}
+                  placeholder="Enter content URL"
+                  inputSize="md"
+                />
+
+                <TagInput
+                  label="Tags"
+                  value={editForm.tags}
+                  onChange={(tags) => onEditFormChange('tags', tags)}
+                  placeholder="Enter tags separated by commas"
+                  maxTags={10}
+                />
+              </>
+            )}
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-2 pt-4 border-t border-gray-200">
             <FormButton
               variant="primary"
               size="sm"
@@ -121,7 +225,7 @@ export default function ContentCard({
               loading={isUpdating}
               disabled={isUpdating}
             >
-              Save
+              Save Changes
             </FormButton>
             <FormButton
               variant="secondary"
@@ -164,15 +268,17 @@ export default function ContentCard({
           </div>
         </div>
         
-        <p className="text-gray-600 text-sm mb-4 line-clamp-3 leading-relaxed">
-          {searchQuery ? (
-            <span dangerouslySetInnerHTML={{
-              __html: highlightSearchText(content.description, searchQuery)
-            }} />
-          ) : (
-            content.description
-          )}
-        </p>
+        {content.description && (
+          <p className="text-gray-600 text-sm mb-4 line-clamp-3 leading-relaxed">
+            {searchQuery ? (
+              <span dangerouslySetInnerHTML={{
+                __html: highlightSearchText(content.description, searchQuery)
+              }} />
+            ) : (
+              content.description
+            )}
+          </p>
+        )}
         
         <div className="flex justify-start">
           <div className="flex gap-2">
@@ -196,7 +302,15 @@ export default function ContentCard({
               onClick={onToggleFeatured}
               disabled={isUpdating}
             >
-              {content.featured ? 'Remove' : 'Feature'}
+              {content.featured ? 'Unfeature' : 'Feature'}
+            </FormButton>
+            <FormButton
+              variant="outline"
+              size="sm"
+              onClick={onRemove}
+              disabled={isUpdating}
+            >
+              Remove
             </FormButton>
           </div>
         </div>

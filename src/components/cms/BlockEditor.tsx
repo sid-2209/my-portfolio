@@ -6,6 +6,11 @@ import BlockTypeIcon from './BlockTypeIcon';
 import RichTextEditor from './RichTextEditor';
 import SplitViewEditor from './SplitViewEditor';
 import CodeBlockEditor from './CodeBlockEditor';
+import QuoteEditor from './QuoteEditor';
+import ListEditor from './ListEditor';
+import DividerEditor from './DividerEditor';
+import CustomHTMLEditor from './CustomHTMLEditor';
+import { sanitizeRichText } from '../../lib/sanitize';
 
 // Type-safe interfaces for block data
 interface ParagraphData {
@@ -42,6 +47,10 @@ interface ListData {
 interface DividerData {
   style: 'solid' | 'dashed' | 'dotted' | 'double';
   color: string;
+  thickness?: number;
+  width?: number;
+  marginTop?: number;
+  marginBottom?: number;
 }
 
 interface CustomData {
@@ -184,7 +193,59 @@ export default function BlockEditor({
             />
           );
         }
-        
+
+        if (block.blockType === 'QUOTE') {
+          const quoteData = editData as QuoteData;
+          return (
+            <QuoteEditor
+              key={`quote-${block.id}`}
+              data={quoteData}
+              onChange={(data) => setEditData(data)}
+              className="w-full"
+              isEditing={true}
+            />
+          );
+        }
+
+        if (block.blockType === 'LIST') {
+          const listData = editData as ListData;
+          return (
+            <ListEditor
+              key={`list-${block.id}`}
+              data={listData}
+              onChange={(data) => setEditData(data)}
+              className="w-full"
+              isEditing={true}
+            />
+          );
+        }
+
+        if (block.blockType === 'DIVIDER') {
+          const dividerData = editData as DividerData;
+          return (
+            <DividerEditor
+              key={`divider-${block.id}`}
+              data={dividerData}
+              onChange={(data) => setEditData(data)}
+              className="w-full"
+              isEditing={true}
+            />
+          );
+        }
+
+        if (block.blockType === 'CUSTOM') {
+          const customData = editData as CustomData;
+          return (
+            <CustomHTMLEditor
+              key={`custom-${block.id}`}
+              data={customData}
+              onChange={(data) => setEditData(data)}
+              className="w-full"
+              isEditing={true}
+            />
+          );
+        }
+
         return null;
     }
   }, [block.blockType, block.id, editData, editorMode]);
@@ -439,9 +500,11 @@ export default function BlockEditor({
         {/* Block Content Preview */}
         <div className="block-content-preview">
           {block.blockType === 'PARAGRAPH' && (
-            <div 
+            <div
               className="text-gray-700 leading-relaxed"
-              dangerouslySetInnerHTML={{ __html: (editData as ParagraphData).text || `Empty paragraph...` }}
+              dangerouslySetInnerHTML={{
+                __html: (editData as ParagraphData).text ? sanitizeRichText((editData as ParagraphData).text) : `Empty paragraph...`
+              }}
             />
           )}
           
@@ -586,8 +649,9 @@ export default function BlockEditor({
 
       {/* Editor Content */}
       <div className="mb-6">
-        {(block.blockType === 'PARAGRAPH' || block.blockType === 'HEADING' || block.blockType === 'CODE_BLOCK') 
-          ? renderAdvancedEditor 
+        {(block.blockType === 'PARAGRAPH' || block.blockType === 'HEADING' || block.blockType === 'CODE_BLOCK' ||
+          block.blockType === 'QUOTE' || block.blockType === 'LIST' || block.blockType === 'DIVIDER' || block.blockType === 'CUSTOM')
+          ? renderAdvancedEditor
           : renderBasicForm()
         }
       </div>

@@ -8,7 +8,7 @@ import ContentSection from "../components/ui/ContentSection";
 interface ContentItem {
   id: string;
   title: string;
-  description: string;
+  description?: string | null;
   contentType: 'project' | 'case_study' | 'blog';
   category?: string | null;
   imageUrl?: string | null;

@@ -58,7 +58,7 @@ export default function ContentPage() {
 
   if (isLoading) {
     return (
-      <div className="w-full h-screen flex items-center justify-center bg-[#0d0d0d]">
+      <div className="w-full h-screen flex items-center justify-center bg-black">
         <div className="text-white/60 text-lg">Loading post...</div>
       </div>
     );
@@ -66,14 +66,14 @@ export default function ContentPage() {
 
   if (error || !content) {
     return (
-      <div className="w-full h-screen flex items-center justify-center bg-[#0d0d0d]">
+      <div className="w-full h-screen flex items-center justify-center bg-black">
         <div className="text-white/60 text-lg">Post not found</div>
       </div>
     );
   }
 
   return (
-    <div className="relative w-full bg-[#0d0d0d]">
+    <div className="relative w-full bg-black">
       {/* Hero Section - Full Viewport */}
       <div className="relative w-full h-screen overflow-hidden">
         {/* Hero Image */}
@@ -92,9 +92,9 @@ export default function ContentPage() {
         
         {/* Glassmorphism Container - Positioned at Bottom */}
         <div className="absolute bottom-0 left-0 right-0 px-8 pb-8">
-          <GlassmorphismContainer 
+          <GlassmorphismContainer
             variant="content"
-            className="max-w-6xl mx-auto p-8 backdrop-blur-[25px] bg-white/[0.15] border-white/[0.25] rounded-2xl"
+            className="max-w-6xl mx-auto p-8 rounded-2xl"
           >
             {/* Category and Type Badges */}
             <div className="flex items-center gap-4 mb-6">
@@ -104,15 +104,6 @@ export default function ContentPage() {
               {content.category && (
                 <span className="text-white/80 text-sm bg-white/20 px-4 py-2 rounded-full backdrop-blur-sm border border-white/20">
                   {content.category}
-                </span>
-              )}
-              {content.status && (
-                <span className={`text-sm px-4 py-2 rounded-full backdrop-blur-sm border ${
-                  content.status === 'PUBLISHED' ? 'text-green-300 bg-green-500/20 border-green-500/30' :
-                  content.status === 'DRAFT' ? 'text-yellow-300 bg-yellow-500/20 border-yellow-500/30' :
-                  'text-gray-300 bg-gray-500/20 border-gray-500/30'
-                }`}>
-                  {content.status}
                 </span>
               )}
             </div>
@@ -142,7 +133,7 @@ export default function ContentPage() {
       </div>
 
       {/* Content Section */}
-      <div className="w-full bg-[#0d0d0d]">
+      <div className="w-full bg-black">
         <div className="max-w-4xl mx-auto px-8 py-16">
           {/* Main Content Area - CMS Blocks */}
           <div className="prose prose-invert max-w-none">
@@ -157,16 +148,21 @@ export default function ContentPage() {
                 data: block.data as Prisma.JsonValue
               }))} />
             ) : (
-              /* Fallback to description if no CMS blocks */
-              <div className="text-center py-12">
-                <div className="mb-8">
-                  <p className="text-white/90 text-xl md:text-2xl leading-relaxed max-w-4xl mx-auto">
-                    {content.description}
+              /* Show message when no CMS blocks */
+              <div className="text-center py-16">
+                <div className="max-w-2xl mx-auto">
+                  <div className="mb-6">
+                    <svg className="w-16 h-16 text-white/40 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-white/90 text-xl md:text-2xl font-semibold mb-4">Content Coming Soon</h3>
+                  <p className="text-white/70 text-lg leading-relaxed mb-2">
+                    This post is currently being prepared with rich content blocks.
                   </p>
-                </div>
-                <div className="text-white/60 text-lg">
-                  <p>This post doesn&apos;t have any content blocks yet.</p>
-                  <p className="mt-2 text-sm">Content will be displayed here once CMS blocks are added.</p>
+                  <p className="text-white/60 text-base">
+                    Check back soon for the full content experience.
+                  </p>
                 </div>
               </div>
             )}

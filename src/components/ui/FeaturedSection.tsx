@@ -5,7 +5,7 @@ import Image from 'next/image';
 interface FeaturedContent {
   id: string;
   title: string;
-  description: string;
+  description?: string | null;
   contentType: 'project' | 'case_study' | 'blog';
   category?: string | null;
   imageUrl?: string | null;
@@ -27,7 +27,8 @@ export default function FeaturedSection({ content, onContentClick }: FeaturedSec
     return truncated.substring(0, lastSpace) + '...';
   };
 
-  const calculateReadingTime = (description: string): string => {
+  const calculateReadingTime = (description?: string | null): string => {
+    if (!description) return '1 min read';
     const wordsPerMinute = 200;
     const words = description.split(' ').length;
     const minutes = Math.max(1, Math.ceil(words / wordsPerMinute));
@@ -62,7 +63,7 @@ export default function FeaturedSection({ content, onContentClick }: FeaturedSec
     }
   };
 
-  const truncatedDescription = truncateDescription(content.description);
+  const truncatedDescription = content.description ? truncateDescription(content.description) : null;
   const contentTypeLabel = getContentTypeLabel(content.contentType);
   const formattedDate = formatDate(content.publishedDate);
   const readingTime = calculateReadingTime(content.description);
@@ -116,9 +117,11 @@ export default function FeaturedSection({ content, onContentClick }: FeaturedSec
           {content.title}
         </h1>
 
-        <p className="michroma text-base md:text-lg lg:text-xl text-white/90 leading-relaxed mb-6 max-w-2xl mx-auto">
-          {truncatedDescription}
-        </p>
+        {truncatedDescription && (
+          <p className="michroma text-base md:text-lg lg:text-xl text-white/90 leading-relaxed mb-6 max-w-2xl mx-auto">
+            {truncatedDescription}
+          </p>
+        )}
 
         <div className="michroma text-sm md:text-base text-white/70 flex flex-wrap items-center justify-center gap-2">
           <span className="font-medium">{contentTypeLabel}</span>

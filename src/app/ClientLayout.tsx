@@ -94,7 +94,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
   return (
     <div className="min-h-screen relative flex flex-col">
       {/* All content positioned above CSS background/overlay */}
-      <div className="relative z-30 flex flex-col min-h-screen">
+      <div className="relative z-20 flex flex-col min-h-screen">
         <Navbar />
 
         <Sidebar

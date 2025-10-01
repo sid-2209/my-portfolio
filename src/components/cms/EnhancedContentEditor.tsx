@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import BlockBuilder from "./BlockBuilder";
 import { BlockType } from "@prisma/client";
+import TagInput from "../forms/TagInput";
+import ImagePicker from "../media/ImagePicker";
 
 // Block data interfaces
 interface ParagraphData { text: string; }
@@ -212,13 +214,17 @@ export default function EnhancedContentEditor({
             </div>
 
             <div>
-              <label className="block text-gray-700 text-sm font-medium mb-2">Description *</label>
+              <label className="block text-gray-700 text-sm font-medium mb-2">
+                Description
+                <span className="text-gray-500 font-normal ml-1">(Optional - Short excerpt for listings)</span>
+              </label>
               <textarea
-                value={formData.description}
+                value={formData.description || ''}
                 onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                 className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-500 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 h-24 resize-none"
-                placeholder="Enter content description"
+                placeholder="Optional: Brief description for homepage and listing pages"
               />
+              <p className="text-sm text-gray-500 mt-1">This will be used as a short excerpt on listing pages. Leave empty if not needed.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -243,30 +249,26 @@ export default function EnhancedContentEditor({
                 />
               </div>
               <div>
-                <label className="block text-gray-700 text-sm font-medium mb-2">Featured Image</label>
-                <input
-                  type="url"
+                <ImagePicker
+                  label="Featured Image"
                   value={formData.imageUrl || ''}
-                  onChange={(e) => setFormData(prev => ({ ...prev, imageUrl: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-500 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
-                  placeholder="Image URL"
+                  onChange={(media) => setFormData(prev => ({ ...prev, imageUrl: media?.blobUrl || '' }))}
+                  onUrlChange={(url) => setFormData(prev => ({ ...prev, imageUrl: url }))}
+                  source="content"
+                  contentId={formData.id}
+                  folder="content"
+                  placeholder="No featured image selected"
                 />
               </div>
             </div>
 
-            <div>
-              <label className="block text-gray-700 text-sm font-medium mb-2">Tags</label>
-              <input
-                type="text"
-                value={formData.tags.join(', ')}
-                onChange={(e) => setFormData(prev => ({ 
-                  ...prev, 
-                  tags: e.target.value.split(',').map(tag => tag.trim()).filter(tag => tag) 
-                }))}
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-500 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
-                placeholder="Enter tags separated by commas"
-              />
-            </div>
+            <TagInput
+              label="Tags"
+              value={formData.tags}
+              onChange={(tags) => setFormData(prev => ({ ...prev, tags }))}
+              placeholder="Enter tags separated by commas"
+              maxTags={10}
+            />
           </div>
         )}
 
@@ -292,10 +294,10 @@ export default function EnhancedContentEditor({
             <div>
               <label className="block text-gray-700 text-sm font-medium mb-2">SEO Description</label>
               <textarea
-                value={formData.seoDescription || formData.description}
+                value={formData.seoDescription || formData.description || ''}
                 onChange={(e) => setFormData(prev => ({ ...prev, seoDescription: e.target.value }))}
                 className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-500 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 h-20 resize-none"
-                placeholder="SEO optimized description"
+                placeholder="SEO optimized description (defaults to description or title if empty)"
               />
               <p className="text-sm text-gray-500 mt-1">Recommended length: 150-160 characters</p>
             </div>

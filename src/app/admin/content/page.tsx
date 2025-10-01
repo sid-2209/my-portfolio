@@ -6,7 +6,7 @@ import Link from "next/link";
 interface Content {
   id: string;
   title: string;
-  description: string;
+  description?: string | null;
   contentType: string;
   category?: string | null;
   featured: boolean;

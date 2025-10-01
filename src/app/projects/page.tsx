@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 interface ProjectItem {
   id: string;
   title: string;
-  description: string;
+  description?: string | null;
   contentType: 'project' | 'case_study' | 'blog';
   category?: string | null;
   imageUrl?: string | null;
@@ -80,9 +80,9 @@ export default function ProjectsPage() {
                   </h2>
 
                   <p className="michroma text-base md:text-lg lg:text-xl text-white/80 leading-relaxed max-w-3xl mx-auto">
-                    {project.description.length > 150
+                    {project.description && project.description.length > 150
                       ? project.description.substring(0, 150).substring(0, project.description.substring(0, 150).lastIndexOf(' ')) + '...'
-                      : project.description
+                      : project.description || ''
                     }
                   </p>
 

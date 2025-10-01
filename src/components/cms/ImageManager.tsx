@@ -1,86 +1,152 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { Upload, Search, X, Eye, Edit, Trash2, Grid3X3, List, Image as ImageIcon } from "lucide-react";
 
 interface ImageManagerProps {
   onImageSelect: (imageData: { src: string; alt: string; caption?: string }) => void;
   onClose: () => void;
   className?: string;
+  folder?: string;
+  source?: string;
+  contentId?: string;
+  blockId?: string;
 }
 
-interface ImageData {
+interface MediaItem {
   id: string;
-  src: string;
-  alt: string;
-  caption?: string;
+  filename: string;
+  originalName: string;
+  blobUrl: string;
+  altText?: string | null;
+  caption?: string | null;
   size: number;
-  uploadedAt: Date;
+  mimetype: string;
+  createdAt: string;
+  formattedSize: string;
 }
 
-export default function ImageManager({ onImageSelect, onClose, className = "" }: ImageManagerProps) {
-  const [images, setImages] = useState<ImageData[]>([]);
-  const [selectedImage, setSelectedImage] = useState<ImageData | null>(null);
-  const [uploadMode, setUploadMode] = useState<'url' | 'file'>('url');
-  const [imageUrl, setImageUrl] = useState('');
-  const [altText, setAltText] = useState('');
-  const [caption, setCaption] = useState('');
-  const [mounted, setMounted] = useState(false);
+export default function ImageManager({
+  onImageSelect,
+  onClose,
+  className = "",
+  folder = "general",
+  source = "general",
+  contentId,
+  blockId
+}: ImageManagerProps) {
+  const [media, setMedia] = useState<MediaItem[]>([]);
+  const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [dragActive, setDragActive] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setMounted(true);
-    // Load sample images for demo
-    setImages([
-      {
-        id: '1',
-        src: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=500',
-        alt: 'Code on screen',
-        caption: 'Programming workspace',
-        size: 1024000,
-        uploadedAt: new Date('2024-01-15')
-      },
-      {
-        id: '2',
-        src: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=500',
-        alt: 'Modern office',
-        caption: 'Modern workspace',
-        size: 2048000,
-        uploadedAt: new Date('2024-01-14')
-      },
-      {
-        id: '3',
-        src: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500',
-        alt: 'Technology concept',
-        caption: 'Digital innovation',
-        size: 1536000,
-        uploadedAt: new Date('2024-01-13')
-      }
-    ]);
-  }, []);
+    fetchMedia();
+  }, [searchQuery]);
 
-  const handleImageUpload = () => {
-    if (imageUrl.trim()) {
-      const newImage: ImageData = {
-        id: Date.now().toString(),
-        src: imageUrl,
-        alt: altText || 'Uploaded image',
-        caption: caption || '',
-        size: 0,
-        uploadedAt: new Date()
-      };
-      
-      setImages(prev => [newImage, ...prev]);
-      setImageUrl('');
-      setAltText('');
-      setCaption('');
+  const fetchMedia = async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams({
+        search: searchQuery,
+        mimetype: 'image',
+        limit: '50'
+      });
+
+      const response = await fetch(`/api/media?${params}`);
+      const data = await response.json();
+      setMedia(data.media || []);
+    } catch (error) {
+      console.error('Failed to fetch media:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
+  const handleFileSelect = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    setUploading(true);
+
+    try {
+      const formData = new FormData();
+
+      Array.from(files).forEach(file => {
+        formData.append('files', file);
+      });
+
+      formData.append('folder', folder);
+      formData.append('source', source);
+      formData.append('uploadedBy', 'Sid'); // TODO: Get from auth context
+
+      if (contentId) {
+        formData.append('contentId', contentId);
+      }
+
+      if (blockId) {
+        formData.append('blockId', blockId);
+      }
+
+      const response = await fetch('/api/media/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (result.success && result.uploaded.length > 0) {
+        // Refresh media list
+        await fetchMedia();
+
+        // Auto-select first uploaded image
+        if (result.uploaded[0]) {
+          setSelectedMedia(result.uploaded[0]);
+        }
+      } else {
+        alert(result.errors?.[0]?.error || 'Upload failed');
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert('Upload failed. Please try again.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFileSelect(e.dataTransfer.files);
+    }
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    handleFileSelect(e.target.files);
+  };
+
   const handleImageSelect = () => {
-    if (selectedImage) {
+    if (selectedMedia) {
       onImageSelect({
-        src: selectedImage.src,
-        alt: selectedImage.alt,
-        caption: selectedImage.caption
+        src: selectedMedia.blobUrl,
+        alt: selectedMedia.altText || selectedMedia.filename,
+        caption: selectedMedia.caption || undefined
       });
       onClose();
     }
@@ -94,197 +160,252 @@ export default function ImageManager({ onImageSelect, onClose, className = "" }:
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  if (!mounted) {
-    return (
-      <div className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 ${className}`}>
-        <div className="bg-white rounded-2xl p-8 max-w-4xl w-full mx-4 max-h-[80vh] overflow-y-auto">
-          <div className="animate-pulse">
-            <div className="h-8 bg-gray-200 rounded mb-4"></div>
-            <div className="h-64 bg-gray-200 rounded"></div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 ${className}`}>
-      <div className="bg-white rounded-2xl p-8 max-w-4xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+      <div className="bg-white rounded-2xl p-6 max-w-6xl w-full mx-4 max-h-[85vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-bold text-gray-900">Image Manager</h3>
+          <h3 className="text-2xl font-bold text-gray-900">Media Library</h3>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-gray-400 hover:text-gray-600 transition-colors p-2"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <X className="w-6 h-6" />
           </button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Upload Section */}
-          <div className="lg:col-span-1">
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h4 className="font-semibold text-gray-900 mb-4">Add New Image</h4>
-              
-              {/* Upload Mode Toggle */}
-              <div className="flex items-center space-x-2 mb-4">
-                <button
-                  onClick={() => setUploadMode('url')}
-                  className={`px-3 py-1 text-sm rounded transition-colors ${
-                    uploadMode === 'url' 
-                      ? 'bg-blue-600 text-white' 
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
-                >
-                  URL
-                </button>
-                <button
-                  onClick={() => setUploadMode('file')}
-                  className={`px-3 py-1 text-sm rounded transition-colors ${
-                    uploadMode === 'file' 
-                      ? 'bg-blue-600 text-white' 
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
-                >
-                  File
-                </button>
-              </div>
-
-              {uploadMode === 'url' ? (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Image URL</label>
-                    <input
-                      type="url"
-                      value={imageUrl}
-                      onChange={(e) => setImageUrl(e.target.value)}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                      placeholder="https://example.com/image.jpg"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Alt Text</label>
-                    <input
-                      type="text"
-                      value={altText}
-                      onChange={(e) => setAltText(e.target.value)}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                      placeholder="Describe the image"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Caption (optional)</label>
-                    <input
-                      type="text"
-                      value={caption}
-                      onChange={(e) => setCaption(e.target.value)}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                      placeholder="Image caption"
-                    />
-                  </div>
-                  <button
-                    onClick={handleImageUpload}
-                    disabled={!imageUrl.trim()}
-                    className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-                  >
-                    Add Image
-                  </button>
-                </div>
-              ) : (
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                  <svg className="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                  </svg>
-                  <p className="text-sm text-gray-600 mb-2">Drag and drop images here</p>
-                  <p className="text-xs text-gray-500">or</p>
-                  <button className="mt-2 text-blue-600 hover:text-blue-700 text-sm font-medium">
-                    Browse files
-                  </button>
-                  <p className="text-xs text-gray-500 mt-2">Supports: JPG, PNG, GIF, WebP (max 10MB)</p>
-                </div>
-              )}
+        {/* Search and Controls */}
+        <div className="flex flex-col sm:flex-row gap-4 mb-6">
+          <div className="flex-1">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search images..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
             </div>
           </div>
 
-          {/* Image Gallery */}
-          <div className="lg:col-span-2">
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="font-semibold text-gray-900">Image Library</h4>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="text"
-                  placeholder="Search images..."
-                  className="px-3 py-1 text-sm border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                />
-                <select className="px-3 py-1 text-sm border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
-                  <option>All</option>
-                  <option>Recent</option>
-                  <option>Large</option>
-                  <option>Small</option>
-                </select>
-              </div>
+          <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`p-2 rounded ${viewMode === 'grid' ? 'bg-white shadow-sm' : 'hover:bg-gray-200'}`}
+              >
+                <Grid3X3 className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`p-2 rounded ${viewMode === 'list' ? 'bg-white shadow-sm' : 'hover:bg-gray-200'}`}
+              >
+                <List className="w-4 h-4" />
+              </button>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
-              {images.map((image) => (
-                <div
-                  key={image.id}
-                  onClick={() => setSelectedImage(image)}
-                  className={`relative cursor-pointer rounded-lg overflow-hidden border-2 transition-all duration-200 ${
-                    selectedImage?.id === image.id 
-                      ? 'border-blue-500 ring-2 ring-blue-200' 
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <img
-                    src={image.src}
-                    alt={image.alt}
-                    className="w-full h-32 object-cover"
-                  />
-                  <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
-                    {selectedImage?.id === image.id && (
-                      <div className="bg-blue-600 text-white rounded-full p-2">
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-2 bg-white">
-                    <p className="text-xs text-gray-600 truncate">{image.alt}</p>
-                    <p className="text-xs text-gray-400">{formatFileSize(image.size)}</p>
-                  </div>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              Upload
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 flex-1 overflow-hidden">
+          {/* Upload Area */}
+          <div className="lg:col-span-1">
+            <div
+              className={`h-full border-2 border-dashed rounded-lg p-6 transition-all duration-200 cursor-pointer ${
+                dragActive
+                  ? 'border-blue-500 bg-blue-50'
+                  : uploading
+                  ? 'border-gray-300 bg-gray-50'
+                  : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+              }`}
+              onDragEnter={handleDrag}
+              onDragLeave={handleDrag}
+              onDragOver={handleDrag}
+              onDrop={handleDrop}
+              onClick={uploading ? undefined : () => fileInputRef.current?.click()}
+            >
+              <div className="flex flex-col items-center justify-center text-center h-full">
+                {uploading ? (
+                  <>
+                    <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-3"></div>
+                    <p className="text-sm text-gray-600">Uploading...</p>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                      <Upload className="w-8 h-8 text-gray-400" />
+                    </div>
+
+                    <h4 className="text-lg font-medium text-gray-900 mb-2">
+                      Drop files here
+                    </h4>
+
+                    <p className="text-sm text-gray-500 mb-4">
+                      or click to browse
+                    </p>
+
+                    <div className="text-xs text-gray-400 space-y-1">
+                      <p>Supports: JPG, PNG, GIF, WebP</p>
+                      <p>Max size: 10MB each</p>
+                      <p>Multiple files supported</p>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Media Library */}
+          <div className="lg:col-span-3 flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="font-semibold text-gray-900">
+                {media.length} image{media.length !== 1 ? 's' : ''}
+              </h4>
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+              {loading ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {[...Array(8)].map((_, i) => (
+                    <div key={i} className="aspect-square bg-gray-200 rounded-lg animate-pulse"></div>
+                  ))}
                 </div>
-              ))}
+              ) : media.length > 0 ? (
+                <div className={viewMode === 'grid'
+                  ? "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
+                  : "space-y-3"
+                }>
+                  {media.map((item) => (
+                    <div
+                      key={item.id}
+                      onClick={() => setSelectedMedia(item)}
+                      className={`cursor-pointer rounded-lg transition-all duration-200 ${
+                        selectedMedia?.id === item.id
+                          ? 'ring-2 ring-blue-500 ring-offset-2'
+                          : 'hover:shadow-lg'
+                      } ${
+                        viewMode === 'grid'
+                          ? 'relative group bg-gray-50'
+                          : 'flex items-center space-x-4 p-3 bg-gray-50 hover:bg-gray-100'
+                      }`}
+                    >
+                      {viewMode === 'grid' ? (
+                        <>
+                          <div className="aspect-square bg-gray-200 rounded-lg overflow-hidden">
+                            <img
+                              src={item.blobUrl}
+                              alt={item.altText || item.filename}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <div className="p-3">
+                            <p className="text-xs text-gray-600 truncate font-medium">
+                              {item.altText || item.filename}
+                            </p>
+                            <p className="text-xs text-gray-500">{formatFileSize(item.size)}</p>
+                          </div>
+                          {selectedMedia?.id === item.id && (
+                            <div className="absolute top-2 right-2 bg-blue-600 text-white rounded-full p-1">
+                              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <div className="w-12 h-12 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
+                            <img
+                              src={item.blobUrl}
+                              alt={item.altText || item.filename}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">
+                              {item.altText || item.filename}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {formatFileSize(item.size)} • {new Date(item.createdAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                          {selectedMedia?.id === item.id && (
+                            <div className="bg-blue-600 text-white rounded-full p-1">
+                              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <ImageIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No images found</h3>
+                  <p className="text-gray-500 mb-6">
+                    {searchQuery ? 'Try adjusting your search terms' : 'Upload your first image to get started'}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
 
         {/* Selected Image Details */}
-        {selectedImage && (
-          <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+        {selectedMedia && (
+          <div className="mt-6 p-4 bg-blue-50 rounded-lg border-t border-gray-200">
             <div className="flex items-center justify-between">
-              <div>
-                <h5 className="font-medium text-gray-900">{selectedImage.alt}</h5>
-                <p className="text-sm text-gray-600">
-                  {formatFileSize(selectedImage.size)} • {selectedImage.uploadedAt.toLocaleDateString()}
-                </p>
-                {selectedImage.caption && (
-                  <p className="text-sm text-gray-500 mt-1">{selectedImage.caption}</p>
-                )}
+              <div className="flex items-center space-x-4">
+                <div className="w-16 h-16 bg-gray-200 rounded-lg overflow-hidden">
+                  <img
+                    src={selectedMedia.blobUrl}
+                    alt={selectedMedia.altText || selectedMedia.filename}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div>
+                  <h5 className="font-medium text-gray-900">
+                    {selectedMedia.altText || selectedMedia.filename}
+                  </h5>
+                  <p className="text-sm text-gray-600">
+                    {formatFileSize(selectedMedia.size)} • {new Date(selectedMedia.createdAt).toLocaleDateString()}
+                  </p>
+                  {selectedMedia.caption && (
+                    <p className="text-sm text-gray-500 mt-1">{selectedMedia.caption}</p>
+                  )}
+                </div>
               </div>
               <button
                 onClick={handleImageSelect}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                className="inline-flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 Use This Image
               </button>
             </div>
           </div>
         )}
+
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={handleFileInputChange}
+          className="hidden"
+        />
       </div>
     </div>
   );

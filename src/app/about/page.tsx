@@ -8,7 +8,7 @@ export default function AboutPage() {
           <div className="text-center space-y-6">
             <div className="space-y-6 text-left max-w-3xl mx-auto">
               <p className="michroma text-base md:text-lg lg:text-xl text-white/80 leading-relaxed">
-                Welcome to my digital portfolio. I'm a passionate developer and designer focused on creating
+                Welcome to my digital portfolio. I&apos;m a passionate developer and designer focused on creating
                 innovative solutions that bridge technology and user experience.
               </p>
 

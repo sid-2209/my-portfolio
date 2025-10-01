@@ -74,7 +74,7 @@ export async function POST(
   }
 }
 
-// PUT - Update multiple blocks (for reordering)
+// PUT - Update multiple blocks (for reordering) - ATOMIC TRANSACTION
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -84,6 +84,7 @@ export async function PUT(
     const body = await request.json();
     const { blocks } = body;
 
+    // Validate input
     if (!Array.isArray(blocks)) {
       return NextResponse.json(
         { error: 'Blocks must be an array' },
@@ -91,28 +92,89 @@ export async function PUT(
       );
     }
 
-    // First, delete all existing blocks for this content
-    await prisma.contentBlock.deleteMany({
-      where: { contentId: id }
+    // Validate each block structure
+    for (let i = 0; i < blocks.length; i++) {
+      const block = blocks[i];
+      if (!block.blockType || block.data === undefined) {
+        return NextResponse.json(
+          { error: `Block at index ${i} is missing required fields: blockType or data` },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Verify content exists before proceeding
+    const content = await prisma.content.findUnique({
+      where: { id },
+      select: { id: true }
     });
 
-    // Then create all blocks with new data, ensuring unique order values
-    const updatedBlocks = await prisma.$transaction(
-      blocks.map((block: { blockType: string; data: unknown }, index: number) =>
-        prisma.contentBlock.create({
-          data: {
-            contentId: id,
-            blockType: block.blockType as BlockType,
-            order: index, // Use index to ensure unique, sequential order
-            data: block.data as Prisma.InputJsonValue
-          }
+    if (!content) {
+      return NextResponse.json(
+        { error: 'Content not found' },
+        { status: 404 }
+      );
+    }
+
+    // ATOMIC TRANSACTION: Delete and recreate all blocks
+    // This ensures either all operations succeed or all fail
+    const updatedBlocks = await prisma.$transaction(async (tx) => {
+      // Step 1: Delete all existing blocks for this content
+      await tx.contentBlock.deleteMany({
+        where: { contentId: id }
+      });
+
+      // Step 2: Create all new blocks with validated data
+      const newBlocks = await Promise.all(
+        blocks.map(async (block: { blockType: string; data: unknown; id?: string }, index: number) => {
+          return tx.contentBlock.create({
+            data: {
+              contentId: id,
+              blockType: block.blockType as BlockType,
+              order: index, // Use index to ensure unique, sequential order
+              data: block.data as Prisma.InputJsonValue
+            }
+          });
         })
-      )
-    );
+      );
+
+      return newBlocks;
+    }, {
+      timeout: 10000, // 10 second timeout for the transaction
+      maxWait: 5000,  // Maximum time to wait for a transaction slot
+    });
 
     return NextResponse.json(updatedBlocks);
   } catch (error) {
     console.error('Error updating content blocks:', error);
+
+    // Handle specific Prisma errors
+    if (error && typeof error === 'object' && 'code' in error) {
+      switch (error.code) {
+        case 'P2025':
+          return NextResponse.json(
+            { error: 'Content not found. Cannot update blocks for non-existent content.' },
+            { status: 404 }
+          );
+        case 'P2034': // Transaction failed due to write conflict
+          return NextResponse.json(
+            { error: 'Update conflict. Please refresh and try again.' },
+            { status: 409 }
+          );
+        case 'P1001': // Timeout
+          return NextResponse.json(
+            { error: 'Request timeout. Please try again.' },
+            { status: 408 }
+          );
+        default:
+          console.error('Unhandled Prisma error:', error.code, error);
+          return NextResponse.json(
+            { error: 'Database error occurred while updating content blocks.' },
+            { status: 500 }
+          );
+      }
+    }
+
     return NextResponse.json(
       { error: 'Failed to update content blocks' },
       { status: 500 }

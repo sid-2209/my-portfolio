@@ -5,6 +5,11 @@ import RichTextEditor from "./RichTextEditor";
 import HeadingEditor from "./HeadingEditor";
 import SplitViewEditor from "./SplitViewEditor";
 import CodeBlockEditor from "./CodeBlockEditor";
+import QuoteEditor from "./QuoteEditor";
+import ListEditor from "./ListEditor";
+import DividerEditor from "./DividerEditor";
+import CustomHTMLEditor from "./CustomHTMLEditor";
+import ImagePicker from "../media/ImagePicker";
 
 // Import the same interfaces used in BlockEditor for consistency
 interface ParagraphData {
@@ -42,6 +47,10 @@ interface ListData {
 interface DividerData {
   style: 'solid' | 'dashed' | 'dotted' | 'double';
   color: string;
+  thickness?: number;
+  width?: number;
+  marginTop?: number;
+  marginBottom?: number;
 }
 
 interface CustomData {
@@ -181,7 +190,114 @@ export default function EnhancedBlockEditor({
             />
           );
         }
-        
+
+        if (block.blockType === 'IMAGE') {
+          const imageData = editData as ImageData;
+          return (
+            <div className="space-y-4">
+              <ImagePicker
+                label="Image"
+                value={imageData.src || ''}
+                onChange={(media) => setEditData({
+                  ...imageData,
+                  src: media?.blobUrl || ''
+                })}
+                onUrlChange={(url) => setEditData({
+                  ...imageData,
+                  src: url
+                })}
+                source="content-block"
+                contentId={block.contentId}
+                blockId={block.id}
+                folder="blocks"
+                placeholder="No image selected"
+              />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-gray-700 text-sm font-medium mb-2">
+                    Alt Text
+                  </label>
+                  <input
+                    type="text"
+                    value={imageData.alt || ''}
+                    onChange={(e) => setEditData({
+                      ...imageData,
+                      alt: e.target.value
+                    })}
+                    className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-500 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                    placeholder="Describe this image"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-gray-700 text-sm font-medium mb-2">
+                    Caption (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={imageData.caption || ''}
+                    onChange={(e) => setEditData({
+                      ...imageData,
+                      caption: e.target.value
+                    })}
+                    className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-500 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                    placeholder="Optional caption"
+                  />
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        if (block.blockType === 'QUOTE') {
+          const quoteData = editData as QuoteData;
+          return (
+            <QuoteEditor
+              data={quoteData}
+              onChange={(data) => setEditData(data)}
+              className="w-full"
+              isEditing={isEditing}
+            />
+          );
+        }
+
+        if (block.blockType === 'LIST') {
+          const listData = editData as ListData;
+          return (
+            <ListEditor
+              data={listData}
+              onChange={(data) => setEditData(data)}
+              className="w-full"
+              isEditing={isEditing}
+            />
+          );
+        }
+
+        if (block.blockType === 'DIVIDER') {
+          const dividerData = editData as DividerData;
+          return (
+            <DividerEditor
+              data={dividerData}
+              onChange={(data) => setEditData(data)}
+              className="w-full"
+              isEditing={isEditing}
+            />
+          );
+        }
+
+        if (block.blockType === 'CUSTOM') {
+          const customData = editData as CustomData;
+          return (
+            <CustomHTMLEditor
+              data={customData}
+              onChange={(data) => setEditData(data)}
+              className="w-full"
+              isEditing={isEditing}
+            />
+          );
+        }
+
         return null;
     }
   };
@@ -255,6 +371,110 @@ export default function EnhancedBlockEditor({
                 </button>
               </div>
               <pre>{(editData as CodeBlockData).code || `// No code yet...`}</pre>
+            </div>
+          )}
+
+          {block.blockType === 'IMAGE' && (
+            <div className="space-y-3">
+              {(editData as ImageData).src ? (
+                <div className="relative group">
+                  <img
+                    src={(editData as ImageData).src}
+                    alt={(editData as ImageData).alt || 'Block image'}
+                    className="w-full max-w-md mx-auto rounded-lg shadow-sm"
+                  />
+                  {(editData as ImageData).caption && (
+                    <p className="text-sm text-gray-600 text-center mt-2 italic">
+                      {(editData as ImageData).caption}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="w-full h-32 bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center">
+                  <div className="text-center">
+                    <svg className="w-8 h-8 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <p className="text-sm text-gray-500">No image selected</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {block.blockType === 'QUOTE' && (
+            <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded-lg">
+              <blockquote className="text-lg italic text-gray-800 leading-relaxed">
+                &ldquo;{(editData as QuoteData).text || 'Enter your quote text...'}&rdquo;
+              </blockquote>
+              {((editData as QuoteData).author || (editData as QuoteData).source) && (
+                <cite className="text-sm text-gray-600 mt-3 block">
+                  — {(editData as QuoteData).author || 'Unknown'}
+                  {(editData as QuoteData).source && (
+                    <span className="text-gray-500 ml-2">
+                      ({(editData as QuoteData).source})
+                    </span>
+                  )}
+                </cite>
+              )}
+            </div>
+          )}
+
+          {block.blockType === 'LIST' && (
+            <div className="bg-gray-50 p-4 rounded-lg">
+              {(editData as ListData).type === 'ordered' ? (
+                <ol className="list-decimal list-inside space-y-1">
+                  {(editData as ListData).items.map((item, index) => (
+                    <li key={index} className="text-gray-800">
+                      {item || `Item ${index + 1}`}
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <ul className="list-disc list-inside space-y-1">
+                  {(editData as ListData).items.map((item, index) => (
+                    <li key={index} className="text-gray-800">
+                      {item || `Item ${index + 1}`}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
+          {block.blockType === 'DIVIDER' && (
+            <div className="bg-gray-50 p-6 rounded-lg">
+              <div className="text-sm text-gray-600 mb-2">Content above divider</div>
+              <div
+                style={{
+                  marginTop: `${(editData as DividerData).marginTop || 20}px`,
+                  marginBottom: `${(editData as DividerData).marginBottom || 20}px`,
+                  display: 'flex',
+                  justifyContent: 'center'
+                }}
+              >
+                <hr
+                  style={{
+                    border: 'none',
+                    borderTop: `${(editData as DividerData).thickness || 1}px ${(editData as DividerData).style} ${(editData as DividerData).color}`,
+                    width: `${(editData as DividerData).width || 100}%`,
+                    margin: 0
+                  }}
+                />
+              </div>
+              <div className="text-sm text-gray-600 mt-2">Content below divider</div>
+            </div>
+          )}
+
+          {block.blockType === 'CUSTOM' && (
+            <div className="border border-gray-200 rounded-lg p-4 bg-white">
+              {(editData as CustomData).html ? (
+                <div
+                  dangerouslySetInnerHTML={{ __html: (editData as CustomData).html }}
+                />
+              ) : (
+                <p className="text-gray-500 italic">No HTML content to preview</p>
+              )}
             </div>
           )}
         </div>

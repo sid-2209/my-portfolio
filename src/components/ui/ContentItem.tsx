@@ -5,7 +5,7 @@ import Image from 'next/image';
 interface ContentItemProps {
   id: string;
   title: string;
-  description: string;
+  description?: string | null;
   contentType: 'project' | 'case_study' | 'blog';
   category?: string | null;
   imageUrl?: string | null;
@@ -60,7 +60,7 @@ export default function ContentItem({
     }
   };
 
-  const truncatedDescription = truncateDescription(description);
+  const truncatedDescription = description ? truncateDescription(description) : null;
   const contentTypeLabel = getContentTypeLabel(contentType);
   const formattedDate = formatDate(publishedDate);
 
@@ -112,9 +112,11 @@ export default function ContentItem({
           {title}
         </h3>
 
-        <p className="michroma text-sm md:text-base lg:text-lg text-white/80 leading-relaxed mb-4 line-clamp-3">
-          {truncatedDescription}
-        </p>
+        {truncatedDescription && (
+          <p className="michroma text-sm md:text-base lg:text-lg text-white/80 leading-relaxed mb-4 line-clamp-3">
+            {truncatedDescription}
+          </p>
+        )}
 
         <div className="michroma text-xs md:text-sm text-white/60 flex flex-wrap items-center gap-2">
           <span className="font-medium">{contentTypeLabel}</span>

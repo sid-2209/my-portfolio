@@ -1,13 +1,23 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import BlockBuilder from "../../components/cms/BlockBuilder";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import DragDropBlockBuilder from "../../components/cms/DragDropBlockBuilder";
 import EnhancedContentEditor from "../../components/cms/EnhancedContentEditor";
-import ContentAnalytics from "../../components/cms/ContentAnalytics";
+import EnhancedContentAnalytics from "../../components/cms/EnhancedContentAnalytics";
+import LivePreviewPanel from "../../components/cms/LivePreviewPanel";
+import RevisionHistoryPanel from "../../components/cms/RevisionHistoryPanel";
+import AdvancedSearchPanel from "../../components/cms/AdvancedSearchPanel";
+import TemplateManager from "../../components/cms/TemplateManager";
+import SortableContentGrid from "../../components/cms/SortableContentGrid";
+import { useLivePreview } from "../../hooks/useLivePreview";
+import { useRevisionHistory } from "../../hooks/useRevisionHistory";
+import { useAdvancedSearch } from "../../hooks/useAdvancedSearch";
 import { BlockType } from "@prisma/client";
 import { StatCard, EmptyState, ContentCard } from "../../components/data-display";
 import { LoadingSpinner } from "../../components/feedback";
 import { SearchAndFilterBar } from "../../components/navigation";
+import ConfirmFeaturedReplaceModal from "../../components/modals/ConfirmFeaturedReplaceModal";
+import ConfirmDeleteModal from "../../components/modals/ConfirmDeleteModal";
 
 // Import the same interfaces used in BlockEditor for consistency
 interface ParagraphData {
@@ -66,7 +76,7 @@ type BlockData =
 interface Content {
   id: string;
   title: string;
-  description: string;
+  description?: string | null;
   contentType: string;
   category?: string | null;
   featured: boolean;
@@ -96,13 +106,45 @@ export default function AdminPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedContentId, setSelectedContentId] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
-  const [activeView, setActiveView] = useState<'overview' | 'content' | 'analytics'>('overview');
+  const [activeView, setActiveView] = useState<'overview' | 'content' | 'analytics' | 'templates'>('overview');
   const [editForm, setEditForm] = useState({
     title: '',
     description: '',
     featured: false,
-    status: 'DRAFT'
+    status: 'DRAFT',
+    contentType: '',
+    category: '',
+    author: '',
+    imageUrl: '',
+    contentUrl: '',
+    tags: [] as string[]
   });
+
+  // Featured content modal state
+  const [showFeaturedModal, setShowFeaturedModal] = useState(false);
+  const [featuredModalData, setFeaturedModalData] = useState<{
+    newContentId: string;
+    newContentTitle: string;
+    currentFeatured: {
+      id: string;
+      title: string;
+      description?: string | null;
+      contentType: string;
+    } | null;
+  } | null>(null);
+  const [isFeaturedReplacing, setIsFeaturedReplacing] = useState(false);
+
+  // Delete content modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteModalData, setDeleteModalData] = useState<{
+    id: string;
+    title: string;
+    description?: string | null;
+    contentType: string;
+    status?: string;
+    featured: boolean;
+  } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [newPost, setNewPost] = useState({
     title: '',
     description: '',
@@ -110,7 +152,7 @@ export default function AdminPage() {
     category: '',
     imageUrl: '',
     contentUrl: '',
-    tags: '',
+    tags: [],
     featured: false,
     status: 'DRAFT',
     slug: '',
@@ -131,10 +173,67 @@ export default function AdminPage() {
   const [filterDateRange, setFilterDateRange] = useState('');
   const [sortBy, setSortBy] = useState('newest');
 
+  // Live Preview System
+  const currentContent = useMemo(() =>
+    selectedContentId ? content.find(c => c.id === selectedContentId) : null,
+    [selectedContentId, content]
+  );
 
+  const initialBlocks = useMemo(() =>
+    currentContent?.contentBlocks?.map(block => ({
+      id: block.id,
+      blockType: block.blockType,
+      data: block.data,
+      order: block.order
+    })) || [],
+    [currentContent?.contentBlocks]
+  );
+
+  const initialMetadata = useMemo(() => ({
+    title: currentContent?.title || '',
+    description: currentContent?.description || '',
+    contentType: currentContent?.contentType || '',
+    status: currentContent?.status || ''
+  }), [currentContent?.title, currentContent?.description, currentContent?.contentType, currentContent?.status]);
+
+  const {
+    isPreviewVisible,
+    previewBlocks,
+    contentMetadata,
+    updatePreviewBlocks,
+    updateContentMetadata,
+    togglePreviewVisibility,
+  } = useLivePreview(initialBlocks, initialMetadata);
+
+  // Revision History System
+  const [isRevisionHistoryVisible, setIsRevisionHistoryVisible] = useState(false);
+  const { createAutoRevision } = useRevisionHistory();
+
+  const toggleRevisionHistory = () => {
+    setIsRevisionHistoryVisible(!isRevisionHistoryVisible);
+  };
+
+  // Advanced Search System
+  const [isAdvancedSearchVisible, setIsAdvancedSearchVisible] = useState(false);
+  const [searchResultsOverride, setSearchResultsOverride] = useState<unknown[] | null>(null);
+  const [searchTime, setSearchTime] = useState<number>(0);
+
+  const toggleAdvancedSearch = () => {
+    setIsAdvancedSearchVisible(!isAdvancedSearchVisible);
+  };
+
+  const handleAdvancedSearchResults = useCallback((results: unknown[], searchTime: number) => {
+    setSearchResultsOverride(results);
+    setSearchTime(searchTime);
+  }, []);
 
   // Filtering and Search Logic
   const filteredContent = useMemo(() => {
+    // If advanced search is active and has results, use those instead
+    if (isAdvancedSearchVisible && searchResultsOverride !== null) {
+      return searchResultsOverride;
+    }
+
     let filtered = content;
 
     // Search filtering
@@ -142,7 +241,7 @@ export default function AdminPage() {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(item =>
         item.title.toLowerCase().includes(query) ||
-        item.description.toLowerCase().includes(query) ||
+        (item.description && item.description.toLowerCase().includes(query)) ||
         (item.tags && item.tags.some(tag => tag.toLowerCase().includes(query))) ||
         (item.category && item.category.toLowerCase().includes(query)) ||
         // Search within content blocks
@@ -237,7 +336,7 @@ export default function AdminPage() {
     }
 
     return filtered;
-  }, [content, searchQuery, filterContentType, filterStatus, filterFeatured, filterDateRange, sortBy]);
+  }, [content, searchQuery, filterContentType, filterStatus, filterFeatured, filterDateRange, sortBy, isAdvancedSearchVisible, searchResultsOverride]);
 
   const clearFilters = () => {
     setSearchQuery('');
@@ -271,30 +370,211 @@ export default function AdminPage() {
   };
 
   const toggleFeatured = async (contentId: string, currentFeatured: boolean) => {
+    console.log('🔄 toggleFeatured called:', { contentId, currentFeatured });
+
     try {
       setIsUpdating(true);
+
+      // If unfeaturing, just proceed directly
+      if (currentFeatured) {
+        console.log('📤 Unfeaturing content:', contentId);
+        const response = await fetch(`/api/content/${contentId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ featured: false }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to update featured status');
+        }
+
+        setContent(prev => prev.map(item =>
+          item.id === contentId
+            ? { ...item, featured: false }
+            : item
+        ));
+        setIsUpdating(false);
+        return;
+      }
+
+      // If featuring, check for conflicts
+      console.log('⭐ Attempting to feature content:', contentId);
       const response = await fetch(`/api/content/${contentId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ featured: !currentFeatured }),
+        body: JSON.stringify({ featured: true }),
       });
-      
-      if (!response.ok) {
-        throw new Error('Failed to update featured status');
+
+      console.log('📡 Response status:', response.status);
+
+      if (response.status === 409) {
+        console.log('⚠️ Conflict detected (409), parsing response...');
+
+        try {
+          const errorData = await response.json();
+          console.log('📄 Conflict response data:', errorData);
+
+          if (errorData.requiresConfirmation && errorData.currentFeatured) {
+            const currentContent = content.find(item => item.id === contentId);
+            console.log('🎯 Current content for modal:', currentContent?.title);
+
+            const modalData = {
+              newContentId: contentId,
+              newContentTitle: currentContent?.title || 'Unknown',
+              currentFeatured: errorData.currentFeatured
+            };
+
+            console.log('🪟 Setting modal data:', modalData);
+            setFeaturedModalData(modalData);
+            setShowFeaturedModal(true);
+            console.log('✅ Modal should now be visible');
+
+            // Don't call setIsUpdating(false) here - keep it loading until modal is handled
+            return;
+          } else {
+            console.log('❌ Missing requiresConfirmation or currentFeatured in response');
+            throw new Error('Invalid conflict response format');
+          }
+        } catch (jsonError) {
+          console.error('❌ Failed to parse 409 response JSON:', jsonError);
+          throw new Error('Failed to handle conflict response');
+        }
       }
-      
-      setContent(prev => prev.map(item => 
-        item.id === contentId 
-          ? { ...item, featured: !currentFeatured }
+
+      if (!response.ok) {
+        console.log('❌ Response not OK, status:', response.status);
+        let errorData: { error?: string } = {};
+        try {
+          errorData = await response.json();
+        } catch (parseError) {
+          console.error('Failed to parse error response JSON:', parseError);
+        }
+        throw new Error(errorData.error || 'Failed to update featured status');
+      }
+
+      console.log('✅ Successfully featured content');
+      // Success: update the content
+      setContent(prev => prev.map(item =>
+        item.id === contentId
+          ? { ...item, featured: true }
           : item
       ));
-    } catch (error) {
-      console.error('Error updating featured status:', error);
-    } finally {
       setIsUpdating(false);
+
+    } catch (error) {
+      console.error('❌ Error in toggleFeatured:', error);
+      setIsUpdating(false);
+      alert(`Error: ${error instanceof Error ? error.message : 'Failed to update featured status'}`);
     }
+  };
+
+  const handleFeaturedReplace = async () => {
+    if (!featuredModalData) return;
+
+    try {
+      setIsFeaturedReplacing(true);
+
+      const response = await fetch('/api/content/featured/replace', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          oldId: featuredModalData.currentFeatured?.id,
+          newId: featuredModalData.newContentId
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to replace featured content');
+      }
+
+      // Update content state: unfeature old, feature new
+      setContent(prev => prev.map(item => {
+        if (item.id === featuredModalData.currentFeatured?.id) {
+          return { ...item, featured: false };
+        }
+        if (item.id === featuredModalData.newContentId) {
+          return { ...item, featured: true };
+        }
+        return item;
+      }));
+
+      setShowFeaturedModal(false);
+      setFeaturedModalData(null);
+    } catch (error) {
+      console.error('Error replacing featured content:', error);
+      alert(`Error: ${error instanceof Error ? error.message : 'Failed to replace featured content'}`);
+    } finally {
+      setIsFeaturedReplacing(false);
+    }
+  };
+
+  const handleFeaturedModalClose = () => {
+    if (isFeaturedReplacing) return; // Prevent closing during replacement
+    console.log('🪟 Closing featured modal');
+    setShowFeaturedModal(false);
+    setFeaturedModalData(null);
+    setIsUpdating(false); // Reset loading state when modal is closed
+  };
+
+  const handleRemoveContent = (contentItem: Content) => {
+    setDeleteModalData({
+      id: contentItem.id,
+      title: contentItem.title,
+      description: contentItem.description,
+      contentType: contentItem.contentType,
+      status: contentItem.status,
+      featured: contentItem.featured
+    });
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteModalData) return;
+
+    try {
+      setIsDeleting(true);
+
+      const response = await fetch(`/api/content/${deleteModalData.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to delete content');
+      }
+
+      // Remove content from state
+      setContent(prev => prev.filter(item => item.id !== deleteModalData.id));
+
+      // Close modal
+      setShowDeleteModal(false);
+      setDeleteModalData(null);
+
+    } catch (error) {
+      console.error('Error deleting content:', error);
+      alert(`Error: ${error instanceof Error ? error.message : 'Failed to delete content'}`);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDeleteModalClose = () => {
+    if (isDeleting) return; // Prevent closing during deletion
+    setShowDeleteModal(false);
+    setDeleteModalData(null);
+  };
+
+  const handleContentReorder = (reorderedContent: Content[]) => {
+    setContent(reorderedContent);
+    // Optionally, you could save the new order to the backend here
+    // For now, we'll just update the local state
   };
 
 
@@ -303,17 +583,25 @@ export default function AdminPage() {
     setEditingId(post.id);
     setEditForm({
       title: post.title,
-      description: post.description,
+      description: post.description || '',
       featured: post.featured,
-      status: post.status || 'DRAFT'
+      status: post.status || 'DRAFT',
+      contentType: post.contentType,
+      category: post.category || '',
+      author: post.author,
+      imageUrl: post.imageUrl || '',
+      contentUrl: post.contentUrl || '',
+      tags: post.tags || ([] as string[])
     });
   };
 
   const saveEdit = async () => {
     if (!editingId) return;
-    
+
     try {
       setIsUpdating(true);
+      console.log('💾 Saving edit for content:', editingId, 'with data:', editForm);
+
       const response = await fetch(`/api/content/${editingId}`, {
         method: 'PATCH',
         headers: {
@@ -321,32 +609,73 @@ export default function AdminPage() {
         },
         body: JSON.stringify(editForm),
       });
-      
+
+      console.log('📡 Save response status:', response.status);
+
       if (!response.ok) {
-        throw new Error('Failed to update post');
+        let errorData: Record<string, unknown> = {};
+        try {
+          errorData = await response.json();
+          console.log('❌ Save error response:', errorData);
+        } catch (parseError) {
+          console.error('Failed to parse error response:', parseError);
+        }
+
+        // Check if this is a featured content conflict
+        if (response.status === 409 && (errorData as { requiresConfirmation?: boolean }).requiresConfirmation) {
+          console.log('⚠️ Featured content conflict during edit');
+          const currentContent = content.find(item => item.id === editingId);
+          setFeaturedModalData({
+            newContentId: editingId,
+            newContentTitle: currentContent?.title || 'Unknown',
+            currentFeatured: (errorData as { currentFeatured?: { id: string; title: string; description?: string | null; contentType: string } | null }).currentFeatured || null
+          });
+          setShowFeaturedModal(true);
+          return; // Don't call setIsUpdating(false) here
+        }
+
+        throw new Error((errorData as { error?: string }).error || `Failed to update post (${response.status})`);
       }
-      
+
       const updatedPost = await response.json();
-      setContent(prev => prev.map(item => 
+      console.log('✅ Successfully updated post');
+      setContent(prev => prev.map(item =>
         item.id === editingId ? updatedPost : item
       ));
       setEditingId(null);
-    } catch (error) {
-      console.error('Error updating post:', error);
-    } finally {
       setIsUpdating(false);
+    } catch (error) {
+      console.error('❌ Error updating post:', error);
+      setIsUpdating(false);
+      alert(`Error: ${error instanceof Error ? error.message : 'Failed to update post'}`);
     }
   };
 
   const cancelEdit = () => {
     setEditingId(null);
-    setEditForm({ title: '', description: '', featured: false, status: 'DRAFT' });
+    setEditForm({
+      title: '',
+      description: '',
+      featured: false,
+      status: 'DRAFT',
+      contentType: '',
+      category: '',
+      author: '',
+      imageUrl: '',
+      contentUrl: '',
+      tags: [] as string[]
+    });
   };
 
   const handleContentBlocksChange = async (blocks: { id: string; blockType: string; data: unknown; order: number }[]) => {
-    if (!selectedContentId) return;
-    
+    if (!selectedContentId) {
+      console.error('No content selected for block update');
+      return;
+    }
+
     try {
+      console.log('Updating content blocks for:', selectedContentId, 'with', blocks.length, 'blocks');
+
       const response = await fetch(`/api/content/${selectedContentId}/blocks`, {
         method: 'PUT',
         headers: {
@@ -354,43 +683,96 @@ export default function AdminPage() {
         },
         body: JSON.stringify({ blocks }),
       });
-      
+
       if (!response.ok) {
-        throw new Error('Failed to update content blocks');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to update content blocks (${response.status})`);
       }
-      
-      setContent(prev => prev.map(item => 
-        item.id === selectedContentId 
-          ? { ...item, contentBlocks: blocks }
+
+      const updatedBlocks = await response.json();
+      console.log('Successfully updated blocks:', updatedBlocks.length, 'blocks saved');
+
+      setContent(prev => prev.map(item =>
+        item.id === selectedContentId
+          ? { ...item, contentBlocks: updatedBlocks }
           : item
       ));
+
+      // Update live preview with the new blocks
+      const previewBlocks = updatedBlocks.map((block: { id: string; blockType: string; data: unknown; order: number }) => ({
+        id: block.id,
+        blockType: block.blockType,
+        data: block.data,
+        order: block.order
+      }));
+      updatePreviewBlocks(previewBlocks);
+
+      // Create auto-revision for content block changes
+      await createAutoRevision(selectedContentId);
     } catch (error) {
       console.error('Error updating content blocks:', error);
+      alert(`Error saving blocks: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
   const handleEnhancedSave = async (updatedContent: Content) => {
     try {
       setIsUpdating(true);
-      const response = await fetch(`/api/content/${updatedContent.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updatedContent),
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to update content');
+
+      // Check if this is a new content item (ID starts with "new-")
+      const isNewContent = updatedContent.id.startsWith('new-');
+
+      let response;
+      let savedContent: Content;
+
+      if (isNewContent) {
+        // Create new content via POST
+        const { id, createdAt, updatedAt, ...contentData } = updatedContent;
+        response = await fetch('/api/content', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(contentData),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || 'Failed to create content');
+        }
+
+        savedContent = await response.json();
+
+        // Add new content to the list
+        setContent(prev => [savedContent, ...prev]);
+      } else {
+        // Update existing content via PATCH
+        response = await fetch(`/api/content/${updatedContent.id}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(updatedContent),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || 'Failed to update content');
+        }
+
+        savedContent = await response.json();
+
+        // Update existing content in the list
+        setContent(prev => prev.map(item =>
+          item.id === updatedContent.id ? savedContent : item
+        ));
       }
-      
-      const savedContent = await response.json();
-      setContent(prev => prev.map(item => 
-        item.id === updatedContent.id ? savedContent : item
-      ));
+
       setShowAddForm(false);
     } catch (error) {
       console.error('Error saving content:', error);
+      // You might want to show this error to the user in a toast or alert
+      alert(`Error saving content: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsUpdating(false);
     }
@@ -436,7 +818,7 @@ export default function AdminPage() {
               onClick={() => setActiveView('overview')}
               className="text-gray-700 hover:text-gray-900"
             >
-              {activeView === 'content' ? 'Content' : 'Analytics'}
+              {activeView === 'content' ? 'Content' : activeView === 'analytics' ? 'Analytics' : 'Templates'}
             </button>
           </>
         )}
@@ -447,17 +829,34 @@ export default function AdminPage() {
         <div className="flex items-center justify-between">
             <div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              {activeView === 'overview' ? 'Content Manager' : 
-               activeView === 'content' ? 'Content Editor' : 'Content Analytics'}
+              {activeView === 'overview' ? 'Content Manager' :
+               activeView === 'content' ? 'Content Editor' :
+               activeView === 'analytics' ? 'Content Analytics' : 'Templates & Snippets'}
               </h1>
             <p className="text-gray-600">
               {activeView === 'overview' ? 'Manage content, toggle featured posts, and edit content blocks' :
                activeView === 'content' ? 'Create and edit content with advanced features' :
-               'Track content performance and insights'}
+               activeView === 'analytics' ? 'Track content performance and insights' :
+               'Manage content templates and reusable snippets'}
               </p>
             </div>
           <div className="flex items-center space-x-3">
                           {activeView === 'overview' && (
+                <button
+                  onClick={toggleAdvancedSearch}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                    isAdvancedSearchVisible
+                      ? 'bg-purple-600 text-white hover:bg-purple-700'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  Advanced Search
+                </button>
+              )}
+              {activeView === 'overview' && (
                 <button
                   onClick={() => setActiveView('analytics')}
                   className="flex items-center gap-2 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors"
@@ -466,6 +865,17 @@ export default function AdminPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                   </svg>
                   Analytics
+                </button>
+              )}
+              {activeView === 'overview' && (
+                <button
+                  onClick={() => setActiveView('templates')}
+                  className="flex items-center gap-2 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Templates
                 </button>
               )}
             {activeView === 'overview' && (
@@ -509,7 +919,7 @@ export default function AdminPage() {
               contentUrl: newPost.contentUrl,
               publishedDate: new Date().toISOString(),
               author: newPost.author,
-              tags: newPost.tags.split(',').map(tag => tag.trim()).filter(tag => tag),
+              tags: newPost.tags,
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),
               status: newPost.status,
@@ -530,13 +940,28 @@ export default function AdminPage() {
 
       {/* Content Analytics View */}
       {activeView === 'analytics' && (
-        <ContentAnalytics content={content.map(item => ({
+        <EnhancedContentAnalytics content={content.map(item => ({
           id: item.id,
           title: item.title,
           createdAt: item.createdAt,
+          updatedAt: item.updatedAt,
           status: item.status || 'DRAFT',
-          featured: item.featured
+          featured: item.featured,
+          contentType: item.contentType,
+          category: item.category || undefined,
+          readingTime: item.readingTime,
+          publishedDate: item.publishedDate,
+          description: item.description || undefined,
+          tags: item.tags,
+          contentBlocks: item.contentBlocks
         }))} />
+      )}
+
+      {/* Templates & Snippets View */}
+      {activeView === 'templates' && (
+        <div className="max-w-full">
+          <TemplateManager />
+        </div>
       )}
 
       {/* Content Overview */}
@@ -581,33 +1006,21 @@ export default function AdminPage() {
               </div>
               
                             {filteredContent.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredContent.map((item) => (
-                    <ContentCard
-                      key={item.id}
-                      content={{
-                        id: item.id,
-                        title: item.title,
-                        description: item.description,
-                        contentType: item.contentType,
-                        status: item.status,
-                        featured: item.featured,
-                        publishedDate: item.publishedDate,
-                        createdAt: item.createdAt
-                      }}
-                      isEditing={editingId === item.id}
-                      editForm={editForm}
-                      onEditFormChange={(field, value) => setEditForm(prev => ({ ...prev, [field]: value }))}
-                      onStartEditing={() => startEditing(item)}
-                      onSaveEdit={saveEdit}
-                      onCancelEdit={() => setEditingId(null)}
-                      onToggleFeatured={() => !isUpdating && toggleFeatured(item.id, !item.featured)}
-                      onOpenBlocks={() => setSelectedContentId(item.id)}
-                      isUpdating={isUpdating}
-                      searchQuery={searchQuery}
-                    />
-                  ))}
-                </div>
+                <SortableContentGrid
+                  content={filteredContent as Content[]}
+                  onContentReorder={handleContentReorder}
+                  editingId={editingId}
+                  editForm={editForm}
+                  onEditFormChange={(field, value) => setEditForm(prev => ({ ...prev, [field]: value }))}
+                  onStartEditing={startEditing}
+                  onSaveEdit={saveEdit}
+                  onCancelEdit={() => setEditingId(null)}
+                  onToggleFeatured={(id, currentFeatured) => !isUpdating && toggleFeatured(id, currentFeatured)}
+                  onOpenBlocks={(id) => setSelectedContentId(id)}
+                  onRemove={handleRemoveContent}
+                  isUpdating={isUpdating}
+                  searchQuery={searchQuery}
+                />
               ) : (
                 <EmptyState
                   title="No Results Found"
@@ -682,28 +1095,71 @@ export default function AdminPage() {
                         {content.find(c => c.id === selectedContentId)?.title}
                       </p>
                     </div>
-                    <button
-                      onClick={() => setSelectedContentId(null)}
-                      className="text-gray-600 hover:text-gray-800 font-medium flex items-center space-x-2"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                      </svg>
-                      <span>Back to Overview</span>
-                    </button>
+                    <div className="flex items-center space-x-4">
+                      <button
+                        onClick={togglePreviewVisibility}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                          isPreviewVisible
+                            ? 'bg-blue-600 text-white hover:bg-blue-700'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        {isPreviewVisible ? 'Hide Preview' : 'Show Preview'}
+                      </button>
+                      <button
+                        onClick={toggleRevisionHistory}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                          isRevisionHistoryVisible
+                            ? 'bg-purple-600 text-white hover:bg-purple-700'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 15L12 11L16 15" />
+                        </svg>
+                        {isRevisionHistoryVisible ? 'Hide History' : 'Show History'}
+                      </button>
+                      <button
+                        onClick={() => setSelectedContentId(null)}
+                        className="text-gray-600 hover:text-gray-800 font-medium flex items-center space-x-2"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                        </svg>
+                        <span>Back to Overview</span>
+                      </button>
+                    </div>
                   </div>
-                  <BlockBuilder
-                    contentId={selectedContentId}
-                    initialBlocks={(content.find(c => c.id === selectedContentId)?.contentBlocks || []).map(block => ({
-                      ...block,
-                      contentId: selectedContentId,
-                      blockType: block.blockType as BlockType,
-                      data: block.data as BlockData,
-                      createdAt: new Date(),
-                      updatedAt: new Date()
-                    }))}
-                    onBlocksChange={handleContentBlocksChange}
-                  />
+                  <div className="flex gap-8">
+                    <div className="flex-1">
+                      <DragDropBlockBuilder
+                        contentId={selectedContentId}
+                        initialBlocks={(content.find(c => c.id === selectedContentId)?.contentBlocks || []).map(block => ({
+                          ...block,
+                          contentId: selectedContentId,
+                          blockType: block.blockType as BlockType,
+                          data: block.data as BlockData,
+                          createdAt: new Date(),
+                          updatedAt: new Date()
+                        }))}
+                        onBlocksChange={handleContentBlocksChange}
+                      />
+                    </div>
+
+                    {/* Live Preview Panel */}
+                    <LivePreviewPanel
+                      blocks={previewBlocks}
+                      contentTitle={contentMetadata.title}
+                      contentDescription={contentMetadata.description}
+                      isVisible={isPreviewVisible}
+                      onToggleVisibility={togglePreviewVisibility}
+                    />
+                  </div>
                 </div>
               )}
 
@@ -718,37 +1174,25 @@ export default function AdminPage() {
                         <h2 className="text-2xl font-bold text-gray-900">Featured Content</h2>
                       </div>
                       <span className="text-sm text-gray-500 font-medium">
-                        {filteredContent.filter(item => item.featured).length} posts
+                        {filteredContent.filter((item: any) => item.featured).length} posts
                       </span>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                      {filteredContent.filter(item => item.featured).map((item) => (
-                        <ContentCard
-                          key={item.id}
-                          content={{
-                            id: item.id,
-                            title: item.title,
-                            description: item.description,
-                            contentType: item.contentType,
-                            status: item.status,
-                            featured: item.featured,
-                            publishedDate: item.publishedDate,
-                            createdAt: item.createdAt
-                          }}
-                          isEditing={editingId === item.id}
-                          editForm={editForm}
-                          onEditFormChange={(field, value) => setEditForm(prev => ({ ...prev, [field]: value }))}
-                          onStartEditing={() => startEditing(item)}
-                          onSaveEdit={saveEdit}
-                          onCancelEdit={() => setEditingId(null)}
-                          onToggleFeatured={() => !isUpdating && toggleFeatured(item.id, true)}
-                          onOpenBlocks={() => setSelectedContentId(item.id)}
-                          isUpdating={isUpdating}
-                          searchQuery={searchQuery}
-                        />
-                      ))}
-                    </div>
-                    {filteredContent.filter(item => item.featured).length === 0 && (
+                    <SortableContentGrid
+                      content={filteredContent.filter((item: any) => item.featured)}
+                      onContentReorder={handleContentReorder}
+                      editingId={editingId}
+                      editForm={editForm}
+                      onEditFormChange={(field, value) => setEditForm(prev => ({ ...prev, [field]: value }))}
+                      onStartEditing={startEditing}
+                      onSaveEdit={saveEdit}
+                      onCancelEdit={() => setEditingId(null)}
+                      onToggleFeatured={(id, currentFeatured) => !isUpdating && toggleFeatured(id, currentFeatured)}
+                      onOpenBlocks={(id) => setSelectedContentId(id)}
+                      onRemove={handleRemoveContent}
+                      isUpdating={isUpdating}
+                      searchQuery={searchQuery}
+                    />
+                    {filteredContent.filter((item: any) => item.featured).length === 0 && (
                       <EmptyState
                         title="No Featured Content Yet"
                         description="Start by creating content and marking it as featured to showcase your best work."
@@ -771,37 +1215,25 @@ export default function AdminPage() {
                         <h2 className="text-2xl font-bold text-gray-900">All Content</h2>
                       </div>
                       <span className="text-sm text-gray-500 font-medium">
-                        {filteredContent.filter(item => !item.featured).length} posts
+                        {filteredContent.filter((item: any) => !item.featured).length} posts
                       </span>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                      {filteredContent.filter(item => !item.featured).map((item) => (
-                        <ContentCard
-                          key={item.id}
-                          content={{
-                            id: item.id,
-                            title: item.title,
-                            description: item.description,
-                            contentType: item.contentType,
-                            status: item.status,
-                            featured: item.featured,
-                            publishedDate: item.publishedDate,
-                            createdAt: item.createdAt
-                          }}
-                          isEditing={editingId === item.id}
-                          editForm={editForm}
-                          onEditFormChange={(field, value) => setEditForm(prev => ({ ...prev, [field]: value }))}
-                          onStartEditing={() => startEditing(item)}
-                          onSaveEdit={saveEdit}
-                          onCancelEdit={() => setEditingId(null)}
-                          onToggleFeatured={() => !isUpdating && toggleFeatured(item.id, false)}
-                          onOpenBlocks={() => setSelectedContentId(item.id)}
-                          isUpdating={isUpdating}
-                          searchQuery={searchQuery}
-                        />
-                      ))}
-                    </div>
-                    {filteredContent.filter(item => !item.featured).length === 0 && (
+                    <SortableContentGrid
+                      content={filteredContent.filter((item: any) => !item.featured)}
+                      onContentReorder={handleContentReorder}
+                      editingId={editingId}
+                      editForm={editForm}
+                      onEditFormChange={(field, value) => setEditForm(prev => ({ ...prev, [field]: value }))}
+                      onStartEditing={startEditing}
+                      onSaveEdit={saveEdit}
+                      onCancelEdit={() => setEditingId(null)}
+                      onToggleFeatured={(id, currentFeatured) => !isUpdating && toggleFeatured(id, currentFeatured)}
+                      onOpenBlocks={(id) => setSelectedContentId(id)}
+                      onRemove={handleRemoveContent}
+                      isUpdating={isUpdating}
+                      searchQuery={searchQuery}
+                    />
+                    {filteredContent.filter((item: any) => !item.featured).length === 0 && (
                       <EmptyState
                         title="No Content Yet"
                         description="Create your first piece of content to get started with your portfolio."
@@ -821,6 +1253,51 @@ export default function AdminPage() {
               )}
             </>
           )}
+
+      {/* Featured Content Replacement Modal */}
+      <ConfirmFeaturedReplaceModal
+        isOpen={showFeaturedModal}
+        onClose={handleFeaturedModalClose}
+        onConfirm={handleFeaturedReplace}
+        currentFeatured={featuredModalData?.currentFeatured ? {
+          ...featuredModalData.currentFeatured,
+          description: featuredModalData.currentFeatured.description || ''
+        } : null}
+        newContentTitle={featuredModalData?.newContentTitle || ''}
+        isLoading={isFeaturedReplacing}
+      />
+
+      {/* Delete Content Confirmation Modal */}
+      <ConfirmDeleteModal
+        isOpen={showDeleteModal}
+        onClose={handleDeleteModalClose}
+        onConfirm={handleDeleteConfirm}
+        content={deleteModalData}
+        isLoading={isDeleting}
+      />
+
+      {/* Revision History Panel */}
+      {selectedContentId && (
+        <RevisionHistoryPanel
+          contentId={selectedContentId}
+          isVisible={isRevisionHistoryVisible}
+          onToggleVisibility={toggleRevisionHistory}
+          onRestoreRevision={() => {
+            // Refresh content when a revision is restored
+            fetchAllContent();
+          }}
+        />
+      )}
+
+      {/* Advanced Search Panel */}
+      {activeView === 'overview' && (
+        <AdvancedSearchPanel
+          content={content}
+          isVisible={isAdvancedSearchVisible}
+          onToggleVisibility={toggleAdvancedSearch}
+          onSearchResults={handleAdvancedSearchResults}
+        />
+      )}
     </div>
   );
 }

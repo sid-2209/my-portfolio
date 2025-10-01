@@ -6,7 +6,7 @@ import ContentItem from './ContentItem';
 interface ContentItemData {
   id: string;
   title: string;
-  description: string;
+  description?: string | null;
   contentType: 'project' | 'case_study' | 'blog';
   category?: string | null;
   imageUrl?: string | null;

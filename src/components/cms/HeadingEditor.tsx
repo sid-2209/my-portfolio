@@ -112,29 +112,83 @@ export default function HeadingEditor({
       const selection = window.getSelection();
       if (selection && selection.rangeCount > 0) {
         const range = selection.getRangeAt(0);
-        
+
         switch (command) {
           case 'bold':
-            document.execCommand('bold', false);
+            const boldElement = document.createElement('strong');
+            boldElement.style.fontWeight = 'bold';
+            try {
+              range.surroundContents(boldElement);
+            } catch {
+              const contents = range.extractContents();
+              boldElement.appendChild(contents);
+              range.insertNode(boldElement);
+            }
             break;
+
           case 'italic':
-            document.execCommand('italic', false);
+            const italicElement = document.createElement('em');
+            italicElement.style.fontStyle = 'italic';
+            try {
+              range.surroundContents(italicElement);
+            } catch {
+              const contents = range.extractContents();
+              italicElement.appendChild(contents);
+              range.insertNode(italicElement);
+            }
             break;
+
           case 'underline':
-            document.execCommand('underline', false);
+            const underlineElement = document.createElement('span');
+            underlineElement.style.textDecoration = 'underline';
+            try {
+              range.surroundContents(underlineElement);
+            } catch {
+              const contents = range.extractContents();
+              underlineElement.appendChild(contents);
+              range.insertNode(underlineElement);
+            }
             break;
+
           case 'justifyLeft':
-            document.execCommand('justifyLeft', false);
+            const leftDiv = document.createElement('div');
+            leftDiv.style.textAlign = 'left';
+            try {
+              range.surroundContents(leftDiv);
+            } catch {
+              const contents = range.extractContents();
+              leftDiv.appendChild(contents);
+              range.insertNode(leftDiv);
+            }
             break;
+
           case 'justifyCenter':
-            document.execCommand('justifyCenter', false);
+            const centerDiv = document.createElement('div');
+            centerDiv.style.textAlign = 'center';
+            try {
+              range.surroundContents(centerDiv);
+            } catch {
+              const contents = range.extractContents();
+              centerDiv.appendChild(contents);
+              range.insertNode(centerDiv);
+            }
             break;
+
           case 'justifyRight':
-            document.execCommand('justifyRight', false);
+            const rightDiv = document.createElement('div');
+            rightDiv.style.textAlign = 'right';
+            try {
+              range.surroundContents(rightDiv);
+            } catch {
+              const contents = range.extractContents();
+              rightDiv.appendChild(contents);
+              range.insertNode(rightDiv);
+            }
             break;
         }
-        
-        // Focus the editor and trigger input
+
+        // Clear selection and focus
+        selection.removeAllRanges();
         editorRef.current.focus();
         handleInput();
       }
