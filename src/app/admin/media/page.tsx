@@ -62,6 +62,7 @@ interface MediaItem {
   caption?: string | null;
   size: number;
   mimetype: string;
+  duration?: number | null;
   createdAt: string;
   updatedAt: string;
   folder?: string | null;
@@ -238,6 +239,13 @@ export default function AdminMediaPage() {
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const formatDuration = (seconds: number | null | undefined): string => {
+    if (!seconds) return '';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   const handleUploadComplete = () => {
@@ -462,17 +470,29 @@ export default function AdminMediaPage() {
                           <>
                             <div className="aspect-square bg-gray-200 rounded-lg overflow-hidden relative">
                               {item.mimetype.startsWith('image/') ? (
-                                <div className="relative w-full h-full">
-                                  <img
+                                <img
+                                  src={item.blobUrl}
+                                  alt={item.altText || item.filename}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : item.mimetype.startsWith('video/') ? (
+                                <div className="relative w-full h-full bg-gray-900">
+                                  <video
                                     src={item.blobUrl}
-                                    alt={item.altText || item.filename}
                                     className="w-full h-full object-cover"
-                                    onLoad={() => console.log('Direct image loaded:', item.blobUrl)}
-                                    onError={() => console.error('Direct image failed:', item.blobUrl)}
-                                    style={{ backgroundColor: 'red' }}
+                                    muted
+                                    playsInline
                                   />
-                                  <div className="absolute top-2 left-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
-                                    Direct Load
+                                  {/* Duration overlay */}
+                                  {item.duration && (
+                                    <div className="absolute bottom-2 right-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
+                                      {formatDuration(item.duration)}
+                                    </div>
+                                  )}
+                                  {/* Video icon indicator */}
+                                  <div className="absolute top-2 left-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded flex items-center gap-1">
+                                    <Video className="w-3 h-3" />
+                                    <span>Video</span>
                                   </div>
                                 </div>
                               ) : (
@@ -526,12 +546,23 @@ export default function AdminMediaPage() {
                           <>
                             <div className="w-12 h-12 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0 relative">
                               {item.mimetype.startsWith('image/') ? (
-                                <ImageWithLoader
+                                <img
                                   src={item.blobUrl}
                                   alt={item.altText || item.filename}
                                   className="w-full h-full object-cover"
-                                  onError={() => console.error('List image failed to load:', item.blobUrl)}
                                 />
+                              ) : item.mimetype.startsWith('video/') ? (
+                                <div className="relative w-full h-full bg-gray-900">
+                                  <video
+                                    src={item.blobUrl}
+                                    className="w-full h-full object-cover"
+                                    muted
+                                    playsInline
+                                  />
+                                  <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30">
+                                    <Video className="w-5 h-5 text-white" />
+                                  </div>
+                                </div>
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center">
                                   <FileText className="w-6 h-6 text-gray-400" />
@@ -540,7 +571,11 @@ export default function AdminMediaPage() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium text-gray-900 truncate">{item.filename}</p>
-                              <p className="text-xs text-gray-500">{formatFileSize(item.size)} • {new Date(item.createdAt).toLocaleDateString()}</p>
+                              <p className="text-xs text-gray-500">
+                                {formatFileSize(item.size)}
+                                {item.duration && ` • ${formatDuration(item.duration)}`}
+                                {' • '}{new Date(item.createdAt).toLocaleDateString()}
+                              </p>
                             </div>
                             <div className="flex items-center space-x-2">
                               <button

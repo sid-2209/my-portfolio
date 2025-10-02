@@ -23,10 +23,16 @@ interface ImageData {
 
 interface VideoEmbedData {
   url: string;
-  type?: 'youtube' | 'vimeo' | 'loom' | 'twitter' | 'other';
+  type?: 'youtube' | 'vimeo' | 'loom' | 'twitter' | 'local' | 'other';
   autoplay?: boolean;
   controls?: boolean;
   aspectRatio?: '16:9' | '4:3' | '1:1' | '21:9';
+  alignment?: 'left' | 'center' | 'right' | 'full';
+  width?: number;
+  borderRadius?: number;
+  shadow?: boolean;
+  localVideoUrl?: string;
+  mediaId?: string;
 }
 
 interface CodeBlockData {
@@ -175,30 +181,36 @@ export default function BlockRenderer({ blocks }: BlockRendererProps) {
         const videoData = data as VideoEmbedData;
 
         // Helper function to extract video ID and generate embed URL
-        const getEmbedUrl = (url: string, type?: string) => {
+        const getEmbedUrl = (url: string, type?: string, autoplay?: boolean) => {
           if (!url) return null;
+
+          const autoplayParam = autoplay ? '1' : '0';
 
           if (type === 'youtube' || url.includes('youtube.com') || url.includes('youtu.be')) {
             const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
             const match = url.match(regExp);
             const videoId = (match && match[2].length === 11) ? match[2] : null;
-            return videoId ? `https://www.youtube.com/embed/${videoId}` : null;
+            return videoId ? `https://www.youtube.com/embed/${videoId}?autoplay=${autoplayParam}` : null;
           } else if (type === 'vimeo' || url.includes('vimeo.com')) {
             const regExp = /vimeo.com\/(\d+)/;
             const match = url.match(regExp);
             const videoId = match ? match[1] : null;
-            return videoId ? `https://player.vimeo.com/video/${videoId}` : null;
+            return videoId ? `https://player.vimeo.com/video/${videoId}?autoplay=${autoplayParam}` : null;
           } else if (type === 'loom' || url.includes('loom.com')) {
             const regExp = /loom.com\/(share|embed)\/([a-zA-Z0-9]+)/;
             const match = url.match(regExp);
             const videoId = match ? match[2] : null;
-            return videoId ? `https://www.loom.com/embed/${videoId}` : null;
+            return videoId ? `https://www.loom.com/embed/${videoId}?autoplay=${autoplayParam}` : null;
           }
 
           return url; // Return as-is for other types
         };
 
-        const embedUrl = getEmbedUrl(videoData.url, videoData.type);
+        const isLocalVideo = videoData.type === 'local' || videoData.localVideoUrl;
+        const videoSource = isLocalVideo ? (videoData.localVideoUrl || videoData.url) : null;
+        const isGif = videoSource?.toLowerCase().endsWith('.gif') || false;
+        const embedUrl = !isLocalVideo ? getEmbedUrl(videoData.url, videoData.type, videoData.autoplay) : null;
+
         const aspectRatioMap = {
           '16:9': '56.25%',
           '4:3': '75%',
@@ -206,18 +218,85 @@ export default function BlockRenderer({ blocks }: BlockRendererProps) {
           '21:9': '42.86%'
         };
         const paddingBottom = aspectRatioMap[videoData.aspectRatio || '16:9'];
+        const videoAlignment = videoData.alignment || 'center';
+        const videoWidth = videoData.width || 100;
+        const videoBorderRadius = videoData.borderRadius || 0;
+        const videoShadow = videoData.shadow || false;
 
         return (
           <div key={block.id} className="my-8">
-            {embedUrl ? (
-              <div className="relative w-full overflow-hidden rounded-2xl bg-black/20 border border-white/10" style={{ paddingBottom }}>
-                <iframe
-                  src={embedUrl}
-                  className="absolute top-0 left-0 w-full h-full"
-                  frameBorder="0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
+            {(embedUrl || videoSource) ? (
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: videoAlignment === 'left' ? 'flex-start' : videoAlignment === 'right' ? 'flex-end' : videoAlignment === 'full' ? 'stretch' : 'center',
+                  width: '100%'
+                }}
+              >
+                <div style={{ width: videoAlignment === 'full' ? '100%' : `${videoWidth}%` }}>
+                  {isLocalVideo && videoSource ? (
+                    isGif ? (
+                      // Render GIF using img tag
+                      <div
+                        className="relative w-full overflow-hidden bg-black/20 border border-white/10"
+                        style={{
+                          borderRadius: `${videoBorderRadius}px`,
+                          boxShadow: videoShadow ? '0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2)' : 'none'
+                        }}
+                      >
+                        <img
+                          src={videoSource}
+                          alt="Animated GIF"
+                          className="w-full h-auto"
+                          style={{
+                            display: 'block',
+                            borderRadius: `${videoBorderRadius}px`
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      // Render local video using HTML5 video tag
+                      <div
+                        className="relative w-full overflow-hidden bg-black/20 border border-white/10"
+                        style={{
+                          borderRadius: `${videoBorderRadius}px`,
+                          boxShadow: videoShadow ? '0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2)' : 'none'
+                        }}
+                      >
+                        <video
+                          src={videoSource}
+                          controls={videoData.controls !== false}
+                          autoPlay={videoData.autoplay || false}
+                          loop={videoData.autoplay || false}
+                          muted={videoData.autoplay || false}
+                          className="w-full h-auto"
+                          style={{
+                            display: 'block',
+                            borderRadius: `${videoBorderRadius}px`
+                          }}
+                        />
+                      </div>
+                    )
+                  ) : (
+                    // Render embed iframe
+                    <div
+                      className="relative w-full overflow-hidden bg-black/20 border border-white/10"
+                      style={{
+                        paddingBottom,
+                        borderRadius: `${videoBorderRadius}px`,
+                        boxShadow: videoShadow ? '0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2)' : 'none'
+                      }}
+                    >
+                      <iframe
+                        src={embedUrl!}
+                        className="absolute top-0 left-0 w-full h-full"
+                        frameBorder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             ) : (
               <div className="p-8 bg-white/10 border border-white/30 rounded-2xl text-center">

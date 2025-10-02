@@ -143,6 +143,7 @@ model Media {
   caption     String?
   width       Int?
   height      Int?
+  duration    Float?   // Video duration in seconds
 
   // Organization
   folder      String?  // e.g., "content-blocks", "featured-images", "general"

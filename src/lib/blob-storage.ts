@@ -104,6 +104,51 @@ export function validateImageFile(file: File): { valid: boolean; error?: string 
   return { valid: true };
 }
 
+export function validateVideoFile(file: File): { valid: boolean; error?: string } {
+  const MAX_SIZE = 50 * 1024 * 1024; // 50MB for videos
+  const MAX_GIF_SIZE = 10 * 1024 * 1024; // 10MB for GIFs
+  const ALLOWED_TYPES = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-msvideo', 'image/gif'];
+
+  if (!ALLOWED_TYPES.includes(file.type)) {
+    return {
+      valid: false,
+      error: 'File type not supported. Please use MP4, MOV, WEBM, AVI, or GIF.'
+    };
+  }
+
+  // Different size limits for GIFs vs videos
+  const maxSize = file.type === 'image/gif' ? MAX_GIF_SIZE : MAX_SIZE;
+  if (file.size > maxSize) {
+    return {
+      valid: false,
+      error: `File size too large. Maximum size is ${file.type === 'image/gif' ? '10MB for GIFs' : '50MB for videos'}.`
+    };
+  }
+
+  return { valid: true };
+}
+
+export function validateMediaFile(file: File): { valid: boolean; error?: string; mediaType?: 'image' | 'video' } {
+  // Check if it's an image
+  const imageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+  if (imageTypes.includes(file.type)) {
+    const result = validateImageFile(file);
+    return result.valid ? { ...result, mediaType: 'image' } : result;
+  }
+
+  // Check if it's a video
+  const videoTypes = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-msvideo'];
+  if (videoTypes.includes(file.type)) {
+    const result = validateVideoFile(file);
+    return result.valid ? { ...result, mediaType: 'video' } : result;
+  }
+
+  return {
+    valid: false,
+    error: 'File type not supported. Please use images (JPEG, PNG, GIF, WebP) or videos (MP4, MOV, WEBM, AVI).'
+  };
+}
+
 export function getImageDimensions(file: File): Promise<{ width: number; height: number }> {
   return new Promise((resolve, reject) => {
     // Check if we're in a browser environment
@@ -130,5 +175,35 @@ export function getImageDimensions(file: File): Promise<{ width: number; height:
     };
 
     img.src = url;
+  });
+}
+
+export function getVideoMetadata(file: File): Promise<{ duration: number; width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    // Check if we're in a browser environment
+    if (typeof window === 'undefined') {
+      // Server-side: Return null metadata, will be handled gracefully
+      reject(new Error('Video metadata not available on server-side'));
+      return;
+    }
+
+    const video = document.createElement('video');
+    const url = URL.createObjectURL(file);
+
+    video.onloadedmetadata = () => {
+      URL.revokeObjectURL(url);
+      resolve({
+        duration: video.duration,
+        width: video.videoWidth,
+        height: video.videoHeight
+      });
+    };
+
+    video.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Failed to load video'));
+    };
+
+    video.src = url;
   });
 }

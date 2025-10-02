@@ -76,10 +76,16 @@ interface CustomData {
 
 interface VideoEmbedData {
   url: string;
-  type?: 'youtube' | 'vimeo' | 'loom' | 'twitter' | 'other';
+  type?: 'youtube' | 'vimeo' | 'loom' | 'twitter' | 'local' | 'other';
   autoplay?: boolean;
   controls?: boolean;
   aspectRatio?: '16:9' | '4:3' | '1:1' | '21:9';
+  alignment?: 'left' | 'center' | 'right' | 'full';
+  width?: number;
+  borderRadius?: number;
+  shadow?: boolean;
+  localVideoUrl?: string;
+  mediaId?: string;
 }
 
 interface CalloutData {

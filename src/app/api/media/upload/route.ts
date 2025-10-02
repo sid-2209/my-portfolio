@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/db';
-import { uploadToBlob, validateImageFile, getImageDimensions } from '../../../../lib/blob-storage';
+import { uploadToBlob, validateMediaFile, getImageDimensions, getVideoMetadata } from '../../../../lib/blob-storage';
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,8 +24,8 @@ export async function POST(request: NextRequest) {
 
     for (const file of files) {
       try {
-        // Validate file
-        const validation = validateImageFile(file);
+        // Validate file (supports both images and videos)
+        const validation = validateMediaFile(file);
         if (!validation.valid) {
           errors.push({ filename: file.name, error: validation.error });
           continue;
@@ -34,12 +34,26 @@ export async function POST(request: NextRequest) {
         // Upload to Vercel Blob
         const blobResult = await uploadToBlob(file, folder);
 
-        // Get image dimensions
-        let dimensions: { width: number | null, height: number | null } = { width: null, height: null };
+        // Get media metadata based on type
+        let metadata: { width: number | null, height: number | null, duration: number | null } = {
+          width: null,
+          height: null,
+          duration: null
+        };
+
         try {
-          dimensions = await getImageDimensions(file);
+          if (validation.mediaType === 'image') {
+            const dimensions = await getImageDimensions(file);
+            metadata.width = dimensions.width;
+            metadata.height = dimensions.height;
+          } else if (validation.mediaType === 'video') {
+            const videoData = await getVideoMetadata(file);
+            metadata.width = videoData.width;
+            metadata.height = videoData.height;
+            metadata.duration = videoData.duration;
+          }
         } catch (error) {
-          console.warn('Could not get image dimensions:', error);
+          console.warn('Could not get media metadata:', error);
         }
 
         // Save to database
@@ -51,8 +65,9 @@ export async function POST(request: NextRequest) {
             size: file.size,
             blobUrl: blobResult.url,
             blobId: blobResult.blobId,
-            width: dimensions.width,
-            height: dimensions.height,
+            width: metadata.width,
+            height: metadata.height,
+            duration: metadata.duration,
             folder,
             source,
             uploadedBy,

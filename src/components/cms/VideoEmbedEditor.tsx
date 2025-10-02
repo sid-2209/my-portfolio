@@ -1,13 +1,20 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import VideoPicker from '../media/VideoPicker';
 
 interface VideoEmbedData {
   url: string;
-  type?: 'youtube' | 'vimeo' | 'loom' | 'twitter' | 'other';
+  type?: 'youtube' | 'vimeo' | 'loom' | 'twitter' | 'local' | 'other';
   autoplay?: boolean;
   controls?: boolean;
   aspectRatio?: '16:9' | '4:3' | '1:1' | '21:9';
+  alignment?: 'left' | 'center' | 'right' | 'full';
+  width?: number;
+  borderRadius?: number;
+  shadow?: boolean;
+  localVideoUrl?: string; // For uploaded videos
+  mediaId?: string; // Reference to Media table
 }
 
 interface VideoEmbedEditorProps {
@@ -27,6 +34,7 @@ export default function VideoEmbedEditor({
   const [currentData, setCurrentData] = useState<VideoEmbedData>(data);
   const [isTyping, setIsTyping] = useState(false);
   const [embedCode, setEmbedCode] = useState('');
+  const [mode, setMode] = useState<'url' | 'upload'>(data.type === 'local' ? 'upload' : 'url');
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
@@ -177,27 +185,78 @@ export default function VideoEmbedEditor({
       {/* Header */}
       <div className="border-b border-gray-200 p-4 bg-gray-50 rounded-t-lg">
         <h3 className="text-lg font-semibold text-gray-900">Video/Embed Block</h3>
-        <p className="text-sm text-gray-600 mt-1">Embed videos from YouTube, Vimeo, Loom, and more</p>
+        <p className="text-sm text-gray-600 mt-1">Embed videos from YouTube, Vimeo, Loom, or upload your own</p>
       </div>
 
       {/* Editor Content */}
       <div className="p-4 space-y-4">
-        {/* URL Input */}
+        {/* Mode Toggle */}
         <div>
           <label className="block text-gray-700 text-sm font-medium mb-2">
-            Video URL *
+            Video Source
           </label>
-          <input
-            type="url"
-            value={currentData.url}
-            onChange={(e) => handleChange('url', e.target.value)}
-            placeholder="https://www.youtube.com/watch?v=..."
-            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-500 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
-          />
-          <p className="text-xs text-gray-500 mt-1">
-            Supported: YouTube, Vimeo, Loom, Twitter/X embeds
-          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => setMode('url')}
+              className={`px-4 py-2 rounded-lg border text-sm transition-all ${
+                mode === 'url'
+                  ? 'border-blue-500 bg-blue-50 text-blue-700'
+                  : 'border-gray-300 hover:border-gray-400 text-gray-700 hover:text-gray-900'
+              }`}
+            >
+              URL Embed
+            </button>
+            <button
+              onClick={() => setMode('upload')}
+              className={`px-4 py-2 rounded-lg border text-sm transition-all ${
+                mode === 'upload'
+                  ? 'border-blue-500 bg-blue-50 text-blue-700'
+                  : 'border-gray-300 hover:border-gray-400 text-gray-700 hover:text-gray-900'
+              }`}
+            >
+              Upload Video
+            </button>
+          </div>
         </div>
+
+        {/* URL Input - Only show in URL mode */}
+        {mode === 'url' && (
+          <div>
+            <label className="block text-gray-700 text-sm font-medium mb-2">
+              Video URL *
+            </label>
+            <input
+              type="url"
+              value={currentData.url}
+              onChange={(e) => handleChange('url', e.target.value)}
+              placeholder="https://www.youtube.com/watch?v=..."
+              className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-500 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Supported: YouTube, Vimeo, Loom, Twitter/X embeds
+            </p>
+          </div>
+        )}
+
+        {/* Video Upload - Only show in upload mode */}
+        {mode === 'upload' && (
+          <VideoPicker
+            value={currentData.localVideoUrl}
+            onChange={(media) => {
+              const newData = {
+                ...currentData,
+                localVideoUrl: media?.blobUrl || '',
+                url: media?.blobUrl || '',
+                mediaId: media?.id,
+                type: 'local' as const
+              };
+              setCurrentData(newData);
+              onChange(newData);
+            }}
+            source="video-block"
+            folder="video-blocks"
+          />
+        )}
 
         {/* Video Type Display */}
         {currentData.type && (
@@ -222,12 +281,80 @@ export default function VideoEmbedEditor({
                 className={`px-3 py-2 rounded-lg border text-sm transition-all ${
                   (currentData.aspectRatio || '16:9') === ratio
                     ? 'border-blue-500 bg-blue-50 text-blue-700'
-                    : 'border-gray-300 hover:border-gray-400'
+                    : 'border-gray-300 hover:border-gray-400 text-gray-700 hover:text-gray-900'
                 }`}
               >
                 {ratio}
               </button>
             ))}
+          </div>
+        </div>
+
+        {/* Alignment Options */}
+        <div>
+          <label className="block text-gray-700 text-sm font-medium mb-2">
+            Alignment
+          </label>
+          <div className="grid grid-cols-4 gap-2">
+            {(['left', 'center', 'right', 'full'] as const).map((align) => (
+              <button
+                key={align}
+                onClick={() => handleChange('alignment', align)}
+                className={`px-3 py-2 rounded-lg border text-sm transition-all ${
+                  (currentData.alignment || 'center') === align
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-gray-300 hover:border-gray-400 text-gray-700 hover:text-gray-900'
+                }`}
+              >
+                <span className="capitalize">{align}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Width Control */}
+        <div>
+          <label className="block text-gray-700 text-sm font-medium mb-2">
+            Width: {currentData.width || 100}%
+          </label>
+          <input
+            type="range"
+            min="20"
+            max="100"
+            step="5"
+            value={currentData.width || 100}
+            onChange={(e) => handleChange('width', parseInt(e.target.value))}
+            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+          />
+        </div>
+
+        {/* Styling Options */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-gray-700 text-sm font-medium mb-2">
+              Border Radius: {currentData.borderRadius || 0}px
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="50"
+              step="5"
+              value={currentData.borderRadius || 0}
+              onChange={(e) => handleChange('borderRadius', parseInt(e.target.value))}
+              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+            />
+          </div>
+
+          <div className="flex items-end pb-2">
+            <label className="flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={currentData.shadow || false}
+                onChange={(e) => handleChange('shadow', e.target.checked)}
+                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <span className="ml-2 text-sm text-gray-700">Add Shadow</span>
+            </label>
           </div>
         </div>
 
@@ -250,7 +377,7 @@ export default function VideoEmbedEditor({
               onChange={(e) => handleChange('controls', e.target.checked)}
               className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
             />
-            <span className="ml-2 text-sm text-gray-700">Show Controls</span>
+            <span className="ml-2 text-gray-700">Show Controls</span>
           </label>
         </div>
 
