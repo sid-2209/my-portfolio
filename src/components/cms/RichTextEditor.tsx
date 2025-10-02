@@ -3,20 +3,33 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { sanitizeRichText } from "../../lib/sanitize";
 
+interface HeadingData {
+  text: string;
+  level: number;
+  anchor?: string;
+}
+
 interface RichTextEditorProps {
   content: string;
-  onChange: (content: string) => void;
+  onChange: (content: string | HeadingData) => void;
   placeholder?: string;
   className?: string;
   isEditing?: boolean;
+  // Heading-specific props
+  mode?: 'paragraph' | 'heading';
+  headingLevel?: number;
+  anchor?: string;
 }
 
-export default function RichTextEditor({ 
-  content, 
-  onChange, 
+export default function RichTextEditor({
+  content,
+  onChange,
   placeholder = "Start writing...",
   className = "",
-  isEditing = false
+  isEditing = false,
+  mode = 'paragraph',
+  headingLevel = 2,
+  anchor = ''
 }: RichTextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
@@ -53,6 +66,11 @@ export default function RichTextEditor({
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const lastContentRef = useRef(content);
   const [showPlaceholder, setShowPlaceholder] = useState(true);
+
+  // Heading-specific state
+  const [currentLevel, setCurrentLevel] = useState(headingLevel);
+  const [currentAnchor, setCurrentAnchor] = useState(anchor);
+  const [showAnchorInput, setShowAnchorInput] = useState(false);
 
   // Undo/Redo state
   const [undoStack, setUndoStack] = useState<string[]>([]);
@@ -111,7 +129,13 @@ export default function RichTextEditor({
   useEffect(() => {
     if (mounted && !isInitialized && editorRef.current) {
       const fixedContent = fixExistingLinks(content);
-      if (fixedContent && fixedContent.trim() !== '') {
+      // Check if content is just placeholder text or actually empty
+      const isPlaceholder = fixedContent.includes('Enter your heading text here') ||
+                           fixedContent.includes('Start typing your paragraph here') ||
+                           fixedContent.includes('Enter your') ||
+                           fixedContent === placeholder;
+
+      if (fixedContent && fixedContent.trim() !== '' && !isPlaceholder) {
         editorRef.current.innerHTML = fixedContent;
         setShowPlaceholder(false);
       } else {
@@ -121,18 +145,31 @@ export default function RichTextEditor({
 
       setIsInitialized(true);
     }
-  }, [mounted, content, isInitialized, isEditing]);
+  }, [mounted, content, isInitialized, isEditing, placeholder]);
 
   // Handle external content updates (only when not typing)
   useEffect(() => {
     if (mounted && isInitialized && !isTyping && content !== lastContentRef.current) {
       if (editorRef.current) {
         const fixedContent = fixExistingLinks(content);
-        editorRef.current.innerHTML = fixedContent;
-        lastContentRef.current = fixedContent;
+        // Check if content is just placeholder text
+        const isPlaceholder = fixedContent.includes('Enter your heading text here') ||
+                             fixedContent.includes('Start typing your paragraph here') ||
+                             fixedContent.includes('Enter your') ||
+                             fixedContent === placeholder;
+
+        if (!isPlaceholder && fixedContent.trim() !== '') {
+          editorRef.current.innerHTML = fixedContent;
+          lastContentRef.current = fixedContent;
+          setShowPlaceholder(false);
+        } else {
+          editorRef.current.innerHTML = '';
+          lastContentRef.current = '';
+          setShowPlaceholder(true);
+        }
       }
     }
-  }, [mounted, isInitialized, content, isTyping]);
+  }, [mounted, isInitialized, content, isTyping, placeholder]);
 
   const handleInput = () => {
     if (editorRef.current) {
@@ -182,8 +219,29 @@ export default function RichTextEditor({
       // Debounce the onChange call to parent
       timeoutRef.current = setTimeout(() => {
         // Sanitize content before saving
-        const sanitizedContent = sanitizeRichText(newContent);
-        onChange(sanitizedContent);
+        let sanitizedContent = sanitizeRichText(newContent);
+
+        // Check if content is effectively empty (just HTML tags with no actual text)
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = sanitizedContent;
+        const textContent = tempDiv.textContent || tempDiv.innerText || '';
+
+        // If content is just whitespace or empty, save empty string
+        if (textContent.trim() === '') {
+          sanitizedContent = '';
+        }
+
+        // Call onChange with appropriate format based on mode
+        if (mode === 'heading') {
+          onChange({
+            text: sanitizedContent,
+            level: currentLevel,
+            anchor: currentAnchor
+          });
+        } else {
+          onChange(sanitizedContent);
+        }
+
         lastContentRef.current = sanitizedContent;
         setIsTyping(false);
       }, 300); // 300ms delay
@@ -792,6 +850,31 @@ export default function RichTextEditor({
     setShowCaseMenu(false);
   };
 
+  // Heading-specific handlers
+  const handleLevelChange = (newLevel: number) => {
+    setCurrentLevel(newLevel);
+    if (mode === 'heading' && editorRef.current) {
+      onChange({
+        text: editorRef.current.innerHTML,
+        level: newLevel,
+        anchor: currentAnchor
+      });
+    }
+  };
+
+  const handleAnchorChange = (newAnchor: string) => {
+    // Clean anchor: lowercase, replace non-alphanumeric with hyphens, remove duplicates
+    const cleanAnchor = newAnchor.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    setCurrentAnchor(cleanAnchor);
+    if (mode === 'heading' && editorRef.current) {
+      onChange({
+        text: editorRef.current.innerHTML,
+        level: currentLevel,
+        anchor: cleanAnchor
+      });
+    }
+  };
+
   const getWordCount = (text: string): number => {
     const plainText = text.replace(/<[^>]*>/g, ' ').trim();
     if (!plainText) return 0;
@@ -1013,29 +1096,65 @@ export default function RichTextEditor({
 
             {/* Vertical Divider */}
             <div className="w-px h-8 bg-gray-300"></div>
-            
-            {/* Headings Group */}
-            <div className="flex items-center">
-              <select
-                onChange={(e) => {
-                  if (e.target.value === 'p') {
-                    formatText('formatBlock', 'p');
-                  } else {
-                    formatText('formatBlock', e.target.value);
-                  }
-                }}
-                className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white text-gray-700 hover:text-gray-900 hover:bg-gray-50 transition-colors"
-                title="Paragraph Style"
-                aria-label="Paragraph Style"
-              >
-                <option value="p">Paragraph</option>
-                <option value="h1">Heading 1</option>
-                <option value="h2">Heading 2</option>
-                <option value="h3">Heading 3</option>
-                <option value="h4">Heading 4</option>
-              </select>
-            </div>
-            
+
+            {/* Headings/Level Selector Group */}
+            {mode === 'heading' ? (
+              <>
+                {/* Heading Level Selector */}
+                <div className="flex items-center space-x-1">
+                  <select
+                    value={currentLevel}
+                    onChange={(e) => handleLevelChange(Number(e.target.value))}
+                    className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white text-gray-700 hover:text-gray-900 hover:bg-gray-50 transition-colors font-medium"
+                    title="Heading Level"
+                    aria-label="Heading Level"
+                  >
+                    {[1, 2, 3, 4, 5, 6].map((lvl) => (
+                      <option key={lvl} value={lvl}>
+                        H{lvl}
+                      </option>
+                    ))}
+                  </select>
+                  {/* Anchor ID Button */}
+                  <button
+                    onClick={() => setShowAnchorInput(!showAnchorInput)}
+                    className={`p-2 rounded-lg transition-colors ${
+                      currentAnchor
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'text-gray-700 hover:text-gray-900 hover:bg-gray-200'
+                    }`}
+                    title="Add Anchor ID"
+                    aria-label="Add Anchor ID"
+                  >
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/>
+                    </svg>
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="flex items-center">
+                <select
+                  onChange={(e) => {
+                    if (e.target.value === 'p') {
+                      formatText('formatBlock', 'p');
+                    } else {
+                      formatText('formatBlock', e.target.value);
+                    }
+                  }}
+                  className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white text-gray-700 hover:text-gray-900 hover:bg-gray-50 transition-colors"
+                  title="Paragraph Style"
+                  aria-label="Paragraph Style"
+                >
+                  <option value="p">Paragraph</option>
+                  <option value="h1">Heading 1</option>
+                  <option value="h2">Heading 2</option>
+                  <option value="h3">Heading 3</option>
+                  <option value="h4">Heading 4</option>
+                </select>
+              </div>
+            )}
+
             {/* Vertical Divider */}
             <div className="w-px h-8 bg-gray-300"></div>
 
@@ -1247,7 +1366,30 @@ export default function RichTextEditor({
         </div>
       </div>
 
-
+      {/* Anchor Input (for heading mode) */}
+      {mode === 'heading' && showAnchorInput && (
+        <div className="border-b border-gray-200 p-4 bg-gray-50">
+          <div className="flex items-center space-x-3">
+            <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Anchor ID:</label>
+            <input
+              type="text"
+              value={currentAnchor}
+              onChange={(e) => handleAnchorChange(e.target.value)}
+              placeholder="heading-anchor-id"
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-gray-900 placeholder-gray-500 text-sm"
+            />
+            <button
+              onClick={() => setShowAnchorInput(false)}
+              className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-200 rounded-lg transition-colors"
+            >
+              Done
+            </button>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            Used for table of contents, deep linking, and navigation. Only lowercase letters, numbers, and hyphens allowed.
+          </p>
+        </div>
+      )}
 
       {showLinkEditor && (
         <div
@@ -1390,8 +1532,14 @@ export default function RichTextEditor({
             }
           }}
           className={`min-h-64 p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none text-gray-900 rich-text-editor ${!showPlaceholder ? 'no-placeholder' : ''}`}
-          style={{ minHeight: '200px' }}
-          data-placeholder={isEditing ? placeholder : "Click edit button to create your paragraph"}
+          style={{
+            minHeight: '200px',
+            ...(mode === 'heading' ? {
+              fontSize: currentLevel === 1 ? '2rem' : currentLevel === 2 ? '1.5rem' : currentLevel === 3 ? '1.25rem' : currentLevel === 4 ? '1.125rem' : currentLevel === 5 ? '1rem' : '0.875rem',
+              fontWeight: 'bold'
+            } : {})
+          }}
+          data-placeholder={isEditing ? placeholder : mode === 'heading' ? "Click edit button to create your heading" : "Click edit button to create your paragraph"}
         />
 
         {/* Stats and Status */}
@@ -1399,6 +1547,9 @@ export default function RichTextEditor({
           <div className="flex items-center gap-4">
             <span>Words: {getWordCount(content)}</span>
             <span>Characters: {getCharacterCount(content)}</span>
+            {mode === 'heading' && currentAnchor && (
+              <span className="text-blue-600 font-medium">ID: #{currentAnchor}</span>
+            )}
           </div>
           {isTyping && (
             <div className="flex items-center gap-2">

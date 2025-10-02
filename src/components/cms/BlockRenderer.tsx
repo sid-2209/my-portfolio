@@ -107,38 +107,60 @@ export default function BlockRenderer({ blocks }: BlockRendererProps) {
       case 'HEADING':
         const headingData = data as HeadingData;
         const headingLevel = headingData.level || 2;
-        const HeadingComponent = headingLevel === 1 ? 'h1' : 
-                               headingLevel === 2 ? 'h2' : 
-                               headingLevel === 3 ? 'h3' : 
-                               headingLevel === 4 ? 'h4' : 
+        const HeadingComponent = headingLevel === 1 ? 'h1' :
+                               headingLevel === 2 ? 'h2' :
+                               headingLevel === 3 ? 'h3' :
+                               headingLevel === 4 ? 'h4' :
                                headingLevel === 5 ? 'h5' : 'h6';
         return (
           <div key={block.id} className="mb-6">
-            {HeadingComponent === 'h1' && <h1 className="michroma text-white text-3xl font-bold leading-tight">{headingData.text || 'No heading'}</h1>}
-            {HeadingComponent === 'h2' && <h2 className="michroma text-white text-3xl font-bold leading-tight">{headingData.text || 'No heading'}</h2>}
-            {HeadingComponent === 'h3' && <h3 className="michroma text-white text-3xl font-bold leading-tight">{headingData.text || 'No heading'}</h3>}
-            {HeadingComponent === 'h4' && <h4 className="michroma text-white text-3xl font-bold leading-tight">{headingData.text || 'No heading'}</h4>}
-            {HeadingComponent === 'h5' && <h5 className="michroma text-white text-3xl font-bold leading-tight">{headingData.text || 'No heading'}</h5>}
-            {HeadingComponent === 'h6' && <h6 className="michroma text-white text-3xl font-bold leading-tight">{headingData.text || 'No heading'}</h6>}
+            {HeadingComponent === 'h1' && <h1 className="michroma text-white text-3xl font-bold leading-tight" dangerouslySetInnerHTML={{ __html: sanitizeRichText(headingData.text || 'No heading') }} />}
+            {HeadingComponent === 'h2' && <h2 className="michroma text-white text-3xl font-bold leading-tight" dangerouslySetInnerHTML={{ __html: sanitizeRichText(headingData.text || 'No heading') }} />}
+            {HeadingComponent === 'h3' && <h3 className="michroma text-white text-3xl font-bold leading-tight" dangerouslySetInnerHTML={{ __html: sanitizeRichText(headingData.text || 'No heading') }} />}
+            {HeadingComponent === 'h4' && <h4 className="michroma text-white text-3xl font-bold leading-tight" dangerouslySetInnerHTML={{ __html: sanitizeRichText(headingData.text || 'No heading') }} />}
+            {HeadingComponent === 'h5' && <h5 className="michroma text-white text-3xl font-bold leading-tight" dangerouslySetInnerHTML={{ __html: sanitizeRichText(headingData.text || 'No heading') }} />}
+            {HeadingComponent === 'h6' && <h6 className="michroma text-white text-3xl font-bold leading-tight" dangerouslySetInnerHTML={{ __html: sanitizeRichText(headingData.text || 'No heading') }} />}
           </div>
         );
       
       case 'IMAGE':
         const imageData = data as ImageData;
+        const alignment = imageData.alignment || 'center';
+        const width = imageData.width || 100;
+        const borderRadius = imageData.borderRadius || 0;
+        const shadow = imageData.shadow || false;
+
         return (
           <div key={block.id} className="my-8">
             {imageData.src ? (
-              <div className="text-center">
-                <img 
-                  src={imageData.src} 
-                  alt={imageData.alt || ''} 
-                  className="max-w-full h-auto rounded-2xl shadow-lg"
-                />
-                {imageData.caption && (
-                  <p className="text-white/60 text-sm mt-3 italic text-center">
-                    {imageData.caption}
-                  </p>
-                )}
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: alignment === 'left' ? 'flex-start' : alignment === 'right' ? 'flex-end' : alignment === 'full' ? 'stretch' : 'center',
+                  width: '100%'
+                }}
+              >
+                <div style={{ width: alignment === 'full' ? '100%' : `${width}%` }}>
+                  <img
+                    src={imageData.src}
+                    alt={imageData.alt || ''}
+                    className="w-full h-auto"
+                    style={{
+                      borderRadius: `${borderRadius}px`,
+                      boxShadow: shadow ? '0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2)' : 'none'
+                    }}
+                  />
+                  {imageData.caption && (
+                    <p
+                      className="text-white/60 text-sm mt-3 italic"
+                      style={{
+                        textAlign: alignment === 'left' ? 'left' : alignment === 'right' ? 'right' : 'center'
+                      }}
+                    >
+                      {imageData.caption}
+                    </p>
+                  )}
+                </div>
               </div>
             ) : (
               <div className="p-8 bg-white/10 border border-white/30 rounded-2xl text-center">

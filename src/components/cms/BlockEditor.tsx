@@ -20,6 +20,7 @@ interface ParagraphData {
 interface HeadingData {
   text: string;
   level: number;
+  anchor?: string;
 }
 
 interface ImageData {
@@ -164,14 +165,20 @@ export default function BlockEditor({
             <RichTextEditor
               key={`heading-${block.id}`}
               content={headingData.text || ''}
-              onChange={(content) => {
-                // Only update if content is actually different
-                if (content !== headingData.text) {
-                  setEditData({ ...headingData, text: content });
+              onChange={(data) => {
+                // Handle both string (paragraph mode) and HeadingData (heading mode)
+                if (typeof data === 'string') {
+                  setEditData({ ...headingData, text: data });
+                } else {
+                  setEditData({ ...headingData, ...data });
                 }
               }}
-              placeholder="Start writing..."
+              placeholder="Enter your heading text here..."
               className="w-full"
+              mode="heading"
+              headingLevel={headingData.level || 2}
+              anchor={headingData.anchor || ''}
+              isEditing={isEditing}
             />
           );
         }
@@ -509,21 +516,56 @@ export default function BlockEditor({
           )}
           
           {block.blockType === 'HEADING' && (
-            <div className={`font-semibold text-gray-900 ${(editData as HeadingData).level === 1 ? 'text-3xl' : (editData as HeadingData).level === 2 ? 'text-2xl' : (editData as HeadingData).level === 3 ? 'text-xl' : 'text-lg'}`}>
-               {(editData as HeadingData).text || `Empty heading...`}
-             </div>
+            <div
+              className={`font-semibold text-gray-900 ${(editData as HeadingData).level === 1 ? 'text-3xl' : (editData as HeadingData).level === 2 ? 'text-2xl' : (editData as HeadingData).level === 3 ? 'text-xl' : 'text-lg'}`}
+              dangerouslySetInnerHTML={{ __html: sanitizeRichText((editData as HeadingData).text || `Empty heading...`) }}
+            />
           )}
           
           {block.blockType === 'IMAGE' && (
-            <div className="text-center py-4">
+            <div className="py-4">
               {(editData as ImageData).src ? (
-                <img src={(editData as ImageData).src} alt={(editData as ImageData).alt || ''} className="max-w-full h-auto rounded-lg" />
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent:
+                      (editData as ImageData).alignment === 'left' ? 'flex-start' :
+                      (editData as ImageData).alignment === 'right' ? 'flex-end' :
+                      (editData as ImageData).alignment === 'full' ? 'stretch' :
+                      'center',
+                    width: '100%'
+                  }}
+                >
+                  <div style={{ width: (editData as ImageData).alignment === 'full' ? '100%' : `${(editData as ImageData).width || 100}%` }}>
+                    <img
+                      src={(editData as ImageData).src}
+                      alt={(editData as ImageData).alt || ''}
+                      className="w-full h-auto"
+                      style={{
+                        borderRadius: `${(editData as ImageData).borderRadius || 0}px`,
+                        boxShadow: (editData as ImageData).shadow ? '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' : 'none'
+                      }}
+                    />
+                    {(editData as ImageData).caption && (
+                      <p
+                        className="text-sm text-gray-600 mt-2 italic"
+                        style={{
+                          textAlign:
+                            (editData as ImageData).alignment === 'left' ? 'left' :
+                            (editData as ImageData).alignment === 'right' ? 'right' :
+                            'center'
+                        }}
+                      >
+                        {(editData as ImageData).caption}
+                      </p>
+                    )}
+                  </div>
+                </div>
               ) : (
                 <div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
                   📷 No image
                 </div>
               )}
-              {(editData as ImageData).caption && <p className="text-sm text-gray-600 mt-2">{(editData as ImageData).caption}</p>}
             </div>
           )}
           

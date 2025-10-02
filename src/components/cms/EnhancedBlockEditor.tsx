@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import RichTextEditor from "./RichTextEditor";
-import HeadingEditor from "./HeadingEditor";
 import SplitViewEditor from "./SplitViewEditor";
 import CodeBlockEditor from "./CodeBlockEditor";
 import QuoteEditor from "./QuoteEditor";
@@ -13,6 +12,7 @@ import VideoEmbedEditor from "./VideoEmbedEditor";
 import CalloutEditor from "./CalloutEditor";
 import TableEditor from "./TableEditor";
 import ImagePicker from "../media/ImagePicker";
+import { sanitizeRichText } from '@/lib/sanitize';
 
 // Import the same interfaces used in BlockEditor for consistency
 interface ParagraphData {
@@ -202,13 +202,21 @@ export default function EnhancedBlockEditor({
         if (block.blockType === 'HEADING') {
           const headingData = editData as HeadingData;
           return (
-            <HeadingEditor
+            <RichTextEditor
               content={headingData.text || ''}
-              level={headingData.level || 2}
-              anchor={headingData.anchor || ''}
-              onChange={(data) => setEditData({ ...headingData, ...data })}
+              onChange={(data) => {
+                // Handle both string and HeadingData
+                if (typeof data === 'string') {
+                  setEditData({ ...headingData, text: data });
+                } else {
+                  setEditData({ ...headingData, ...data });
+                }
+              }}
               placeholder="Enter your heading text here..."
               className="w-full"
+              mode="heading"
+              headingLevel={headingData.level || 2}
+              anchor={headingData.anchor || ''}
               isEditing={isEditing}
             />
           );
@@ -299,7 +307,7 @@ export default function EnhancedBlockEditor({
                       className={`flex-1 px-4 py-2 rounded-lg border transition-all ${
                         (imageData.alignment || 'center') === align
                           ? 'border-blue-500 bg-blue-50 text-blue-700'
-                          : 'border-gray-300 hover:border-gray-400'
+                          : 'border-gray-300 hover:border-gray-400 text-gray-700 hover:text-gray-900'
                       }`}
                     >
                       <span className="capitalize">{align}</span>
@@ -521,9 +529,10 @@ export default function EnhancedBlockEditor({
           )}
           
           {block.blockType === 'HEADING' && (
-            <div className={`font-semibold text-gray-900 ${(editData as HeadingData).level === 1 ? 'text-3xl' : (editData as HeadingData).level === 2 ? 'text-2xl' : (editData as HeadingData).level === 3 ? 'text-xl' : 'text-lg'}`}>
-               {(editData as HeadingData).text || `Empty heading...`}
-             </div>
+            <div
+              className={`font-semibold text-gray-900 ${(editData as HeadingData).level === 1 ? 'text-3xl' : (editData as HeadingData).level === 2 ? 'text-2xl' : (editData as HeadingData).level === 3 ? 'text-xl' : 'text-lg'}`}
+              dangerouslySetInnerHTML={{ __html: sanitizeRichText((editData as HeadingData).text || `Empty heading...`) }}
+            />
           )}
           
           {block.blockType === 'CODE_BLOCK' && (

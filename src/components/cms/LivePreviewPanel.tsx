@@ -160,55 +160,65 @@ export default function LivePreviewPanel({
         return (
           <div key={block.id} className="mb-6">
             {HeadingComponent === 'h1' && (
-              <h1 id={headingData.anchor} className={headingStyles[1]}>
-                {headingData.text || 'No heading'}
-              </h1>
+              <h1 id={headingData.anchor} className={headingStyles[1]} dangerouslySetInnerHTML={{ __html: sanitizeRichText(headingData.text || 'No heading') }} />
             )}
             {HeadingComponent === 'h2' && (
-              <h2 id={headingData.anchor} className={headingStyles[2]}>
-                {headingData.text || 'No heading'}
-              </h2>
+              <h2 id={headingData.anchor} className={headingStyles[2]} dangerouslySetInnerHTML={{ __html: sanitizeRichText(headingData.text || 'No heading') }} />
             )}
             {HeadingComponent === 'h3' && (
-              <h3 id={headingData.anchor} className={headingStyles[3]}>
-                {headingData.text || 'No heading'}
-              </h3>
+              <h3 id={headingData.anchor} className={headingStyles[3]} dangerouslySetInnerHTML={{ __html: sanitizeRichText(headingData.text || 'No heading') }} />
             )}
             {HeadingComponent === 'h4' && (
-              <h4 id={headingData.anchor} className={headingStyles[4]}>
-                {headingData.text || 'No heading'}
-              </h4>
+              <h4 id={headingData.anchor} className={headingStyles[4]} dangerouslySetInnerHTML={{ __html: sanitizeRichText(headingData.text || 'No heading') }} />
             )}
             {HeadingComponent === 'h5' && (
-              <h5 id={headingData.anchor} className={headingStyles[5]}>
-                {headingData.text || 'No heading'}
-              </h5>
+              <h5 id={headingData.anchor} className={headingStyles[5]} dangerouslySetInnerHTML={{ __html: sanitizeRichText(headingData.text || 'No heading') }} />
             )}
             {HeadingComponent === 'h6' && (
-              <h6 id={headingData.anchor} className={headingStyles[6]}>
-                {headingData.text || 'No heading'}
-              </h6>
+              <h6 id={headingData.anchor} className={headingStyles[6]} dangerouslySetInnerHTML={{ __html: sanitizeRichText(headingData.text || 'No heading') }} />
             )}
           </div>
         );
 
       case 'IMAGE':
         const imageData = data as ImageData;
+        const alignment = imageData.alignment || 'center';
+        const width = imageData.width || 100;
+        const borderRadius = imageData.borderRadius || 0;
+        const shadow = imageData.shadow || false;
+
         return (
           <div key={block.id} className="my-8">
             {imageData.src ? (
-              <div className="text-center">
-                <img
-                  src={imageData.src}
-                  alt={imageData.alt || ''}
-                  className="max-w-full h-auto rounded-2xl shadow-lg"
-                  loading="lazy"
-                />
-                {imageData.caption && (
-                  <p className="text-white/60 text-sm mt-3 italic text-center">
-                    {imageData.caption}
-                  </p>
-                )}
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: alignment === 'left' ? 'flex-start' : alignment === 'right' ? 'flex-end' : alignment === 'full' ? 'stretch' : 'center',
+                  width: '100%'
+                }}
+              >
+                <div style={{ width: alignment === 'full' ? '100%' : `${width}%` }}>
+                  <img
+                    src={imageData.src}
+                    alt={imageData.alt || ''}
+                    className="w-full h-auto"
+                    loading="lazy"
+                    style={{
+                      borderRadius: `${borderRadius}px`,
+                      boxShadow: shadow ? '0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2)' : 'none'
+                    }}
+                  />
+                  {imageData.caption && (
+                    <p
+                      className="text-white/60 text-sm mt-3 italic"
+                      style={{
+                        textAlign: alignment === 'left' ? 'left' : alignment === 'right' ? 'right' : 'center'
+                      }}
+                    >
+                      {imageData.caption}
+                    </p>
+                  )}
+                </div>
               </div>
             ) : (
               <div className="p-8 bg-white/10 border border-white/30 rounded-2xl text-center">

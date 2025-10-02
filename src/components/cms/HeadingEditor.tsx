@@ -1,3 +1,22 @@
+/**
+ * @deprecated This component is deprecated and should not be used in new code.
+ * Use RichTextEditor with mode="heading" instead for consistent UI/UX across all text blocks.
+ *
+ * Migration example:
+ * ```tsx
+ * <RichTextEditor
+ *   content={headingData.text}
+ *   onChange={(data) => handleChange(data)}
+ *   mode="heading"
+ *   headingLevel={headingData.level || 2}
+ *   anchor={headingData.anchor || ''}
+ *   isEditing={isEditing}
+ * />
+ * ```
+ *
+ * This file is kept for reference only and will be removed in a future update.
+ */
+
 "use client";
 
 import { useState, useRef, useEffect } from "react";
