@@ -1,4 +1,5 @@
 import { ContentBlock, BlockType } from '@prisma/client';
+import { sanitizeRichText, sanitizeCustomHTML } from '@/lib/sanitize';
 
 // Import the same interfaces used in BlockEditor for consistency
 interface ParagraphData {
@@ -96,9 +97,9 @@ export default function BlockRenderer({ blocks }: BlockRendererProps) {
         const paragraphData = data as ParagraphData;
         return (
           <div key={block.id} className="mb-6">
-            <div 
+            <div
               className="text-white/80 text-lg leading-relaxed"
-              dangerouslySetInnerHTML={{ __html: paragraphData.text || 'No content' }}
+              dangerouslySetInnerHTML={{ __html: sanitizeRichText(paragraphData.text || 'No content') }}
             />
           </div>
         );
@@ -394,7 +395,7 @@ export default function BlockRenderer({ blocks }: BlockRendererProps) {
         const customData = data as CustomData;
         return (
           <div key={block.id} className="my-8">
-            <div dangerouslySetInnerHTML={{ __html: customData.html || '<span class="text-white/60 italic">[No custom content]</span>' }} />
+            <div dangerouslySetInnerHTML={{ __html: sanitizeCustomHTML(customData.html || '<span class="text-white/60 italic">[No custom content]</span>') }} />
           </div>
         );
       

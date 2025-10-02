@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Eye, EyeOff, Monitor, Smartphone, Tablet, RefreshCw } from "lucide-react";
+import { sanitizeRichText, sanitizeCustomHTML } from "@/lib/sanitize";
 
 // Import the same interfaces
 interface ParagraphData {
@@ -133,7 +134,7 @@ export default function LivePreviewPanel({
           <div key={block.id} className="mb-6">
             <div
               className="text-white/80 text-lg leading-relaxed"
-              dangerouslySetInnerHTML={{ __html: paragraphData.text || 'No content' }}
+              dangerouslySetInnerHTML={{ __html: sanitizeRichText(paragraphData.text || 'No content') }}
             />
           </div>
         );
@@ -302,7 +303,7 @@ export default function LivePreviewPanel({
         return (
           <div key={block.id} className="my-8">
             <div dangerouslySetInnerHTML={{
-              __html: customData.html || '<span class="text-white/60 italic">[No custom content]</span>'
+              __html: sanitizeCustomHTML(customData.html || '<span class="text-white/60 italic">[No custom content]</span>')
             }} />
           </div>
         );

@@ -63,9 +63,19 @@ export const sanitizeRichText = (html: string): string => {
     ALLOWED_TAGS: [
       'p', 'br', 'strong', 'em', 'u', 's', 'sub', 'sup',
       'ul', 'ol', 'li',
-      'a', 'code'
+      'a', 'code', 'span', 'div', 'blockquote'
     ],
-    ALLOWED_ATTR: ['href', 'target', 'rel', 'class']
+    ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'style'],
+    ALLOWED_CSS: [
+      'color', 'background-color',
+      'font-size', 'font-weight', 'font-style', 'font-family',
+      'text-align', 'text-decoration',
+      'vertical-align',
+      'padding', 'padding-left', 'padding-right', 'padding-top', 'padding-bottom',
+      'margin', 'margin-left', 'margin-right', 'margin-top', 'margin-bottom',
+      'border-left', 'border-radius',
+      'list-style-type', 'line-height'
+    ]
   };
 
   return DOMPurify.sanitize(html, restrictedConfig);
