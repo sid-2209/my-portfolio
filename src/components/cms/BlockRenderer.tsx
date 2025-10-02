@@ -1,5 +1,11 @@
+'use client';
+
 import { ContentBlock, BlockType } from '@prisma/client';
 import { sanitizeRichText, sanitizeCustomHTML } from '@/lib/sanitize';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { useState } from 'react';
+import { ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
 
 // Import the same interfaces used in BlockEditor for consistency
 interface ParagraphData {
@@ -38,6 +44,8 @@ interface VideoEmbedData {
 interface CodeBlockData {
   code: string;
   language: string;
+  filename?: string;
+  theme?: 'light' | 'dark';
 }
 
 interface QuoteData {
@@ -89,6 +97,160 @@ type BlockData =
   | TableData
   | DividerData
   | CustomData;
+
+// Enhanced CodeBlock Component with Collapse/Expand functionality
+function CodeBlockView({
+  codeData,
+  codeTheme,
+  isDarkTheme
+}: {
+  codeData: CodeBlockData;
+  codeTheme: any;
+  isDarkTheme: boolean;
+}) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const codeLines = codeData.code?.split('\n') || [];
+  const lineCount = codeLines.length;
+  const PREVIEW_LINES = 5;
+  const shouldCollapse = lineCount > PREVIEW_LINES;
+
+  const displayedCode = (!isExpanded && shouldCollapse)
+    ? codeLines.slice(0, PREVIEW_LINES).join('\n')
+    : codeData.code;
+
+  const handleCopyCode = async () => {
+    if (codeData.code) {
+      await navigator.clipboard.writeText(codeData.code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  return (
+    <div className="my-8">
+      <div className={`rounded-2xl overflow-hidden border ${isDarkTheme ? 'bg-gray-900 border-white/10' : 'bg-white border-gray-200'}`}>
+        {/* Enhanced Header with Metadata */}
+        <div className={`flex items-center justify-between px-4 py-3 border-b ${isDarkTheme ? 'bg-gray-800 border-white/10' : 'bg-gray-50 border-gray-200'}`}>
+          <div className="flex items-center space-x-3">
+            {codeData.filename ? (
+              <span className={`text-sm font-mono font-medium ${isDarkTheme ? 'text-gray-200' : 'text-gray-800'}`}>
+                {codeData.filename}
+              </span>
+            ) : (
+              <span className={`text-sm font-mono ${isDarkTheme ? 'text-gray-400' : 'text-gray-500'}`}>
+                untitled
+              </span>
+            )}
+
+            {codeData.language && (
+              <span className={`text-xs px-2 py-1 rounded font-medium ${isDarkTheme ? 'bg-blue-500/20 text-blue-300 border border-blue-400/30' : 'bg-blue-50 text-blue-600 border border-blue-200'}`}>
+                {codeData.language}
+              </span>
+            )}
+
+            <span className={`text-xs ${isDarkTheme ? 'text-gray-500' : 'text-gray-400'}`}>
+              {lineCount} {lineCount === 1 ? 'line' : 'lines'}
+            </span>
+          </div>
+
+          <button
+            onClick={handleCopyCode}
+            className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-all font-medium ${
+              copied
+                ? 'bg-green-500/20 text-green-300 border border-green-400/30'
+                : isDarkTheme
+                  ? 'text-gray-300 hover:text-white hover:bg-white/10 border border-transparent hover:border-white/20'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200 border border-transparent hover:border-gray-300'
+            }`}
+          >
+            {copied ? (
+              <>
+                <Check className="w-3.5 h-3.5" />
+                Copied!
+              </>
+            ) : (
+              <>
+                <Copy className="w-3.5 h-3.5" />
+                Copy
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Code Content with Preview/Full View */}
+        {codeData.code ? (
+          <div className="relative">
+            <SyntaxHighlighter
+              language={codeData.language || 'text'}
+              style={codeTheme}
+              showLineNumbers={true}
+              customStyle={{
+                margin: 0,
+                padding: '20px',
+                borderRadius: 0,
+                fontSize: '14px',
+                lineHeight: '1.6',
+                background: 'transparent'
+              }}
+              lineNumberStyle={{
+                minWidth: '3em',
+                paddingRight: '1em',
+                userSelect: 'none',
+                opacity: 0.5
+              }}
+            >
+              {displayedCode}
+            </SyntaxHighlighter>
+
+            {/* Fade Overlay when collapsed */}
+            {shouldCollapse && !isExpanded && (
+              <div
+                className="absolute bottom-0 left-0 right-0 h-16 pointer-events-none"
+                style={{
+                  background: isDarkTheme
+                    ? 'linear-gradient(to bottom, transparent, #111827)'
+                    : 'linear-gradient(to bottom, transparent, #ffffff)'
+                }}
+              />
+            )}
+          </div>
+        ) : (
+          <div className={`p-8 text-center ${isDarkTheme ? 'text-white/40' : 'text-gray-400'}`}>
+            <code className="font-mono text-sm">// No code content</code>
+          </div>
+        )}
+
+        {/* Expand/Collapse Footer */}
+        {shouldCollapse && codeData.code && (
+          <div className={`border-t ${isDarkTheme ? 'border-white/10 bg-gray-800' : 'border-gray-200 bg-gray-50'}`}>
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className={`w-full px-4 py-2 flex items-center justify-center gap-2 text-sm font-medium transition-colors ${
+                isDarkTheme
+                  ? 'text-gray-300 hover:text-white hover:bg-gray-700'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+              }`}
+            >
+              {isExpanded ? (
+                <>
+                  <ChevronUp className="w-4 h-4" />
+                  Show less
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="w-4 h-4" />
+                  Show {lineCount - PREVIEW_LINES} more {lineCount - PREVIEW_LINES === 1 ? 'line' : 'lines'}
+                </>
+              )}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 interface BlockRendererProps {
   blocks: ContentBlock[];
@@ -309,26 +471,10 @@ export default function BlockRenderer({ blocks }: BlockRendererProps) {
 
       case 'CODE_BLOCK':
         const codeData = data as CodeBlockData;
-        return (
-          <div key={block.id} className="my-8">
-            <div className="bg-gray-900 rounded-2xl p-6 border border-white/10">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-white/60 text-sm font-mono">
-                  {codeData.language || 'text'}
-                </span>
-                <button
-                  onClick={() => navigator.clipboard.writeText(codeData.code || '')}
-                  className="text-white/40 hover:text-white/60 transition-colors duration-200 text-xs"
-                >
-                  Copy
-                </button>
-              </div>
-              <pre className="text-white/90 text-sm leading-relaxed overflow-x-auto">
-                <code>{codeData.code || '// No code content'}</code>
-              </pre>
-            </div>
-          </div>
-        );
+        const codeTheme = codeData.theme === 'light' ? vs : vscDarkPlus;
+        const isDarkTheme = codeData.theme !== 'light';
+
+        return <CodeBlockView key={block.id} codeData={codeData} codeTheme={codeTheme} isDarkTheme={isDarkTheme} />;
       
       case 'QUOTE':
         const quoteData = data as QuoteData;

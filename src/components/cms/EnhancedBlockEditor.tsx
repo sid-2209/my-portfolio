@@ -38,6 +38,8 @@ interface ImageData {
 interface CodeBlockData {
   code: string;
   language: string;
+  filename?: string;
+  theme?: 'light' | 'dark';
 }
 
 interface QuoteData {
