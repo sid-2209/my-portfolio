@@ -214,6 +214,17 @@ export default function HeadingEditor({
     });
   };
 
+  const getWordCount = (text: string): number => {
+    const plainText = text.replace(/<[^>]*>/g, ' ').trim();
+    if (!plainText) return 0;
+    return plainText.split(/\s+/).filter(word => word.length > 0).length;
+  };
+
+  const getCharacterCount = (text: string): number => {
+    const plainText = text.replace(/<[^>]*>/g, '').trim();
+    return plainText.length;
+  };
+
   if (!mounted) {
     return (
       <div className={`border border-gray-300 rounded-lg p-4 bg-white ${className}`}>
@@ -397,12 +408,20 @@ export default function HeadingEditor({
           }}
           data-placeholder={isEditing ? placeholder : "Click edit button to create your heading"}
         />
-        {isTyping && (
-          <div className="mt-2 text-sm text-gray-500 flex items-center gap-2">
-            <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-            Saving...
+        {/* Stats and Status */}
+        <div className="mt-3 flex items-center justify-between text-sm text-gray-500 border-t border-gray-200 pt-3">
+          <div className="flex items-center gap-4">
+            <span>Words: {getWordCount(content)}</span>
+            <span>Characters: {getCharacterCount(content)}</span>
+            {currentAnchor && <span className="text-blue-600">ID: #{currentAnchor}</span>}
           </div>
-        )}
+          {isTyping && (
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+              Saving...
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

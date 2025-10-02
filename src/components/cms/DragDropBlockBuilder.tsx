@@ -39,6 +39,10 @@ interface ImageData {
   src: string;
   alt: string;
   caption?: string;
+  alignment?: 'left' | 'center' | 'right' | 'full';
+  width?: number;
+  borderRadius?: number;
+  shadow?: boolean;
 }
 
 interface CodeBlockData {
@@ -70,6 +74,30 @@ interface CustomData {
   html: string;
 }
 
+interface VideoEmbedData {
+  url: string;
+  type?: 'youtube' | 'vimeo' | 'loom' | 'twitter' | 'other';
+  autoplay?: boolean;
+  controls?: boolean;
+  aspectRatio?: '16:9' | '4:3' | '1:1' | '21:9';
+}
+
+interface CalloutData {
+  type: 'info' | 'warning' | 'error' | 'success' | 'tip';
+  title?: string;
+  content: string;
+  dismissible?: boolean;
+}
+
+interface TableData {
+  headers: string[];
+  rows: string[][];
+  hasHeader?: boolean;
+  striped?: boolean;
+  bordered?: boolean;
+  alignment?: 'left' | 'center' | 'right';
+}
+
 // Union type for all possible block data
 type BlockData =
   | ParagraphData
@@ -79,7 +107,10 @@ type BlockData =
   | QuoteData
   | ListData
   | DividerData
-  | CustomData;
+  | CustomData
+  | VideoEmbedData
+  | CalloutData
+  | TableData;
 
 interface Block {
   id: string;
@@ -103,10 +134,11 @@ interface SortableBlockItemProps {
   index: number;
   onUpdate: (data: BlockData) => void;
   onDelete: () => void;
+  onDuplicate: () => void;
   isDragging?: boolean;
 }
 
-function SortableBlockItem({ block, index, onUpdate, onDelete, isDragging }: SortableBlockItemProps) {
+function SortableBlockItem({ block, index, onUpdate, onDelete, onDuplicate, isDragging }: SortableBlockItemProps) {
   const {
     attributes,
     listeners,
@@ -153,6 +185,7 @@ function SortableBlockItem({ block, index, onUpdate, onDelete, isDragging }: Sor
         }}
         onUpdate={onUpdate}
         onDelete={onDelete}
+        onDuplicate={onDuplicate}
         // Disable move buttons since we're using drag-and-drop
         onMoveUp={undefined}
         onMoveDown={undefined}
@@ -167,9 +200,12 @@ const blockTypes = [
   { type: 'PARAGRAPH' as BlockType, label: 'Paragraph', description: 'Add a text paragraph', icon: '¶' },
   { type: 'HEADING' as BlockType, label: 'Heading', description: 'Add a heading (H1-H6)', icon: 'H' },
   { type: 'IMAGE' as BlockType, label: 'Image', description: 'Add an image with caption', icon: '🖼' },
+  { type: 'VIDEO_EMBED' as BlockType, label: 'Video/Embed', description: 'Embed YouTube, Vimeo, Loom videos', icon: '▶' },
   { type: 'CODE_BLOCK' as BlockType, label: 'Code Block', description: 'Add formatted code', icon: '</>' },
   { type: 'QUOTE' as BlockType, label: 'Quote', description: 'Add a blockquote', icon: '"' },
   { type: 'LIST' as BlockType, label: 'List', description: 'Add a bulleted or numbered list', icon: '•' },
+  { type: 'TABLE' as BlockType, label: 'Table', description: 'Create data tables with styling', icon: '⊞' },
+  { type: 'CALLOUT' as BlockType, label: 'Callout/Alert', description: 'Add info, warning, or success alert', icon: '💡' },
   { type: 'DIVIDER' as BlockType, label: 'Divider', description: 'Add a visual separator', icon: '—' },
   { type: 'CUSTOM' as BlockType, label: 'Custom HTML', description: 'Add custom HTML content', icon: '<>' }
 ];
@@ -233,6 +269,32 @@ export default function DragDropBlockBuilder({ contentId, initialBlocks, onBlock
     onBlocksChange(reorderedBlocks);
   };
 
+  const duplicateBlock = (blockId: string) => {
+    const blockIndex = blocks.findIndex(block => block.id === blockId);
+    if (blockIndex === -1) return;
+
+    const blockToDuplicate = blocks[blockIndex];
+    const newBlock: Block = {
+      ...blockToDuplicate,
+      id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      order: blockIndex + 1,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    const newBlocks = [
+      ...blocks.slice(0, blockIndex + 1),
+      newBlock,
+      ...blocks.slice(blockIndex + 1)
+    ].map((block, index) => ({
+      ...block,
+      order: index
+    }));
+
+    setBlocks(newBlocks);
+    onBlocksChange(newBlocks);
+  };
+
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
     setActiveId(active.id as string);
@@ -271,13 +333,26 @@ export default function DragDropBlockBuilder({ contentId, initialBlocks, onBlock
       case 'HEADING':
         return { text: 'Enter your heading text here...', level: 2 };
       case 'IMAGE':
-        return { src: '', alt: 'Enter image description', caption: 'Enter image caption' };
+        return { src: '', alt: 'Enter image description', caption: 'Enter image caption', alignment: 'center', width: 100, borderRadius: 0, shadow: false };
+      case 'VIDEO_EMBED':
+        return { url: '', type: 'youtube', autoplay: false, controls: true, aspectRatio: '16:9' };
       case 'CODE_BLOCK':
         return { code: '// Enter your code here...', language: 'javascript' };
       case 'QUOTE':
         return { text: 'Enter your quote text here...', author: 'Author Name', source: 'Source (optional)' };
       case 'LIST':
         return { type: 'unordered', items: ['List item 1', 'List item 2', 'List item 3'] };
+      case 'TABLE':
+        return {
+          headers: ['Column 1', 'Column 2', 'Column 3'],
+          rows: [['Data 1', 'Data 2', 'Data 3'], ['Data 4', 'Data 5', 'Data 6']],
+          hasHeader: true,
+          striped: true,
+          bordered: true,
+          alignment: 'left'
+        };
+      case 'CALLOUT':
+        return { type: 'info', title: '', content: 'Enter your message here...', dismissible: false };
       case 'DIVIDER':
         return { style: 'solid', color: '#e5e7eb', thickness: 1, width: 100, marginTop: 20, marginBottom: 20 };
       case 'CUSTOM':
@@ -397,6 +472,7 @@ export default function DragDropBlockBuilder({ contentId, initialBlocks, onBlock
                     index={index}
                     onUpdate={(data) => updateBlock(block.id, data)}
                     onDelete={() => deleteBlock(block.id)}
+                    onDuplicate={() => duplicateBlock(block.id)}
                     isDragging={block.id === activeId}
                   />
                 ))}
@@ -412,6 +488,7 @@ export default function DragDropBlockBuilder({ contentId, initialBlocks, onBlock
                     index={blocks.findIndex(b => b.id === activeId)}
                     onUpdate={() => {}}
                     onDelete={() => {}}
+                    onDuplicate={() => {}}
                     isDragging={true}
                   />
                 </div>

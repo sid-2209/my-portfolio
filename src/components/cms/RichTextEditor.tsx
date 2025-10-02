@@ -439,17 +439,17 @@ export default function RichTextEditor({
         if (selection && selection.rangeCount > 0) {
           const range = selection.getRangeAt(0);
           const linkElement = document.createElement('a');
-          
+
           // Ensure URL has proper protocol
           let url = embeddedLinkUrl.trim();
           if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('//')) {
             url = 'https://' + url;
           }
-          
+
           // Log for debugging
           console.log('Original URL:', embeddedLinkUrl);
           console.log('Processed URL:', url);
-          
+
           linkElement.href = url;
           linkElement.textContent = embeddedLinkText || embeddedLinkUrl;
           linkElement.style.color = 'inherit'; // Use inherited text color
@@ -460,17 +460,17 @@ export default function RichTextEditor({
           linkElement.style.padding = '0'; // No padding
           linkElement.style.borderRadius = '0'; // No border radius
           linkElement.className = 'inline-link';
-          
+
           // Insert the link element
           range.deleteContents();
           range.insertNode(linkElement);
-          
+
           // Move cursor after the link and focus
           range.setStartAfter(linkElement);
           range.setEndAfter(linkElement);
           selection.removeAllRanges();
           selection.addRange(range);
-          
+
           // Focus the editor and trigger input
           editorRef.current.focus();
           handleInput();
@@ -478,6 +478,17 @@ export default function RichTextEditor({
       }
     }
     setShowLinkEditor(false);
+  };
+
+  const getWordCount = (text: string): number => {
+    const plainText = text.replace(/<[^>]*>/g, ' ').trim();
+    if (!plainText) return 0;
+    return plainText.split(/\s+/).filter(word => word.length > 0).length;
+  };
+
+  const getCharacterCount = (text: string): number => {
+    const plainText = text.replace(/<[^>]*>/g, '').trim();
+    return plainText.length;
   };
 
 
@@ -770,7 +781,28 @@ export default function RichTextEditor({
               // Hide placeholder on first keystroke
               if (e.key.length === 1) {
                 setShowPlaceholder(false);
+              }
 
+              // Keyboard shortcuts
+              if (e.ctrlKey || e.metaKey) {
+                switch (e.key.toLowerCase()) {
+                  case 'b':
+                    e.preventDefault();
+                    formatText('bold');
+                    break;
+                  case 'i':
+                    e.preventDefault();
+                    formatText('italic');
+                    break;
+                  case 'u':
+                    e.preventDefault();
+                    formatText('underline');
+                    break;
+                  case 'k':
+                    e.preventDefault();
+                    insertLink();
+                    break;
+                }
               }
             }}
             className={`min-h-64 p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none text-gray-900 rich-text-editor ${!showPlaceholder ? 'no-placeholder' : ''}`}
@@ -778,12 +810,19 @@ export default function RichTextEditor({
             data-placeholder={isEditing ? placeholder : "Click edit button to create your paragraph"}
 
           />
-        {isTyping && (
-          <div className="mt-2 text-sm text-gray-500 flex items-center gap-2">
-            <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-            Saving...
+        {/* Stats and Status */}
+        <div className="mt-3 flex items-center justify-between text-sm text-gray-500 border-t border-gray-200 pt-3">
+          <div className="flex items-center gap-4">
+            <span>Words: {getWordCount(content)}</span>
+            <span>Characters: {getCharacterCount(content)}</span>
           </div>
-        )}
+          {isTyping && (
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+              Saving...
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

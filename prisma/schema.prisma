@@ -115,10 +115,13 @@ enum BlockType {
   PARAGRAPH
   HEADING
   IMAGE
+  VIDEO_EMBED
   CODE_BLOCK
   QUOTE
   LIST
   DIVIDER
+  CALLOUT
+  TABLE
   CUSTOM
 }
 
@@ -162,6 +165,7 @@ model Media {
 
 enum ContentStatus {
   DRAFT
+  REVIEW
   PUBLISHED
   ARCHIVED
 }

@@ -6,12 +6,10 @@ import EnhancedContentEditor from "../../components/cms/EnhancedContentEditor";
 import EnhancedContentAnalytics from "../../components/cms/EnhancedContentAnalytics";
 import LivePreviewPanel from "../../components/cms/LivePreviewPanel";
 import RevisionHistoryPanel from "../../components/cms/RevisionHistoryPanel";
-import AdvancedSearchPanel from "../../components/cms/AdvancedSearchPanel";
 import TemplateManager from "../../components/cms/TemplateManager";
 import SortableContentGrid from "../../components/cms/SortableContentGrid";
 import { useLivePreview } from "../../hooks/useLivePreview";
 import { useRevisionHistory } from "../../hooks/useRevisionHistory";
-import { useAdvancedSearch } from "../../hooks/useAdvancedSearch";
 import { BlockType } from "@prisma/client";
 import { StatCard, EmptyState, ContentCard } from "../../components/data-display";
 import { LoadingSpinner } from "../../components/feedback";
@@ -213,27 +211,8 @@ export default function AdminPage() {
     setIsRevisionHistoryVisible(!isRevisionHistoryVisible);
   };
 
-  // Advanced Search System
-  const [isAdvancedSearchVisible, setIsAdvancedSearchVisible] = useState(false);
-  const [searchResultsOverride, setSearchResultsOverride] = useState<unknown[] | null>(null);
-  const [searchTime, setSearchTime] = useState<number>(0);
-
-  const toggleAdvancedSearch = () => {
-    setIsAdvancedSearchVisible(!isAdvancedSearchVisible);
-  };
-
-  const handleAdvancedSearchResults = useCallback((results: unknown[], searchTime: number) => {
-    setSearchResultsOverride(results);
-    setSearchTime(searchTime);
-  }, []);
-
   // Filtering and Search Logic
   const filteredContent = useMemo(() => {
-    // If advanced search is active and has results, use those instead
-    if (isAdvancedSearchVisible && searchResultsOverride !== null) {
-      return searchResultsOverride;
-    }
-
     let filtered = content;
 
     // Search filtering
@@ -336,7 +315,7 @@ export default function AdminPage() {
     }
 
     return filtered;
-  }, [content, searchQuery, filterContentType, filterStatus, filterFeatured, filterDateRange, sortBy, isAdvancedSearchVisible, searchResultsOverride]);
+  }, [content, searchQuery, filterContentType, filterStatus, filterFeatured, filterDateRange, sortBy]);
 
   const clearFilters = () => {
     setSearchQuery('');
@@ -841,21 +820,6 @@ export default function AdminPage() {
               </p>
             </div>
           <div className="flex items-center space-x-3">
-                          {activeView === 'overview' && (
-                <button
-                  onClick={toggleAdvancedSearch}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                    isAdvancedSearchVisible
-                      ? 'bg-purple-600 text-white hover:bg-purple-700'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                  Advanced Search
-                </button>
-              )}
               {activeView === 'overview' && (
                 <button
                   onClick={() => setActiveView('analytics')}
@@ -1289,15 +1253,6 @@ export default function AdminPage() {
         />
       )}
 
-      {/* Advanced Search Panel */}
-      {activeView === 'overview' && (
-        <AdvancedSearchPanel
-          content={content}
-          isVisible={isAdvancedSearchVisible}
-          onToggleVisibility={toggleAdvancedSearch}
-          onSearchResults={handleAdvancedSearchResults}
-        />
-      )}
     </div>
   );
 }

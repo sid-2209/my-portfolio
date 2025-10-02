@@ -9,6 +9,9 @@ import QuoteEditor from "./QuoteEditor";
 import ListEditor from "./ListEditor";
 import DividerEditor from "./DividerEditor";
 import CustomHTMLEditor from "./CustomHTMLEditor";
+import VideoEmbedEditor from "./VideoEmbedEditor";
+import CalloutEditor from "./CalloutEditor";
+import TableEditor from "./TableEditor";
 import ImagePicker from "../media/ImagePicker";
 
 // Import the same interfaces used in BlockEditor for consistency
@@ -26,6 +29,10 @@ interface ImageData {
   src: string;
   alt: string;
   caption?: string;
+  alignment?: 'left' | 'center' | 'right' | 'full';
+  width?: number; // percentage
+  borderRadius?: number;
+  shadow?: boolean;
 }
 
 interface CodeBlockData {
@@ -57,15 +64,42 @@ interface CustomData {
   html: string;
 }
 
+interface VideoEmbedData {
+  url: string;
+  type?: 'youtube' | 'vimeo' | 'loom' | 'twitter' | 'other';
+  autoplay?: boolean;
+  controls?: boolean;
+  aspectRatio?: '16:9' | '4:3' | '1:1' | '21:9';
+}
+
+interface CalloutData {
+  type: 'info' | 'warning' | 'error' | 'success' | 'tip';
+  title?: string;
+  content: string;
+  dismissible?: boolean;
+}
+
+interface TableData {
+  headers: string[];
+  rows: string[][];
+  hasHeader?: boolean;
+  striped?: boolean;
+  bordered?: boolean;
+  alignment?: 'left' | 'center' | 'right';
+}
+
 // Union type for all possible block data
-type BlockData = 
-  | ParagraphData 
-  | HeadingData 
-  | ImageData 
-  | CodeBlockData 
-  | QuoteData 
-  | ListData 
-  | DividerData 
+type BlockData =
+  | ParagraphData
+  | HeadingData
+  | ImageData
+  | VideoEmbedData
+  | CodeBlockData
+  | QuoteData
+  | ListData
+  | DividerData
+  | TableData
+  | CalloutData
   | CustomData;
 
 interface Block {
@@ -82,6 +116,7 @@ interface EnhancedBlockEditorProps {
   block: Block;
   onUpdate: (data: BlockData) => void;
   onDelete?: () => void;
+  onDuplicate?: () => void;
   onMoveUp?: () => void;
   onMoveDown?: () => void;
   isFirst?: boolean;
@@ -92,6 +127,7 @@ export default function EnhancedBlockEditor({
   block,
   onUpdate,
   onDelete,
+  onDuplicate,
   onMoveUp,
   onMoveDown,
   isFirst,
@@ -246,7 +282,123 @@ export default function EnhancedBlockEditor({
                   />
                 </div>
               </div>
+
+              {/* Alignment Options */}
+              <div>
+                <label className="block text-gray-700 text-sm font-medium mb-2">
+                  Alignment
+                </label>
+                <div className="flex gap-2">
+                  {(['left', 'center', 'right', 'full'] as const).map((align) => (
+                    <button
+                      key={align}
+                      onClick={() => setEditData({
+                        ...imageData,
+                        alignment: align
+                      })}
+                      className={`flex-1 px-4 py-2 rounded-lg border transition-all ${
+                        (imageData.alignment || 'center') === align
+                          ? 'border-blue-500 bg-blue-50 text-blue-700'
+                          : 'border-gray-300 hover:border-gray-400'
+                      }`}
+                    >
+                      <span className="capitalize">{align}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Width Control */}
+              <div>
+                <label className="block text-gray-700 text-sm font-medium mb-2">
+                  Width: {imageData.width || 100}%
+                </label>
+                <input
+                  type="range"
+                  min="20"
+                  max="100"
+                  step="5"
+                  value={imageData.width || 100}
+                  onChange={(e) => setEditData({
+                    ...imageData,
+                    width: parseInt(e.target.value)
+                  })}
+                  className="w-full"
+                />
+              </div>
+
+              {/* Styling Options */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-gray-700 text-sm font-medium mb-2">
+                    Border Radius: {imageData.borderRadius || 0}px
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="50"
+                    step="5"
+                    value={imageData.borderRadius || 0}
+                    onChange={(e) => setEditData({
+                      ...imageData,
+                      borderRadius: parseInt(e.target.value)
+                    })}
+                    className="w-full"
+                  />
+                </div>
+
+                <div className="flex items-center">
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={imageData.shadow || false}
+                      onChange={(e) => setEditData({
+                        ...imageData,
+                        shadow: e.target.checked
+                      })}
+                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">Add Shadow</span>
+                  </label>
+                </div>
+              </div>
             </div>
+          );
+        }
+
+        if (block.blockType === 'VIDEO_EMBED') {
+          const videoData = editData as VideoEmbedData;
+          return (
+            <VideoEmbedEditor
+              data={videoData}
+              onChange={(data) => setEditData(data)}
+              className="w-full"
+              isEditing={isEditing}
+            />
+          );
+        }
+
+        if (block.blockType === 'CALLOUT') {
+          const calloutData = editData as CalloutData;
+          return (
+            <CalloutEditor
+              data={calloutData}
+              onChange={(data) => setEditData(data)}
+              className="w-full"
+              isEditing={isEditing}
+            />
+          );
+        }
+
+        if (block.blockType === 'TABLE') {
+          const tableData = editData as TableData;
+          return (
+            <TableEditor
+              data={tableData}
+              onChange={(data) => setEditData(data)}
+              className="w-full"
+              isEditing={isEditing}
+            />
           );
         }
 
@@ -332,7 +484,19 @@ export default function EnhancedBlockEditor({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
             </button>
-            
+
+            {onDuplicate && (
+              <button
+                onClick={onDuplicate}
+                className="p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors duration-200"
+                title="Duplicate block"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+              </button>
+            )}
+
             {onDelete && (
               <button
                 onClick={onDelete}
@@ -377,17 +541,41 @@ export default function EnhancedBlockEditor({
           {block.blockType === 'IMAGE' && (
             <div className="space-y-3">
               {(editData as ImageData).src ? (
-                <div className="relative group">
-                  <img
-                    src={(editData as ImageData).src}
-                    alt={(editData as ImageData).alt || 'Block image'}
-                    className="w-full max-w-md mx-auto rounded-lg shadow-sm"
-                  />
-                  {(editData as ImageData).caption && (
-                    <p className="text-sm text-gray-600 text-center mt-2 italic">
-                      {(editData as ImageData).caption}
-                    </p>
-                  )}
+                <div
+                  className="relative group"
+                  style={{
+                    display: 'flex',
+                    justifyContent:
+                      (editData as ImageData).alignment === 'left' ? 'flex-start' :
+                      (editData as ImageData).alignment === 'right' ? 'flex-end' :
+                      (editData as ImageData).alignment === 'full' ? 'stretch' :
+                      'center'
+                  }}
+                >
+                  <div style={{ width: (editData as ImageData).alignment === 'full' ? '100%' : `${(editData as ImageData).width || 100}%` }}>
+                    <img
+                      src={(editData as ImageData).src}
+                      alt={(editData as ImageData).alt || 'Block image'}
+                      className="w-full"
+                      style={{
+                        borderRadius: `${(editData as ImageData).borderRadius || 0}px`,
+                        boxShadow: (editData as ImageData).shadow ? '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' : 'none'
+                      }}
+                    />
+                    {(editData as ImageData).caption && (
+                      <p
+                        className="text-sm text-gray-600 mt-2 italic"
+                        style={{
+                          textAlign:
+                            (editData as ImageData).alignment === 'left' ? 'left' :
+                            (editData as ImageData).alignment === 'right' ? 'right' :
+                            'center'
+                        }}
+                      >
+                        {(editData as ImageData).caption}
+                      </p>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <div className="w-full h-32 bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center">
@@ -463,6 +651,151 @@ export default function EnhancedBlockEditor({
                 />
               </div>
               <div className="text-sm text-gray-600 mt-2">Content below divider</div>
+            </div>
+          )}
+
+          {block.blockType === 'VIDEO_EMBED' && (
+            <div className="bg-gray-50 p-4 rounded-lg">
+              {(editData as VideoEmbedData).url ? (
+                <div className="text-sm space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-700 font-medium">
+                      {(editData as VideoEmbedData).type ? (
+                        <span className="capitalize">{(editData as VideoEmbedData).type} Video</span>
+                      ) : (
+                        'Video Embed'
+                      )}
+                    </span>
+                    <span className="text-gray-500">
+                      {(editData as VideoEmbedData).aspectRatio || '16:9'}
+                    </span>
+                  </div>
+                  <div className="bg-black/5 p-3 rounded text-xs text-gray-600 font-mono break-all">
+                    {(editData as VideoEmbedData).url}
+                  </div>
+                  <div className="flex items-center gap-4 text-xs text-gray-600">
+                    {(editData as VideoEmbedData).autoplay && (
+                      <span className="flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                        </svg>
+                        Autoplay
+                      </span>
+                    )}
+                    {(editData as VideoEmbedData).controls !== false && (
+                      <span className="flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                        </svg>
+                        Controls
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-gray-500 italic text-sm">No video URL provided</p>
+              )}
+            </div>
+          )}
+
+          {block.blockType === 'CALLOUT' && (
+            (() => {
+              const calloutData = editData as CalloutData;
+              const calloutStyles = {
+                info: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-800', iconBg: 'bg-blue-100', iconColor: 'text-blue-600' },
+                warning: { bg: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-800', iconBg: 'bg-yellow-100', iconColor: 'text-yellow-600' },
+                error: { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-800', iconBg: 'bg-red-100', iconColor: 'text-red-600' },
+                success: { bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-800', iconBg: 'bg-green-100', iconColor: 'text-green-600' },
+                tip: { bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-800', iconBg: 'bg-purple-100', iconColor: 'text-purple-600' }
+              };
+              const currentStyle = calloutStyles[calloutData.type || 'info'];
+
+              return (
+                <div className={`${currentStyle.bg} ${currentStyle.border} border rounded-lg p-4`}>
+                  <div className="flex items-start gap-3">
+                    <div className={`flex-shrink-0 ${currentStyle.iconBg} ${currentStyle.iconColor} p-2 rounded-lg`}>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1">
+                      {calloutData.title && (
+                        <h4 className={`${currentStyle.text} font-semibold mb-1`}>
+                          {calloutData.title}
+                        </h4>
+                      )}
+                      <p className={`${currentStyle.text} text-sm`}>
+                        {calloutData.content || 'No content'}
+                      </p>
+                    </div>
+                    {calloutData.dismissible && (
+                      <button className={`flex-shrink-0 ${currentStyle.iconColor} hover:opacity-70 transition-opacity`}>
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })()
+          )}
+
+          {block.blockType === 'TABLE' && (
+            <div className="overflow-x-auto">
+              <table className={`w-full ${(editData as TableData).bordered !== false ? 'border border-gray-300' : ''}`}>
+                {(editData as TableData).hasHeader !== false && (
+                  <thead>
+                    <tr className="bg-gray-100 border-b-2 border-gray-300">
+                      {(editData as TableData).headers.map((header, index) => (
+                        <th
+                          key={index}
+                          className={`px-3 py-2 font-semibold text-gray-900 ${
+                            (editData as TableData).bordered !== false ? 'border-r border-gray-300 last:border-r-0' : ''
+                          } ${
+                            {
+                              left: 'text-left',
+                              center: 'text-center',
+                              right: 'text-right'
+                            }[(editData as TableData).alignment || 'left']
+                          }`}
+                        >
+                          {header || `Column ${index + 1}`}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                )}
+                <tbody>
+                  {(editData as TableData).rows.map((row, rowIndex) => (
+                    <tr
+                      key={rowIndex}
+                      className={`${
+                        (editData as TableData).striped && rowIndex % 2 === 1 ? 'bg-gray-50' : ''
+                      } ${
+                        (editData as TableData).bordered !== false ? 'border-b border-gray-300 last:border-b-0' : ''
+                      }`}
+                    >
+                      {row.map((cell, colIndex) => (
+                        <td
+                          key={colIndex}
+                          className={`px-3 py-2 text-gray-800 ${
+                            (editData as TableData).bordered !== false ? 'border-r border-gray-300 last:border-r-0' : ''
+                          } ${
+                            {
+                              left: 'text-left',
+                              center: 'text-center',
+                              right: 'text-right'
+                            }[(editData as TableData).alignment || 'left']
+                          }`}
+                        >
+                          {cell || 'Empty'}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
 

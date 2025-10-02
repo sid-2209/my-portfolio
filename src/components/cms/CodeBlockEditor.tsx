@@ -34,19 +34,30 @@ const supportedLanguages = [
   { value: 'text', label: 'Plain Text' }
 ];
 
-export default function CodeBlockEditor({ 
-  code, 
-  language, 
-  onChange, 
-  className = "" 
+export default function CodeBlockEditor({
+  code,
+  language,
+  onChange,
+  className = ""
 }: CodeBlockEditorProps) {
   const [mounted, setMounted] = useState(false);
   const [showLineNumbers, setShowLineNumbers] = useState(true);
   const [fontSize, setFontSize] = useState(14);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const handleCopyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy code:', err);
+    }
+  };
 
   // Basic syntax highlighting for common languages
   const highlightCode = (code: string, lang: string): string => {
@@ -230,10 +241,28 @@ export default function CodeBlockEditor({
           </div>
           <div className="flex items-center space-x-2">
             <button
-              onClick={() => navigator.clipboard.writeText(code)}
-              className="px-2 py-1 text-xs bg-gray-200 hover:bg-gray-300 rounded transition-colors"
+              onClick={handleCopyCode}
+              className={`px-3 py-1 text-xs rounded transition-colors flex items-center gap-1 ${
+                copied
+                  ? 'bg-green-100 text-green-700'
+                  : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+              }`}
             >
-              Copy Code
+              {copied ? (
+                <>
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Copied!
+                </>
+              ) : (
+                <>
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  Copy Code
+                </>
+              )}
             </button>
           </div>
         </div>
