@@ -6,6 +6,11 @@ import { sanitizeCustomHTML, validateHTML } from "../../lib/sanitize";
 
 interface CustomData {
   html: string;
+  containerStyle?: 'default' | 'transparent' | 'outlined' | 'minimal';
+  showBackground?: boolean;
+  showBorder?: boolean;
+  showPadding?: boolean;
+  showRounding?: boolean;
 }
 
 interface CustomHTMLEditorProps {
@@ -27,6 +32,7 @@ export default function CustomHTMLEditor({
   const [viewMode, setViewMode] = useState<'editor' | 'preview' | 'split'>('editor');
   const [htmlError, setHtmlError] = useState<string | null>(null);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [showAdvancedStyling, setShowAdvancedStyling] = useState(false);
   const [copied, setCopied] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -58,7 +64,8 @@ export default function CustomHTMLEditor({
   }, [currentData.html]);
 
   const handleChange = (html: string) => {
-    setCurrentData({ html });
+    const newData = { ...currentData, html };
+    setCurrentData(newData);
     setIsTyping(true);
     validateHTMLContent(html);
 
@@ -69,9 +76,15 @@ export default function CustomHTMLEditor({
 
     // Debounce the onChange call
     timeoutRef.current = setTimeout(() => {
-      onChange({ html });
+      onChange(newData);
       setIsTyping(false);
     }, 300);
+  };
+
+  const handleStyleChange = (updates: Partial<CustomData>) => {
+    const newData = { ...currentData, ...updates };
+    setCurrentData(newData);
+    onChange(newData);
   };
 
   const validateHTMLContent = (html: string) => {
@@ -376,6 +389,117 @@ export default function CustomHTMLEditor({
             </div>
           </div>
         )}
+
+        {/* Container Styling Controls */}
+        <div className="mt-4 border-2 border-gray-200 rounded-lg bg-white shadow-sm">
+          <div className="p-3 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-pink-50">
+            <h4 className="text-sm font-semibold text-gray-900">🎨 Container Styling</h4>
+            <p className="text-xs text-gray-600 mt-0.5">Choose how the HTML block container should appear</p>
+          </div>
+          <div className="p-4 space-y-4">
+            {/* Style Presets */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Style Presets</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => handleStyleChange({ containerStyle: 'default', showBackground: true, showBorder: true, showPadding: true, showRounding: true })}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg border-2 transition-all ${
+                    (currentData.containerStyle === 'default' || !currentData.containerStyle)
+                      ? 'bg-blue-50 border-blue-500 text-blue-700'
+                      : 'border-gray-300 text-gray-700 hover:border-blue-300 hover:bg-blue-50'
+                  }`}
+                >
+                  <div className="font-semibold">Default</div>
+                  <div className="text-xs opacity-75">Background + Border</div>
+                </button>
+                <button
+                  onClick={() => handleStyleChange({ containerStyle: 'transparent', showBackground: false, showBorder: false, showPadding: true, showRounding: false })}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg border-2 transition-all ${
+                    currentData.containerStyle === 'transparent'
+                      ? 'bg-green-50 border-green-500 text-green-700'
+                      : 'border-gray-300 text-gray-700 hover:border-green-300 hover:bg-green-50'
+                  }`}
+                >
+                  <div className="font-semibold">Transparent</div>
+                  <div className="text-xs opacity-75">No BG or Border</div>
+                </button>
+                <button
+                  onClick={() => handleStyleChange({ containerStyle: 'outlined', showBackground: false, showBorder: true, showPadding: true, showRounding: true })}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg border-2 transition-all ${
+                    currentData.containerStyle === 'outlined'
+                      ? 'bg-purple-50 border-purple-500 text-purple-700'
+                      : 'border-gray-300 text-gray-700 hover:border-purple-300 hover:bg-purple-50'
+                  }`}
+                >
+                  <div className="font-semibold">Outlined</div>
+                  <div className="text-xs opacity-75">Border Only</div>
+                </button>
+                <button
+                  onClick={() => handleStyleChange({ containerStyle: 'minimal', showBackground: false, showBorder: false, showPadding: false, showRounding: false })}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg border-2 transition-all ${
+                    currentData.containerStyle === 'minimal'
+                      ? 'bg-gray-50 border-gray-500 text-gray-700'
+                      : 'border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="font-semibold">Minimal</div>
+                  <div className="text-xs opacity-75">Raw HTML</div>
+                </button>
+              </div>
+            </div>
+
+            {/* Advanced Options Toggle */}
+            <button
+              onClick={() => setShowAdvancedStyling(!showAdvancedStyling)}
+              className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <span>Advanced Options</span>
+              <span className="text-xs">{showAdvancedStyling ? '▲' : '▼'}</span>
+            </button>
+
+            {/* Advanced Granular Controls */}
+            {showAdvancedStyling && (
+              <div className="space-y-3 pt-2 border-t border-gray-200">
+                <label className="flex items-center justify-between cursor-pointer">
+                  <span className="text-sm font-medium text-gray-700">Background</span>
+                  <input
+                    type="checkbox"
+                    checked={currentData.showBackground !== false}
+                    onChange={(e) => handleStyleChange({ showBackground: e.target.checked })}
+                    className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                </label>
+                <label className="flex items-center justify-between cursor-pointer">
+                  <span className="text-sm font-medium text-gray-700">Border</span>
+                  <input
+                    type="checkbox"
+                    checked={currentData.showBorder !== false}
+                    onChange={(e) => handleStyleChange({ showBorder: e.target.checked })}
+                    className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                </label>
+                <label className="flex items-center justify-between cursor-pointer">
+                  <span className="text-sm font-medium text-gray-700">Padding</span>
+                  <input
+                    type="checkbox"
+                    checked={currentData.showPadding !== false}
+                    onChange={(e) => handleStyleChange({ showPadding: e.target.checked })}
+                    className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                </label>
+                <label className="flex items-center justify-between cursor-pointer">
+                  <span className="text-sm font-medium text-gray-700">Rounded Corners</span>
+                  <input
+                    type="checkbox"
+                    checked={currentData.showRounding !== false}
+                    onChange={(e) => handleStyleChange({ showRounding: e.target.checked })}
+                    className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                </label>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Editor Content */}

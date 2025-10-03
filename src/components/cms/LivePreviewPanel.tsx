@@ -54,6 +54,11 @@ interface DividerData {
 
 interface CustomData {
   html: string;
+  containerStyle?: 'default' | 'transparent' | 'outlined' | 'minimal';
+  showBackground?: boolean;
+  showBorder?: boolean;
+  showPadding?: boolean;
+  showRounding?: boolean;
 }
 
 type BlockData =
@@ -316,11 +321,31 @@ export default function LivePreviewPanel({
 
       case 'CUSTOM':
         const customData = data as CustomData;
+
+        const getContainerClasses = () => {
+          const classes = ['custom-html-block'];
+
+          const showBg = customData.showBackground !== false;
+          const showBorder = customData.showBorder !== false;
+          const showPadding = customData.showPadding !== false;
+          const showRounding = customData.showRounding !== false;
+
+          if (showBg) classes.push('bg-white/5');
+          if (showBorder) classes.push('border', 'border-white/10');
+          if (showPadding) classes.push('p-6');
+          if (showRounding) classes.push('rounded-xl');
+
+          return classes.join(' ');
+        };
+
         return (
           <div key={block.id} className="my-8">
-            <div dangerouslySetInnerHTML={{
-              __html: sanitizeCustomHTML(customData.html || '<span class="text-white/60 italic">[No custom content]</span>')
-            }} />
+            <div
+              className={getContainerClasses()}
+              dangerouslySetInnerHTML={{
+                __html: sanitizeCustomHTML(customData.html || '<span class="text-white/60 italic">[No custom content]</span>')
+              }}
+            />
           </div>
         );
 

@@ -82,6 +82,11 @@ interface DividerData {
 
 interface CustomData {
   html: string;
+  containerStyle?: 'default' | 'transparent' | 'outlined' | 'minimal';
+  showBackground?: boolean;
+  showBorder?: boolean;
+  showPadding?: boolean;
+  showRounding?: boolean;
 }
 
 // Union type for all possible block data
@@ -640,10 +645,29 @@ export default function BlockRenderer({ blocks }: BlockRendererProps) {
       
       case 'CUSTOM':
         const customData = data as CustomData;
+
+        // Determine styling based on containerStyle or granular options
+        const getContainerClasses = () => {
+          const classes = ['custom-html-block'];
+
+          // Apply granular controls (they override preset styles)
+          const showBg = customData.showBackground !== false;
+          const showBorder = customData.showBorder !== false;
+          const showPadding = customData.showPadding !== false;
+          const showRounding = customData.showRounding !== false;
+
+          if (showBg) classes.push('bg-white/5');
+          if (showBorder) classes.push('border', 'border-white/10');
+          if (showPadding) classes.push('p-6');
+          if (showRounding) classes.push('rounded-xl');
+
+          return classes.join(' ');
+        };
+
         return (
           <div key={block.id} className="my-8">
             <div
-              className="custom-html-block rounded-xl p-6 bg-white/5 border border-white/10"
+              className={getContainerClasses()}
               dangerouslySetInnerHTML={{
                 __html: sanitizeCustomHTML(customData.html || '<p class="text-white/60 italic text-center">No custom HTML content</p>')
               }}

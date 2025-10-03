@@ -64,6 +64,11 @@ interface DividerData {
 
 interface CustomData {
   html: string;
+  containerStyle?: 'default' | 'transparent' | 'outlined' | 'minimal';
+  showBackground?: boolean;
+  showBorder?: boolean;
+  showPadding?: boolean;
+  showRounding?: boolean;
 }
 
 interface VideoEmbedData {

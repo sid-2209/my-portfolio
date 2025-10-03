@@ -14,7 +14,7 @@ interface CodeBlockData { code: string; language: string; }
 interface QuoteData { text: string; author?: string; source?: string; }
 interface ListData { type: 'unordered' | 'ordered'; items: string[]; }
 interface DividerData { style: 'solid' | 'dashed' | 'dotted' | 'double'; color: string; }
-interface CustomData { html: string; }
+interface CustomData { html: string; containerStyle?: 'default' | 'transparent' | 'outlined' | 'minimal'; showBackground?: boolean; showBorder?: boolean; showPadding?: boolean; showRounding?: boolean; }
 type BlockData = ParagraphData | HeadingData | ImageData | CodeBlockData | QuoteData | ListData | DividerData | CustomData;
 
 interface Content {

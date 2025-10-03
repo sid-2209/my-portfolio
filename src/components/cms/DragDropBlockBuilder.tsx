@@ -446,7 +446,13 @@ export default function DragDropBlockBuilder({ contentId, initialBlocks, onBlock
       case 'DIVIDER':
         return { style: 'solid', color: '#e5e7eb', thickness: 1, width: 100, marginTop: 20, marginBottom: 20 };
       case 'CUSTOM':
-        return { html: '<!-- Enter your custom HTML here -->' };
+        return {
+          html: '<!-- Enter your custom HTML here -->',
+          showBackground: true,
+          showBorder: true,
+          showPadding: true,
+          showRounding: true
+        };
       default:
         return { text: '' };
     }
