@@ -148,7 +148,7 @@ export default function VideoEmbedEditor({
     setEmbedCode(code);
   };
 
-  const handleChange = (field: keyof VideoEmbedData, value: string | boolean) => {
+  const handleChange = (field: keyof VideoEmbedData, value: string | boolean | number) => {
     const newData = { ...currentData, [field]: value };
     if (field === 'url') {
       newData.type = detectVideoType(value as string);
