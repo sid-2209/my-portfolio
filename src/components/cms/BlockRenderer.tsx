@@ -105,7 +105,7 @@ function CodeBlockView({
   isDarkTheme
 }: {
   codeData: CodeBlockData;
-  codeTheme: Record<string, unknown>;
+  codeTheme: { [key: string]: React.CSSProperties };
   isDarkTheme: boolean;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
