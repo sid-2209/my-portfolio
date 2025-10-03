@@ -103,10 +103,10 @@ export default function ContentPage() {
         <div className="absolute bottom-0 left-0 right-0 px-8 pb-8">
           <GlassmorphismContainer
             variant="content"
-            className="max-w-6xl mx-auto p-8 rounded-2xl"
+            className="max-w-6xl mx-auto p-6 rounded-2xl"
           >
             {/* Category and Type Badges */}
-            <div className="flex items-center gap-4 mb-6">
+            <div className="flex items-center gap-4 mb-4">
               <span className="text-white/80 text-sm bg-white/20 px-4 py-2 rounded-full backdrop-blur-sm border border-white/20">
                 {content.contentType}
               </span>
@@ -116,14 +116,14 @@ export default function ContentPage() {
                 </span>
               )}
             </div>
-            
+
             {/* Title */}
-            <h1 className="michroma text-white text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight">
+            <h1 className="michroma text-white text-4xl md:text-5xl lg:text-6xl font-bold mb-4 leading-tight">
               {content.title}
             </h1>
-            
+
             {/* Date and Author */}
-            <div className="flex items-center gap-6 text-white/80 text-lg">
+            <div className="flex items-center gap-6 text-white/80 text-base">
               <span className="flex items-center gap-2">
                 <span className="w-2 h-2 bg-white/60 rounded-full"></span>
                 {new Date(content.publishedDate).toLocaleDateString('en-US', {
