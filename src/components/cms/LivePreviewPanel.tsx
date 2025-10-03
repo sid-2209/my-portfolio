@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Eye, EyeOff, Monitor, Smartphone, Tablet, RefreshCw } from "lucide-react";
 import { sanitizeRichText, sanitizeCustomHTML } from "@/lib/sanitize";
+import WaveformPlayer from "@/components/audio/WaveformPlayer";
 
 // Import the same interfaces
 interface ParagraphData {
@@ -374,56 +375,13 @@ export default function LivePreviewPanel({
                 className={`${audioAlignmentClass}`}
                 style={audioWidthStyle}
               >
-                <div
-                  className={`relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/10 backdrop-blur-md ${
-                    audioData.shadow ? 'shadow-2xl' : ''
-                  }`}
-                  style={{ borderRadius: `${audioData.borderRadius || 16}px` }}
-                >
-                  {/* Header with metadata */}
-                  {(audioData.title || audioData.artist || audioData.coverArt || audioData.type) && (
-                    <div className="flex items-center gap-4 p-4 border-b border-white/10 bg-white/5">
-                      {audioData.coverArt && (
-                        <div className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-white/10">
-                          <img
-                            src={audioData.coverArt}
-                            alt={audioData.title || 'Cover art'}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        {audioData.title && (
-                          <h4 className="text-white font-semibold text-lg truncate">
-                            {audioData.title}
-                          </h4>
-                        )}
-                        {audioData.artist && (
-                          <p className="text-white/60 text-sm truncate">
-                            {audioData.artist}
-                          </p>
-                        )}
-                      </div>
-                      {audioData.type && audioData.type !== 'other' && (
-                        <div className="flex-shrink-0">
-                          <span className="px-3 py-1 bg-white/10 text-white/80 rounded-full text-xs font-medium uppercase">
-                            {audioData.type === 'apple-music' ? 'Apple Music' : audioData.type}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Audio Player Preview */}
-                  <div className="p-6">
-                    <div className="text-center text-white/60 py-8">
-                      <svg className="w-16 h-16 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-                      </svg>
-                      <p className="text-sm">Audio player will appear on published post</p>
-                    </div>
-                  </div>
-                </div>
+                <WaveformPlayer
+                  url={audioUrl}
+                  platform={audioData.type}
+                  platformUrl={audioData.url}
+                  autoplay={audioData.autoplay}
+                  loop={audioData.loop}
+                />
               </div>
             ) : (
               <div className="p-8 bg-white/10 border border-white/30 rounded-2xl text-center">

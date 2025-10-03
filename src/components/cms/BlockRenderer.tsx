@@ -6,6 +6,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useState } from 'react';
 import { ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
+import WaveformPlayer from '@/components/audio/WaveformPlayer';
 
 // Import the same interfaces used in BlockEditor for consistency
 interface ParagraphData {
@@ -497,86 +498,6 @@ export default function BlockRenderer({ blocks }: BlockRendererProps) {
         const audioData = data as AudioEmbedData;
         const audioUrl = audioData.localAudioUrl || audioData.url;
 
-        // Platform-specific embed rendering
-        const renderPlatformEmbed = () => {
-          if (audioData.type === 'spotify' && audioData.url) {
-            // Convert Spotify URL to embed URL
-            let embedUrl = audioData.url;
-            if (audioData.url.includes('/track/')) {
-              const trackId = audioData.url.split('/track/')[1]?.split('?')[0];
-              embedUrl = `https://open.spotify.com/embed/track/${trackId}`;
-            } else if (audioData.url.includes('/playlist/')) {
-              const playlistId = audioData.url.split('/playlist/')[1]?.split('?')[0];
-              embedUrl = `https://open.spotify.com/embed/playlist/${playlistId}`;
-            } else if (audioData.url.includes('/album/')) {
-              const albumId = audioData.url.split('/album/')[1]?.split('?')[0];
-              embedUrl = `https://open.spotify.com/embed/album/${albumId}`;
-            } else if (audioData.url.includes('/episode/')) {
-              const episodeId = audioData.url.split('/episode/')[1]?.split('?')[0];
-              embedUrl = `https://open.spotify.com/embed/episode/${episodeId}`;
-            }
-
-            return (
-              <iframe
-                src={`${embedUrl}?theme=${audioData.theme === 'light' ? '0' : '1'}`}
-                width="100%"
-                height={audioData.showPlaylist ? '380' : '152'}
-                frameBorder="0"
-                allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-                loading="lazy"
-                className="rounded-lg"
-              />
-            );
-          }
-
-          if (audioData.type === 'soundcloud' && audioData.url) {
-            return (
-              <iframe
-                width="100%"
-                height="166"
-                scrolling="no"
-                frameBorder="no"
-                allow="autoplay"
-                src={`https://w.soundcloud.com/player/?url=${encodeURIComponent(audioData.url)}&color=%23ff5500&auto_play=${audioData.autoplay}&hide_related=false&show_comments=true&show_user=true&show_reposts=false&show_teaser=true`}
-                className="rounded-lg"
-              />
-            );
-          }
-
-          if (audioData.type === 'apple-music' && audioData.url) {
-            // Apple Music embed (if URL is already an embed URL)
-            return (
-              <iframe
-                allow="autoplay *; encrypted-media *; fullscreen *; clipboard-write"
-                frameBorder="0"
-                height="175"
-                style={{ width: '100%', maxWidth: '660px', overflow: 'hidden', borderRadius: '10px' }}
-                sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation"
-                src={audioData.url}
-              />
-            );
-          }
-
-          // Local audio or generic audio player
-          return (
-            <audio
-              controls
-              autoPlay={audioData.autoplay}
-              loop={audioData.loop}
-              className="w-full"
-              style={{
-                filter: 'invert(1) hue-rotate(180deg)',
-                borderRadius: `${audioData.borderRadius || 0}px`,
-              }}
-            >
-              <source src={audioUrl} type="audio/mpeg" />
-              <source src={audioUrl} type="audio/ogg" />
-              <source src={audioUrl} type="audio/wav" />
-              Your browser does not support the audio element.
-            </audio>
-          );
-        };
-
         const audioAlignmentClass =
           audioData.alignment === 'left' ? 'mr-auto' :
           audioData.alignment === 'right' ? 'ml-auto' :
@@ -593,73 +514,13 @@ export default function BlockRenderer({ blocks }: BlockRendererProps) {
                 className={`${audioAlignmentClass}`}
                 style={audioWidthStyle}
               >
-                <div
-                  className={`relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/10 backdrop-blur-md ${
-                    audioData.shadow ? 'shadow-2xl' : ''
-                  }`}
-                  style={{ borderRadius: `${audioData.borderRadius || 16}px` }}
-                >
-                  {/* Header with metadata */}
-                  {(audioData.title || audioData.artist || audioData.coverArt || audioData.type) && (
-                    <div className="flex items-center gap-4 p-4 border-b border-white/10 bg-white/5">
-                      {/* Cover Art */}
-                      {audioData.coverArt && (
-                        <div className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-white/10">
-                          <img
-                            src={audioData.coverArt}
-                            alt={audioData.title || 'Cover art'}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                      )}
-
-                      {/* Metadata */}
-                      <div className="flex-1 min-w-0">
-                        {audioData.title && (
-                          <h4 className="text-white font-semibold text-lg truncate">
-                            {audioData.title}
-                          </h4>
-                        )}
-                        {audioData.artist && (
-                          <p className="text-white/60 text-sm truncate">
-                            {audioData.artist}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Platform Badge */}
-                      {audioData.type && audioData.type !== 'other' && (
-                        <div className="flex-shrink-0">
-                          <span className="px-3 py-1 bg-white/10 text-white/80 rounded-full text-xs font-medium uppercase">
-                            {audioData.type === 'apple-music' ? 'Apple Music' : audioData.type}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Audio Player */}
-                  <div className="p-6">
-                    {renderPlatformEmbed()}
-                  </div>
-
-                  {/* Footer with source link */}
-                  {audioData.url && audioData.type !== 'local' && (
-                    <div className="p-3 border-t border-white/10 bg-white/5">
-                      <a
-                        href={audioData.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-white/60 hover:text-white/90 text-sm transition-colors flex items-center gap-2"
-                      >
-                        <span>Listen on {audioData.type === 'apple-music' ? 'Apple Music' : audioData.type || 'platform'}</span>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                        </svg>
-                      </a>
-                    </div>
-                  )}
-                </div>
+                <WaveformPlayer
+                  url={audioUrl}
+                  platform={audioData.type}
+                  platformUrl={audioData.url}
+                  autoplay={audioData.autoplay}
+                  loop={audioData.loop}
+                />
               </div>
             ) : (
               <div className="p-8 bg-white/10 border border-white/30 rounded-2xl text-center">
