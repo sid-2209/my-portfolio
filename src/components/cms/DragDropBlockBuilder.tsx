@@ -134,6 +134,7 @@ interface DragDropBlockBuilderProps {
   contentId: string;
   initialBlocks: Block[];
   onBlocksChange: (blocks: Block[]) => void;
+  onLivePreviewUpdate?: (blockId: string, data: BlockData) => void;
 }
 
 // Sortable Block Item Component
@@ -144,9 +145,10 @@ interface SortableBlockItemProps {
   onDelete: () => void;
   onDuplicate: () => void;
   isDragging?: boolean;
+  onLiveUpdate?: (blockId: string, data: BlockData) => void;
 }
 
-function SortableBlockItem({ block, index, onUpdate, onDelete, onDuplicate, isDragging }: SortableBlockItemProps) {
+function SortableBlockItem({ block, index, onUpdate, onDelete, onDuplicate, isDragging, onLiveUpdate }: SortableBlockItemProps) {
   const {
     attributes,
     listeners,
@@ -194,6 +196,7 @@ function SortableBlockItem({ block, index, onUpdate, onDelete, onDuplicate, isDr
         onUpdate={onUpdate}
         onDelete={onDelete}
         onDuplicate={onDuplicate}
+        onLiveUpdate={onLiveUpdate}
         // Disable move buttons since we're using drag-and-drop
         onMoveUp={undefined}
         onMoveDown={undefined}
@@ -297,7 +300,7 @@ const blockTypes = [
   { type: 'CUSTOM' as BlockType, label: 'Custom HTML', description: 'Add custom HTML content' }
 ];
 
-export default function DragDropBlockBuilder({ contentId, initialBlocks, onBlocksChange }: DragDropBlockBuilderProps) {
+export default function DragDropBlockBuilder({ contentId, initialBlocks, onBlocksChange, onLivePreviewUpdate }: DragDropBlockBuilderProps) {
   const [blocks, setBlocks] = useState<Block[]>(initialBlocks);
   const [isAddingBlock, setIsAddingBlock] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -561,6 +564,7 @@ export default function DragDropBlockBuilder({ contentId, initialBlocks, onBlock
                     onDelete={() => deleteBlock(block.id)}
                     onDuplicate={() => duplicateBlock(block.id)}
                     isDragging={block.id === activeId}
+                    onLiveUpdate={onLivePreviewUpdate}
                   />
                 ))}
               </div>
