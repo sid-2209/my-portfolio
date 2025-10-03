@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -104,7 +104,7 @@ export async function POST(
           data: {
             contentId: id,
             blockType: blockRevision.blockType,
-            data: blockRevision.data as Record<string, unknown>,
+            data: blockRevision.data as Prisma.InputJsonValue,
             order: blockRevision.order
           }
         });
