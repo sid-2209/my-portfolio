@@ -19,11 +19,17 @@ interface ImageData {
   src: string;
   alt: string;
   caption?: string;
+  alignment?: 'left' | 'center' | 'right' | 'full';
+  width?: number;
+  borderRadius?: number;
+  shadow?: boolean;
 }
 
 interface CodeBlockData {
   code: string;
   language: string;
+  filename?: string;
+  theme?: 'light' | 'dark';
 }
 
 interface QuoteData {
@@ -50,15 +56,48 @@ interface CustomData {
   html: string;
 }
 
+interface VideoEmbedData {
+  url: string;
+  type?: 'youtube' | 'vimeo' | 'loom' | 'twitter' | 'local' | 'other';
+  autoplay?: boolean;
+  controls?: boolean;
+  aspectRatio?: '16:9' | '4:3' | '1:1' | '21:9';
+  alignment?: 'left' | 'center' | 'right' | 'full';
+  width?: number;
+  borderRadius?: number;
+  shadow?: boolean;
+  localVideoUrl?: string;
+  mediaId?: string;
+}
+
+interface CalloutData {
+  type: 'info' | 'warning' | 'error' | 'success' | 'tip';
+  title?: string;
+  content: string;
+  dismissible?: boolean;
+}
+
+interface TableData {
+  headers: string[];
+  rows: string[][];
+  hasHeader?: boolean;
+  striped?: boolean;
+  bordered?: boolean;
+  alignment?: 'left' | 'center' | 'right';
+}
+
 // Union type for all possible block data
-type BlockData = 
-  | ParagraphData 
-  | HeadingData 
-  | ImageData 
-  | CodeBlockData 
-  | QuoteData 
-  | ListData 
-  | DividerData 
+type BlockData =
+  | ParagraphData
+  | HeadingData
+  | ImageData
+  | VideoEmbedData
+  | CodeBlockData
+  | QuoteData
+  | ListData
+  | DividerData
+  | TableData
+  | CalloutData
   | CustomData;
 
 interface Block {
