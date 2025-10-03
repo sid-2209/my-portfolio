@@ -102,19 +102,31 @@ export const sanitizeCustomHTML = (html: string): string => {
 
   const config = configureDOMPurify();
 
-  // Add some additional safe elements for custom HTML
+  // Add some additional safe elements for custom HTML including SVG support
   const customConfig = {
     ...config,
     ALLOWED_TAGS: [
       ...config.ALLOWED_TAGS,
       'section', 'article', 'aside', 'header', 'footer', 'nav',
       'figure', 'figcaption',
-      'button', 'form', 'input', 'label', 'textarea', 'select', 'option'
+      'button', 'form', 'input', 'label', 'textarea', 'select', 'option',
+      // SVG elements for charts, diagrams, and graphics
+      'svg', 'path', 'circle', 'rect', 'line', 'polyline', 'polygon',
+      'ellipse', 'g', 'text', 'tspan', 'defs', 'linearGradient', 'radialGradient',
+      'stop', 'use', 'symbol', 'marker', 'clipPath', 'mask', 'pattern', 'image'
     ],
     ALLOWED_ATTR: [
       ...config.ALLOWED_ATTR,
       'type', 'name', 'value', 'placeholder', 'required', 'disabled',
-      'aria-label', 'aria-describedby', 'role'
+      'aria-label', 'aria-describedby', 'role',
+      // SVG attributes for rendering and styling
+      'viewBox', 'xmlns', 'xmlns:xlink', 'fill', 'stroke', 'stroke-width',
+      'stroke-dasharray', 'stroke-linecap', 'stroke-linejoin', 'stroke-miterlimit',
+      'd', 'x', 'y', 'x1', 'y1', 'x2', 'y2', 'cx', 'cy', 'r', 'rx', 'ry',
+      'points', 'transform', 'opacity', 'fill-opacity', 'stroke-opacity',
+      'font-size', 'font-weight', 'font-family', 'text-anchor', 'dominant-baseline',
+      'offset', 'stop-color', 'stop-opacity', 'gradientUnits', 'gradientTransform',
+      'preserveAspectRatio', 'clip-path', 'mask', 'filter'
     ]
   };
 
