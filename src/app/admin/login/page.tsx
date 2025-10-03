@@ -32,7 +32,7 @@ export default function AdminLoginPage() {
       // Successful login - redirect to admin dashboard
       router.push("/admin");
       router.refresh();
-    } catch (err) {
+    } catch {
       setError("An error occurred. Please try again.");
       setIsLoading(false);
     }
@@ -47,7 +47,7 @@ export default function AdminLoginPage() {
             <span className="text-2xl font-bold text-gray-900">S</span>
           </div>
           <h1 className="michroma text-3xl font-bold text-white mb-2">Admin Login</h1>
-          <p className="text-gray-400 text-sm">Sid's Notes Content Management</p>
+          <p className="text-gray-400 text-sm">Sid&apos;s Notes Content Management</p>
         </div>
 
         {/* Login Form */}

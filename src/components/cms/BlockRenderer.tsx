@@ -105,7 +105,7 @@ function CodeBlockView({
   isDarkTheme
 }: {
   codeData: CodeBlockData;
-  codeTheme: any;
+  codeTheme: Record<string, unknown>;
   isDarkTheme: boolean;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -218,7 +218,7 @@ function CodeBlockView({
           </div>
         ) : (
           <div className={`p-8 text-center ${isDarkTheme ? 'text-white/40' : 'text-gray-400'}`}>
-            <code className="font-mono text-sm">// No code content</code>
+            <code className="font-mono text-sm">{'//'} No code content</code>
           </div>
         )}
 

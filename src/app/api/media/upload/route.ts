@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
         const blobResult = await uploadToBlob(file, folder);
 
         // Get media metadata based on type
-        let metadata: { width: number | null, height: number | null, duration: number | null } = {
+        const metadata: { width: number | null, height: number | null, duration: number | null } = {
           width: null,
           height: null,
           duration: null

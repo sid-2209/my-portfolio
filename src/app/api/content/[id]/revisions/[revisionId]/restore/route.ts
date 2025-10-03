@@ -104,7 +104,7 @@ export async function POST(
           data: {
             contentId: id,
             blockType: blockRevision.blockType,
-            data: blockRevision.data as any,
+            data: blockRevision.data as Record<string, unknown>,
             order: blockRevision.order
           }
         });

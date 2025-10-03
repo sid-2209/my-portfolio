@@ -1138,11 +1138,11 @@ export default function AdminPage() {
                         <h2 className="text-2xl font-bold text-gray-900">Featured Content</h2>
                       </div>
                       <span className="text-sm text-gray-500 font-medium">
-                        {filteredContent.filter((item: any) => item.featured).length} posts
+                        {filteredContent.filter((item) => item.featured).length} posts
                       </span>
                     </div>
                     <SortableContentGrid
-                      content={filteredContent.filter((item: any) => item.featured)}
+                      content={filteredContent.filter((item) => item.featured)}
                       onContentReorder={handleContentReorder}
                       editingId={editingId}
                       editForm={editForm}
@@ -1156,7 +1156,7 @@ export default function AdminPage() {
                       isUpdating={isUpdating}
                       searchQuery={searchQuery}
                     />
-                    {filteredContent.filter((item: any) => item.featured).length === 0 && (
+                    {filteredContent.filter((item) => item.featured).length === 0 && (
                       <EmptyState
                         title="No Featured Content Yet"
                         description="Start by creating content and marking it as featured to showcase your best work."
@@ -1179,11 +1179,11 @@ export default function AdminPage() {
                         <h2 className="text-2xl font-bold text-gray-900">All Content</h2>
                       </div>
                       <span className="text-sm text-gray-500 font-medium">
-                        {filteredContent.filter((item: any) => !item.featured).length} posts
+                        {filteredContent.filter((item) => !item.featured).length} posts
                       </span>
                     </div>
                     <SortableContentGrid
-                      content={filteredContent.filter((item: any) => !item.featured)}
+                      content={filteredContent.filter((item) => !item.featured)}
                       onContentReorder={handleContentReorder}
                       editingId={editingId}
                       editForm={editForm}
@@ -1197,7 +1197,7 @@ export default function AdminPage() {
                       isUpdating={isUpdating}
                       searchQuery={searchQuery}
                     />
-                    {filteredContent.filter((item: any) => !item.featured).length === 0 && (
+                    {filteredContent.filter((item) => !item.featured).length === 0 && (
                       <EmptyState
                         title="No Content Yet"
                         description="Create your first piece of content to get started with your portfolio."

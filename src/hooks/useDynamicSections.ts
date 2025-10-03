@@ -107,7 +107,7 @@ export function useDynamicSections(
       contentId: '',
       createdAt: new Date(),
       updatedAt: new Date(),
-      data: block.data as any
+      data: block.data as Record<string, unknown>
     }));
 
     // Find first divider index

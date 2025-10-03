@@ -261,11 +261,11 @@ export default function RichTextEditor({
     while (element && element !== editorRef.current) {
       if (element.tagName === tagName.toUpperCase()) {
         if (styleProperty && styleValue) {
-          return element.style[styleProperty as any] === styleValue;
+          return element.style.getPropertyValue(styleProperty) === styleValue;
         }
         return true;
       }
-      if (styleProperty && element.style && element.style[styleProperty as any] === styleValue) {
+      if (styleProperty && element.style && element.style.getPropertyValue(styleProperty) === styleValue) {
         return true;
       }
       element = element.parentElement;
@@ -286,7 +286,7 @@ export default function RichTextEditor({
     while (element && element !== editorRef.current) {
       const shouldUnwrap =
         element.tagName === tagName.toUpperCase() ||
-        (styleProperty && element.style && element.style[styleProperty as any] === styleValue);
+        (styleProperty && element.style && element.style.getPropertyValue(styleProperty) === styleValue);
 
       if (shouldUnwrap) {
         // Get parent before unwrapping
