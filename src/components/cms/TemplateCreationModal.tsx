@@ -21,7 +21,7 @@ import {
 interface TemplateCreationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (template: TemplateData) => void;
+  onSave: (data: TemplateData | SnippetData) => void;
   mode: 'template' | 'snippet';
   editingTemplate?: TemplateData | null;
   editingSnippet?: SnippetData | null;
@@ -229,7 +229,7 @@ export default function TemplateCreationModal({
     if (mode === 'template') {
       onSave(templateData);
     } else {
-      onSave(snippetData as unknown);
+      onSave(snippetData);
     }
   };
 
