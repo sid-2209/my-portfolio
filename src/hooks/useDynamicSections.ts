@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { ContentBlock, BlockType } from '@prisma/client';
+import { ContentBlock, BlockType, Prisma } from '@prisma/client';
 
 export interface DynamicSection {
   id: string;
@@ -107,7 +107,7 @@ export function useDynamicSections(
       contentId: '',
       createdAt: new Date(),
       updatedAt: new Date(),
-      data: block.data as Record<string, unknown>
+      data: block.data as Prisma.JsonValue
     }));
 
     // Find first divider index
