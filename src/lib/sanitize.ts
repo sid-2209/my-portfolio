@@ -67,7 +67,6 @@ export const sanitizeRichText = (html: string): string => {
     ],
     ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'style'],
     ALLOWED_CSS: [
-      'color', 'background-color',
       'font-size', 'font-weight', 'font-style', 'font-family',
       'text-align', 'text-decoration',
       'vertical-align',
