@@ -182,7 +182,7 @@ export default function TestPhase3Page() {
           </div>
           <RichTextEditor
             content={richTextContent}
-            onChange={setRichTextContent}
+            onChange={(content) => setRichTextContent(typeof content === 'string' ? content : content.text)}
             placeholder="Start writing..."
           />
           <div className="mt-4 p-3 bg-blue-50 rounded-lg">
