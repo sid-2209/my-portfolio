@@ -7,6 +7,7 @@ import { BlockType, Prisma } from "@prisma/client";
 import GlassmorphismContainer from "../../../components/ui/GlassmorphismContainer";
 import BlockRenderer from "../../../components/cms/BlockRenderer";
 import ScrollProgressIndicator from "../../../components/ui/ScrollProgressIndicator";
+import { useDynamicSections } from "../../../hooks/useDynamicSections";
 
 interface Content {
   id: string;
@@ -57,6 +58,10 @@ export default function ContentPage() {
     }
   }, [params.id]);
 
+  // Generate dynamic sections based on content blocks and dividers
+  // Must be called before conditional returns to follow Rules of Hooks
+  const dynamicSections = useDynamicSections(content?.contentBlocks, content?.title || '');
+
   if (isLoading) {
     return (
       <div className="w-full h-screen flex items-center justify-center bg-black">
@@ -73,19 +78,10 @@ export default function ContentPage() {
     );
   }
 
-  // Define sections for progress indicator
-  const sections = [
-    { id: 'hero', label: 'Introduction' },
-    { id: 'content-start', label: 'Content' },
-    { id: 'content-middle', label: 'Main Section' },
-    { id: 'content-end', label: 'Details' },
-    { id: 'tags', label: 'Tags & Related' }
-  ];
-
   return (
     <div className="relative w-full bg-black">
       {/* Scroll Progress Indicator */}
-      <ScrollProgressIndicator sections={sections} />
+      <ScrollProgressIndicator sections={dynamicSections} />
 
       {/* Hero Section - Full Viewport */}
       <div id="hero" className="relative w-full h-screen overflow-hidden">
@@ -146,10 +142,10 @@ export default function ContentPage() {
       </div>
 
       {/* Content Section */}
-      <div id="content-start" className="w-full bg-black">
+      <div id="content-start" className="w-full bg-black scroll-mt-20">
         <div className="max-w-4xl mx-auto px-8 py-16">
           {/* Main Content Area - CMS Blocks */}
-          <div id="content-middle" className="prose prose-invert max-w-none">
+          <div className="prose prose-invert max-w-none">
             {/* CMS Content Blocks */}
             {content.contentBlocks && content.contentBlocks.length > 0 ? (
               <BlockRenderer blocks={content.contentBlocks.map(block => ({
@@ -181,12 +177,9 @@ export default function ContentPage() {
             )}
           </div>
 
-          {/* Content End Section */}
-          <div id="content-end"></div>
-
-          {/* Tags Section */}
+          {/* Tags & Footer Section */}
           {content.tags.length > 0 && (
-            <div id="tags" className="pt-12 mt-16">
+            <div id="tags-footer" className="pt-12 mt-16 scroll-mt-20">
               {/* Tags divider using MinimalistDivider style */}
               <div className="w-full h-px bg-gradient-to-r from-transparent via-white/40 to-transparent mb-12" />
               <h3 className="text-white/90 text-xl font-semibold mb-6 text-center">Related Tags</h3>

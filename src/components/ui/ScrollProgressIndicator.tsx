@@ -2,16 +2,17 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-interface Section {
+export interface Section {
   id: string;
   label: string;
+  elementId: string;
 }
 
 interface ScrollProgressIndicatorProps {
-  sections?: Section[];
+  sections: Section[];
 }
 
-export default function ScrollProgressIndicator({ sections = [] }: ScrollProgressIndicatorProps) {
+export default function ScrollProgressIndicator({ sections }: ScrollProgressIndicatorProps) {
   const [activeSection, setActiveSection] = useState(0);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
@@ -24,17 +25,9 @@ export default function ScrollProgressIndicator({ sections = [] }: ScrollProgres
     const progress = (scrollTop / docHeight) * 100;
     setScrollProgress(progress);
 
-    // Show indicator after scrolling past hero (100vh)
+    // Show indicator after scrolling past 30% of hero section
     setIsVisible(scrollTop > window.innerHeight * 0.3);
-
-    // Fallback: Calculate section based on scroll percentage if no observers
-    if (!sections.length) {
-      const totalSections = 5;
-      const sectionHeight = 100 / totalSections;
-      const currentSection = Math.floor(progress / sectionHeight);
-      setActiveSection(Math.min(currentSection, totalSections - 1));
-    }
-  }, [sections.length]);
+  }, []);
 
   useEffect(() => {
     handleScroll(); // Initial calculation
@@ -47,13 +40,13 @@ export default function ScrollProgressIndicator({ sections = [] }: ScrollProgres
     };
   }, [handleScroll]);
 
-  // Set up Intersection Observer for sections
+  // Set up Intersection Observer for dynamic sections
   useEffect(() => {
     // Clear existing observers
     observersRef.current.forEach(observer => observer.disconnect());
     observersRef.current = [];
 
-    if (!sections.length) return;
+    if (!sections || sections.length === 0) return;
 
     const observerOptions = {
       root: null,
@@ -62,7 +55,7 @@ export default function ScrollProgressIndicator({ sections = [] }: ScrollProgres
     };
 
     sections.forEach((section, index) => {
-      const element = document.getElementById(section.id);
+      const element = document.getElementById(section.elementId);
       if (!element) return;
 
       const observer = new IntersectionObserver((entries) => {
@@ -83,31 +76,42 @@ export default function ScrollProgressIndicator({ sections = [] }: ScrollProgres
     };
   }, [sections]);
 
-  // Scroll to section when clicked
+  // Scroll to section when clicked with offset for header
   const handleSectionClick = (index: number) => {
-    if (sections[index]?.id) {
-      // Scroll to specific section ID
-      const element = document.getElementById(sections[index].id);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        return;
-      }
+    const section = sections[index];
+    if (!section) return;
+
+    const element = document.getElementById(section.elementId);
+    if (element) {
+      // Use smooth scrolling with offset
+      const offsetTop = element.offsetTop - 80; // 80px offset for better positioning
+      window.scrollTo({
+        top: offsetTop,
+        behavior: 'smooth'
+      });
     }
-
-    // Fallback to percentage-based scrolling
-    const totalSections = sections.length || 5;
-    const targetProgress = (index / totalSections) * 100;
-    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
-    const targetScroll = (targetProgress / 100) * docHeight;
-
-    window.scrollTo({
-      top: targetScroll,
-      behavior: 'smooth'
-    });
   };
 
-  const totalSections = sections.length || 5;
-  const indicators = Array.from({ length: totalSections }, (_, i) => i);
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowDown' && activeSection < sections.length - 1) {
+        e.preventDefault();
+        handleSectionClick(activeSection + 1);
+      } else if (e.key === 'ArrowUp' && activeSection > 0) {
+        e.preventDefault();
+        handleSectionClick(activeSection - 1);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeSection, sections.length]);
+
+  // Don't render if no sections
+  if (!sections || sections.length === 0) return null;
+
+  const indicators = Array.from({ length: sections.length }, (_, i) => i);
 
   return (
     <div
@@ -127,25 +131,29 @@ export default function ScrollProgressIndicator({ sections = [] }: ScrollProgres
             aria-label={sections[index]?.label || `Section ${index + 1}`}
           >
             {/* Tooltip */}
-            {sections[index]?.label && (
-              <span className="absolute right-12 opacity-0 group-hover:opacity-100 transition-all duration-300 text-white/90 text-xs font-medium bg-black/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/30 whitespace-nowrap shadow-lg pointer-events-none">
-                {sections[index].label}
-              </span>
-            )}
+            <span className="absolute right-12 opacity-0 group-hover:opacity-100 transition-all duration-300 text-white/90 text-xs font-medium bg-black/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/30 whitespace-nowrap shadow-lg pointer-events-none">
+              {sections[index]?.label || `Section ${index + 1}`}
+            </span>
 
-            {/* Progress Line */}
-            <div
-              className={`h-0.5 rounded-full transition-all duration-500 ease-out ${
-                isActive
-                  ? 'w-10 bg-white shadow-[0_0_12px_rgba(255,255,255,0.8)]'
-                  : isPassed
-                  ? 'w-8 bg-white/50 group-hover:bg-white/70'
-                  : 'w-6 bg-white/25 group-hover:bg-white/40 group-hover:w-7'
-              }`}
-              style={{
-                transformOrigin: 'right'
-              }}
-            />
+            {/* Progress Line with Animation */}
+            <div className="relative">
+              <div
+                className={`h-0.5 rounded-full transition-all duration-500 ease-out ${
+                  isActive
+                    ? 'w-10 bg-white shadow-[0_0_12px_rgba(255,255,255,0.8)]'
+                    : isPassed
+                    ? 'w-8 bg-white/50 group-hover:bg-white/70'
+                    : 'w-6 bg-white/25 group-hover:bg-white/40 group-hover:w-7'
+                }`}
+                style={{
+                  transformOrigin: 'right'
+                }}
+              />
+              {/* Active pulse effect */}
+              {isActive && (
+                <div className="absolute top-0 right-0 h-0.5 w-10 bg-white/40 rounded-full animate-pulse" />
+              )}
+            </div>
           </button>
         );
       })}

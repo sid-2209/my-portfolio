@@ -633,7 +633,7 @@ export default function BlockRenderer({ blocks }: BlockRendererProps) {
       case 'DIVIDER':
         const dividerData = data as DividerData;
         return (
-          <div key={block.id} className="my-8">
+          <div key={block.id} id={`divider-section-${block.order}`} className="my-8 scroll-mt-20">
             <hr className={`border-white/20 ${dividerData.style === 'dashed' ? 'border-dashed' : dividerData.style === 'dotted' ? 'border-dotted' : dividerData.style === 'double' ? 'border-double' : 'border-solid'}`} style={{ borderColor: dividerData.color || '#ffffff' }} />
           </div>
         );

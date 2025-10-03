@@ -1,14 +1,13 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
+import { SessionProvider } from "next-auth/react";
 
-export default function AdminLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { data: session } = useSession();
 
   const navigation = [
     { 
@@ -90,7 +89,7 @@ export default function AdminLayout({
                   <span>{item.name}</span>
                 </Link>
               ))}
-              
+
               <div className="w-px h-6 bg-gray-300"></div>
               <div className="flex items-center space-x-3">
                 <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
@@ -98,7 +97,13 @@ export default function AdminLayout({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
                 </div>
-                <span className="text-sm text-gray-700 font-medium">Admin</span>
+                <span className="text-sm text-gray-700 font-medium">{session?.user?.name || "Admin"}</span>
+                <button
+                  onClick={() => signOut({ callbackUrl: "/admin/login" })}
+                  className="text-xs text-gray-600 hover:text-gray-900 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  Logout
+                </button>
               </div>
             </nav>
           </div>
@@ -110,5 +115,17 @@ export default function AdminLayout({
         {children}
       </main>
     </div>
+  );
+}
+
+export default function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <SessionProvider>
+      <AdminLayoutContent>{children}</AdminLayoutContent>
+    </SessionProvider>
   );
 }
