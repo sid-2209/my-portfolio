@@ -162,7 +162,7 @@ export default function TemplateCreationModal({
     }
   }, [editingTemplate, editingSnippet, mode]);
 
-  const addTag = (tagArray: string[], setData: (prev: unknown) => void, dataKey: string) => {
+  const addTag = (tagArray: string[], dataKey: string) => {
     if (newTag.trim() && !tagArray.includes(newTag.trim())) {
       if (mode === 'template') {
         setTemplateData(prev => ({
@@ -363,12 +363,12 @@ export default function TemplateCreationModal({
                         type="text"
                         value={newTag}
                         onChange={(e) => setNewTag(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && addTag(templateData.tags, setTemplateData, 'tags')}
+                        onKeyPress={(e) => e.key === 'Enter' && addTag(templateData.tags, 'tags')}
                         className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                         placeholder="Add a tag..."
                       />
                       <button
-                        onClick={() => addTag(templateData.tags, setTemplateData, 'tags')}
+                        onClick={() => addTag(templateData.tags, 'tags')}
                         className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                       >
                         <Plus className="w-4 h-4" />
@@ -475,12 +475,12 @@ export default function TemplateCreationModal({
                         type="text"
                         value={newTag}
                         onChange={(e) => setNewTag(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && addTag(templateData.defaultTags, setTemplateData, 'defaultTags')}
+                        onKeyPress={(e) => e.key === 'Enter' && addTag(templateData.defaultTags, 'defaultTags')}
                         className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                         placeholder="Add a default tag..."
                       />
                       <button
-                        onClick={() => addTag(templateData.defaultTags, setTemplateData, 'defaultTags')}
+                        onClick={() => addTag(templateData.defaultTags, 'defaultTags')}
                         className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
                       >
                         <Plus className="w-4 h-4" />
@@ -668,12 +668,12 @@ export default function TemplateCreationModal({
                     type="text"
                     value={newTag}
                     onChange={(e) => setNewTag(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && addTag(snippetData.tags, setSnippetData, 'tags')}
+                    onKeyPress={(e) => e.key === 'Enter' && addTag(snippetData.tags, 'tags')}
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Add a tag..."
                   />
                   <button
-                    onClick={() => addTag(snippetData.tags, setSnippetData, 'tags')}
+                    onClick={() => addTag(snippetData.tags, 'tags')}
                     className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                   >
                     <Plus className="w-4 h-4" />
