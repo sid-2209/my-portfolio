@@ -95,6 +95,25 @@ interface VideoEmbedData {
   mediaId?: string;
 }
 
+interface AudioEmbedData {
+  url: string;
+  type?: 'spotify' | 'soundcloud' | 'apple-music' | 'local' | 'other';
+  title?: string;
+  artist?: string;
+  autoplay?: boolean;
+  loop?: boolean;
+  showPlaylist?: boolean;
+  theme?: 'light' | 'dark';
+  controls?: 'full' | 'minimal';
+  alignment?: 'left' | 'center' | 'right' | 'full';
+  width?: number;
+  borderRadius?: number;
+  shadow?: boolean;
+  localAudioUrl?: string;
+  mediaId?: string;
+  coverArt?: string;
+}
+
 interface CalloutData {
   type: 'info' | 'warning' | 'error' | 'success' | 'tip';
   title?: string;
@@ -122,6 +141,7 @@ type BlockData =
   | DividerData
   | CustomData
   | VideoEmbedData
+  | AudioEmbedData
   | CalloutData
   | TableData;
 
@@ -240,6 +260,12 @@ const getBlockIcon = (type: BlockType) => {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       );
+    case 'AUDIO_EMBED':
+      return (
+        <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+        </svg>
+      );
     case 'CODE_BLOCK':
       return (
         <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -296,6 +322,7 @@ const blockTypes = [
   { type: 'HEADING' as BlockType, label: 'Heading', description: 'Add a heading (H1-H6)' },
   { type: 'IMAGE' as BlockType, label: 'Image', description: 'Add an image with caption' },
   { type: 'VIDEO_EMBED' as BlockType, label: 'Video/Embed', description: 'Embed YouTube, Vimeo, Loom videos' },
+  { type: 'AUDIO_EMBED' as BlockType, label: 'Audio/Podcast', description: 'Embed Spotify, SoundCloud, or upload audio' },
   { type: 'CODE_BLOCK' as BlockType, label: 'Code Block', description: 'Add formatted code' },
   { type: 'QUOTE' as BlockType, label: 'Quote', description: 'Add a blockquote' },
   { type: 'LIST' as BlockType, label: 'List', description: 'Add a bulleted or numbered list' },
@@ -431,6 +458,8 @@ export default function DragDropBlockBuilder({ contentId, initialBlocks, onBlock
         return { src: '', alt: 'Enter image description', caption: 'Enter image caption', alignment: 'center', width: 100, borderRadius: 0, shadow: false };
       case 'VIDEO_EMBED':
         return { url: '', type: 'youtube', autoplay: false, controls: true, aspectRatio: '16:9' };
+      case 'AUDIO_EMBED':
+        return { url: '', type: 'spotify', autoplay: false, loop: false, theme: 'dark', controls: 'full', alignment: 'center', width: 100, borderRadius: 16, shadow: false };
       case 'CODE_BLOCK':
         return { code: '// Enter your code here...', language: 'javascript' };
       case 'QUOTE':

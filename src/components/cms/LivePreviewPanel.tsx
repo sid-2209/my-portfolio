@@ -61,10 +61,45 @@ interface CustomData {
   showRounding?: boolean;
 }
 
+interface VideoEmbedData {
+  url: string;
+  type?: 'youtube' | 'vimeo' | 'loom' | 'twitter' | 'local' | 'other';
+  autoplay?: boolean;
+  controls?: boolean;
+  aspectRatio?: '16:9' | '4:3' | '1:1' | '21:9';
+  alignment?: 'left' | 'center' | 'right' | 'full';
+  width?: number;
+  borderRadius?: number;
+  shadow?: boolean;
+  localVideoUrl?: string;
+  mediaId?: string;
+}
+
+interface AudioEmbedData {
+  url: string;
+  type?: 'spotify' | 'soundcloud' | 'apple-music' | 'local' | 'other';
+  title?: string;
+  artist?: string;
+  autoplay?: boolean;
+  loop?: boolean;
+  showPlaylist?: boolean;
+  theme?: 'light' | 'dark';
+  controls?: 'full' | 'minimal';
+  alignment?: 'left' | 'center' | 'right' | 'full';
+  width?: number;
+  borderRadius?: number;
+  shadow?: boolean;
+  localAudioUrl?: string;
+  mediaId?: string;
+  coverArt?: string;
+}
+
 type BlockData =
   | ParagraphData
   | HeadingData
   | ImageData
+  | VideoEmbedData
+  | AudioEmbedData
   | CodeBlockData
   | QuoteData
   | ListData
@@ -316,6 +351,109 @@ export default function LivePreviewPanel({
         return (
           <div key={block.id} className="my-8">
             <hr style={dividerStyle} className="border-0" />
+          </div>
+        );
+
+      case 'AUDIO_EMBED':
+        const audioData = data as AudioEmbedData;
+        const audioUrl = audioData.localAudioUrl || audioData.url;
+
+        const audioAlignmentClass =
+          audioData.alignment === 'left' ? 'mr-auto' :
+          audioData.alignment === 'right' ? 'ml-auto' :
+          audioData.alignment === 'full' ? 'w-full' : 'mx-auto';
+
+        const audioWidthStyle = audioData.alignment === 'full'
+          ? { width: '100%' }
+          : { width: `${audioData.width || 100}%` };
+
+        return (
+          <div key={block.id} className="my-8">
+            {audioUrl ? (
+              <div
+                className={`${audioAlignmentClass}`}
+                style={audioWidthStyle}
+              >
+                <div
+                  className={`relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/10 backdrop-blur-md ${
+                    audioData.shadow ? 'shadow-2xl' : ''
+                  }`}
+                  style={{ borderRadius: `${audioData.borderRadius || 16}px` }}
+                >
+                  {/* Header with metadata */}
+                  {(audioData.title || audioData.artist || audioData.coverArt || audioData.type) && (
+                    <div className="flex items-center gap-4 p-4 border-b border-white/10 bg-white/5">
+                      {audioData.coverArt && (
+                        <div className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-white/10">
+                          <img
+                            src={audioData.coverArt}
+                            alt={audioData.title || 'Cover art'}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        {audioData.title && (
+                          <h4 className="text-white font-semibold text-lg truncate">
+                            {audioData.title}
+                          </h4>
+                        )}
+                        {audioData.artist && (
+                          <p className="text-white/60 text-sm truncate">
+                            {audioData.artist}
+                          </p>
+                        )}
+                      </div>
+                      {audioData.type && audioData.type !== 'other' && (
+                        <div className="flex-shrink-0">
+                          <span className="px-3 py-1 bg-white/10 text-white/80 rounded-full text-xs font-medium uppercase">
+                            {audioData.type === 'apple-music' ? 'Apple Music' : audioData.type}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Audio Player Preview */}
+                  <div className="p-6">
+                    <div className="text-center text-white/60 py-8">
+                      <svg className="w-16 h-16 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                      </svg>
+                      <p className="text-sm">Audio player will appear on published post</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="p-8 bg-white/10 border border-white/30 rounded-2xl text-center">
+                <div className="text-white/60 text-sm mb-2 font-medium">[Audio Placeholder]</div>
+                <div className="text-white/80 text-lg">No audio URL provided</div>
+              </div>
+            )}
+          </div>
+        );
+
+      case 'VIDEO_EMBED':
+        const videoData = data as VideoEmbedData;
+        const videoUrl = videoData.localVideoUrl || videoData.url;
+
+        return (
+          <div key={block.id} className="my-8">
+            {videoUrl ? (
+              <div className="text-center text-white/60 py-8 bg-white/5 border border-white/10 rounded-2xl">
+                <svg className="w-16 h-16 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-sm">Video player will appear on published post</p>
+              </div>
+            ) : (
+              <div className="p-8 bg-white/10 border border-white/30 rounded-2xl text-center">
+                <div className="text-white/60 text-sm mb-2 font-medium">[Video Placeholder]</div>
+                <div className="text-white/80 text-lg">No video URL provided</div>
+              </div>
+            )}
           </div>
         );
 

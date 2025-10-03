@@ -9,6 +9,7 @@ import ListEditor from "./ListEditor";
 import DividerEditor from "./DividerEditor";
 import CustomHTMLEditor from "./CustomHTMLEditor";
 import VideoEmbedEditor from "./VideoEmbedEditor";
+import AudioEmbedEditor from "./AudioEmbedEditor";
 import CalloutEditor from "./CalloutEditor";
 import TableEditor from "./TableEditor";
 import ImagePicker from "../media/ImagePicker";
@@ -85,6 +86,25 @@ interface VideoEmbedData {
   mediaId?: string;
 }
 
+interface AudioEmbedData {
+  url: string;
+  type?: 'spotify' | 'soundcloud' | 'apple-music' | 'local' | 'other';
+  title?: string;
+  artist?: string;
+  autoplay?: boolean;
+  loop?: boolean;
+  showPlaylist?: boolean;
+  theme?: 'light' | 'dark';
+  controls?: 'full' | 'minimal';
+  alignment?: 'left' | 'center' | 'right' | 'full';
+  width?: number;
+  borderRadius?: number;
+  shadow?: boolean;
+  localAudioUrl?: string;
+  mediaId?: string;
+  coverArt?: string;
+}
+
 interface CalloutData {
   type: 'info' | 'warning' | 'error' | 'success' | 'tip';
   title?: string;
@@ -107,6 +127,7 @@ type BlockData =
   | HeadingData
   | ImageData
   | VideoEmbedData
+  | AudioEmbedData
   | CodeBlockData
   | QuoteData
   | ListData
@@ -404,6 +425,18 @@ export default function EnhancedBlockEditor({
           return (
             <VideoEmbedEditor
               data={videoData}
+              onChange={(data) => setEditData(data)}
+              className="w-full"
+              isEditing={isEditing}
+            />
+          );
+        }
+
+        if (block.blockType === 'AUDIO_EMBED') {
+          const audioData = editData as AudioEmbedData;
+          return (
+            <AudioEmbedEditor
+              data={audioData}
               onChange={(data) => setEditData(data)}
               className="w-full"
               isEditing={isEditing}
