@@ -268,6 +268,11 @@ export default function AudioEmbedEditor({
               </button>
             ))}
           </div>
+          <div className="mt-2 text-xs text-gray-500 space-y-0.5">
+            <p>✅ <span className="font-medium">Spotify:</span> Full dark mode support</p>
+            <p>⚠️ <span className="font-medium">SoundCloud:</span> Play button color only</p>
+            <p>❌ <span className="font-medium">Apple Music:</span> Theme not supported</p>
+          </div>
         </div>
 
         {/* Alignment Options */}

@@ -510,50 +510,54 @@ export default function BlockRenderer({ blocks }: BlockRendererProps) {
         // Platform-specific iframe embeds (CORS restrictions prevent direct audio loading)
         const renderPlatformEmbed = () => {
           if (audioData.type === 'spotify' && audioData.url) {
+            // Spotify supports dark mode via theme parameter (0 = dark, 1 = light)
+            const embedUrl = audioData.url.replace('open.spotify.com', 'open.spotify.com/embed');
+            const themeParam = audioData.theme === 'light' ? '&theme=1' : '&theme=0';
+            const separator = embedUrl.includes('?') ? '' : '?';
+
             return (
-              <div className="backdrop-blur-[12px] bg-gradient-to-r from-white/[0.05] to-white/[0.08] border border-white/10 rounded-2xl overflow-hidden">
-                <iframe
-                  src={audioData.url.replace('open.spotify.com', 'open.spotify.com/embed')}
-                  width="100%"
-                  height="152"
-                  frameBorder="0"
-                  allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-                  loading="lazy"
-                  className="w-full"
-                />
-              </div>
+              <iframe
+                src={`${embedUrl}${separator}${themeParam}`}
+                width="100%"
+                height="152"
+                frameBorder="0"
+                allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                loading="lazy"
+                className="w-full rounded-2xl"
+              />
             );
           }
 
           if (audioData.type === 'soundcloud' && audioData.url) {
+            // SoundCloud doesn't have full dark mode, but we can customize the play button color
+            // White for dark theme, orange for light theme
+            const color = audioData.theme === 'light' ? 'ff5500' : 'ffffff';
+
             return (
-              <div className="backdrop-blur-[12px] bg-gradient-to-r from-white/[0.05] to-white/[0.08] border border-white/10 rounded-2xl overflow-hidden">
-                <iframe
-                  width="100%"
-                  height="166"
-                  scrolling="no"
-                  frameBorder="no"
-                  allow="autoplay"
-                  src={`https://w.soundcloud.com/player/?url=${encodeURIComponent(audioData.url)}&color=%23ff5500&auto_play=false&hide_related=false&show_comments=true&show_user=true&show_reposts=false&show_teaser=true`}
-                  className="w-full"
-                />
-              </div>
+              <iframe
+                width="100%"
+                height="166"
+                scrolling="no"
+                frameBorder="no"
+                allow="autoplay"
+                src={`https://w.soundcloud.com/player/?url=${encodeURIComponent(audioData.url)}&color=%23${color}&auto_play=false&hide_related=false&show_comments=true&show_user=true&show_reposts=false&show_teaser=true`}
+                className="w-full rounded-2xl"
+              />
             );
           }
 
           if (audioData.type === 'apple-music' && audioData.url) {
+            // Apple Music doesn't support theme parameters in iframe embeds
             return (
-              <div className="backdrop-blur-[12px] bg-gradient-to-r from-white/[0.05] to-white/[0.08] border border-white/10 rounded-2xl overflow-hidden">
-                <iframe
-                  allow="autoplay *; encrypted-media *; fullscreen *; clipboard-write"
-                  frameBorder="0"
-                  height="175"
-                  style={{ width: '100%', overflow: 'hidden' }}
-                  sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation"
-                  src={audioData.url}
-                  className="w-full"
-                />
-              </div>
+              <iframe
+                allow="autoplay *; encrypted-media *; fullscreen *; clipboard-write"
+                frameBorder="0"
+                height="175"
+                style={{ width: '100%', overflow: 'hidden' }}
+                sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation"
+                src={audioData.url}
+                className="w-full rounded-2xl"
+              />
             );
           }
 
