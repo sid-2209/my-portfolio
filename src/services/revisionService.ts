@@ -1,4 +1,4 @@
-import { PrismaClient, RevisionType, BlockChangeType } from '@prisma/client';
+import { PrismaClient, RevisionType, BlockChangeType, Prisma } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -84,7 +84,7 @@ export class RevisionService {
             originalBlockId: block.id,
             blockType: block.blockType,
             order: block.order,
-            data: block.data as unknown,
+            data: block.data as Prisma.InputJsonValue,
             changeType: BlockChangeType.MODIFIED
           }))
         }
@@ -203,7 +203,7 @@ export class RevisionService {
               originalBlockId: block.id,
               blockType: block.blockType,
               order: block.order,
-              data: block.data as unknown,
+              data: block.data as Prisma.InputJsonValue,
               changeType: BlockChangeType.MODIFIED
             }))
           }
