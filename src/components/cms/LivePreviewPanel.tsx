@@ -19,11 +19,17 @@ interface ImageData {
   src: string;
   alt: string;
   caption?: string;
+  alignment?: 'left' | 'center' | 'right' | 'full';
+  width?: number;
+  borderRadius?: number;
+  shadow?: boolean;
 }
 
 interface CodeBlockData {
   code: string;
   language: string;
+  filename?: string;
+  theme?: 'light' | 'dark';
 }
 
 interface QuoteData {
