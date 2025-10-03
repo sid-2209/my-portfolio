@@ -235,7 +235,10 @@ export default function EnhancedBlockEditor({
           return (
             <RichTextEditor
               content={paragraphData.text || ''}
-              onChange={(content) => setEditData({ ...paragraphData, text: content })}
+              onChange={(content) => {
+                const textContent = typeof content === 'string' ? content : content.text;
+                setEditData({ ...paragraphData, text: textContent });
+              }}
               placeholder="Start typing your paragraph here..."
               className="w-full"
               isEditing={isEditing}
