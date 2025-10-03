@@ -190,9 +190,11 @@ export default function BlockEditor({
               key={`paragraph-${block.id}`}
               content={paragraphData.text || ''}
               onChange={(content) => {
+                // Handle both string and HeadingData types
+                const textContent = typeof content === 'string' ? content : content.text;
                 // Only update if content is actually different
-                if (content !== paragraphData.text) {
-                  setEditData({ ...paragraphData, text: content });
+                if (textContent !== paragraphData.text) {
+                  setEditData({ ...paragraphData, text: textContent });
                 }
               }}
               placeholder="Start writing..."
