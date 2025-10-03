@@ -70,7 +70,9 @@ export default function Home() {
   const fetchFeaturedContent = useCallback(async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/content/featured?page=1&limit=1');
+      const response = await fetch('/api/content/featured?page=1&limit=1', {
+        cache: 'no-store'
+      });
       if (!response.ok) {
         throw new Error('Failed to fetch featured content');
       }

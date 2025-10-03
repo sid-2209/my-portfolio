@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { replaceFeaturedContent } from '../../../../../lib/db';
 
 export async function POST(request: NextRequest) {
@@ -35,6 +36,10 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    // Trigger revalidation of homepage and admin dashboard
+    revalidatePath('/');
+    revalidatePath('/admin');
 
     return NextResponse.json({
       success: true,

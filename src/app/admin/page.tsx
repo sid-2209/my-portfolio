@@ -335,7 +335,9 @@ export default function AdminPage() {
   const fetchAllContent = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/content');
+      const response = await fetch('/api/content', {
+        cache: 'no-store'
+      });
       if (!response.ok) {
         throw new Error('Failed to fetch content');
       }
@@ -486,6 +488,9 @@ export default function AdminPage() {
 
       setShowFeaturedModal(false);
       setFeaturedModalData(null);
+
+      // Refresh content to ensure sync with database
+      await fetchAllContent();
     } catch (error) {
       console.error('Error replacing featured content:', error);
       alert(`Error: ${error instanceof Error ? error.message : 'Failed to replace featured content'}`);
