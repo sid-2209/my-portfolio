@@ -483,7 +483,6 @@ export default function RichTextEditor({
             ul.style.margin = '8px 0';
             ul.style.paddingLeft = '24px';
             ul.style.listStyleType = 'disc';
-            ul.style.color = '#374151';
             
             const li = document.createElement('li');
             li.style.margin = '4px 0';
@@ -511,7 +510,6 @@ export default function RichTextEditor({
             ol.style.margin = '8px 0';
             ol.style.paddingLeft = '24px';
             ol.style.listStyleType = 'decimal';
-            ol.style.color = '#374151';
             
             const oli = document.createElement('li');
             oli.style.margin = '4px 0';
