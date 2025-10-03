@@ -6,6 +6,7 @@ import Link from "next/link";
 import { BlockType, Prisma } from "@prisma/client";
 import GlassmorphismContainer from "../../../components/ui/GlassmorphismContainer";
 import BlockRenderer from "../../../components/cms/BlockRenderer";
+import ScrollProgressIndicator from "../../../components/ui/ScrollProgressIndicator";
 
 interface Content {
   id: string;
@@ -72,10 +73,22 @@ export default function ContentPage() {
     );
   }
 
+  // Define sections for progress indicator
+  const sections = [
+    { id: 'hero', label: 'Introduction' },
+    { id: 'content-start', label: 'Content' },
+    { id: 'content-middle', label: 'Main Section' },
+    { id: 'content-end', label: 'Details' },
+    { id: 'tags', label: 'Tags & Related' }
+  ];
+
   return (
     <div className="relative w-full bg-black">
+      {/* Scroll Progress Indicator */}
+      <ScrollProgressIndicator sections={sections} />
+
       {/* Hero Section - Full Viewport */}
-      <div className="relative w-full h-screen overflow-hidden">
+      <div id="hero" className="relative w-full h-screen overflow-hidden">
         {/* Hero Image */}
         {content.imageUrl ? (
           <img 
@@ -133,10 +146,10 @@ export default function ContentPage() {
       </div>
 
       {/* Content Section */}
-      <div className="w-full bg-black">
+      <div id="content-start" className="w-full bg-black">
         <div className="max-w-4xl mx-auto px-8 py-16">
           {/* Main Content Area - CMS Blocks */}
-          <div className="prose prose-invert max-w-none">
+          <div id="content-middle" className="prose prose-invert max-w-none">
             {/* CMS Content Blocks */}
             {content.contentBlocks && content.contentBlocks.length > 0 ? (
               <BlockRenderer blocks={content.contentBlocks.map(block => ({
@@ -168,9 +181,12 @@ export default function ContentPage() {
             )}
           </div>
 
+          {/* Content End Section */}
+          <div id="content-end"></div>
+
           {/* Tags Section */}
           {content.tags.length > 0 && (
-            <div className="pt-12 mt-16">
+            <div id="tags" className="pt-12 mt-16">
               {/* Tags divider using MinimalistDivider style */}
               <div className="w-full h-px bg-gradient-to-r from-transparent via-white/40 to-transparent mb-12" />
               <h3 className="text-white/90 text-xl font-semibold mb-6 text-center">Related Tags</h3>
