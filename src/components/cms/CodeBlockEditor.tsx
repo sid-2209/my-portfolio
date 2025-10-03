@@ -281,7 +281,7 @@ export default function CodeBlockEditor({
         </div>
       ) : (
         /* Preview Tab - Syntax Highlighted Read-Only */
-        <div className={`${editorHeight} overflow-auto ${localTheme === 'dark' ? 'bg-gray-900' : 'bg-white'}`}>
+        <div className={`${editorHeight} overflow-auto`}>
           {code ? (
             <SyntaxHighlighter
               language={language}
@@ -292,7 +292,7 @@ export default function CodeBlockEditor({
               customStyle={{
                 margin: 0,
                 padding: '16px',
-                background: 'transparent',
+                background: localTheme === 'dark' ? '#1e1e1e' : '#f5f5f5',
                 fontSize: `${fontSize}px`,
                 lineHeight: '1.5',
                 height: '100%'
@@ -306,7 +306,7 @@ export default function CodeBlockEditor({
               {code}
             </SyntaxHighlighter>
           ) : (
-            <div className={`flex items-center justify-center h-full ${localTheme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>
+            <div className={`flex items-center justify-center h-full ${localTheme === 'dark' ? 'bg-gray-900 text-gray-500' : 'bg-gray-50 text-gray-400'}`}>
               <p className="text-sm">No code to preview. Switch to Edit tab to add code.</p>
             </div>
           )}

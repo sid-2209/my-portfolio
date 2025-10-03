@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Eye, Code, AlertTriangle, Copy, Download, Upload } from "lucide-react";
+import { Eye, Code, AlertTriangle, Copy, Download, Upload, Check, Sparkles } from "lucide-react";
 import { sanitizeCustomHTML, validateHTML } from "../../lib/sanitize";
 
 interface CustomData {
@@ -27,6 +27,7 @@ export default function CustomHTMLEditor({
   const [viewMode, setViewMode] = useState<'editor' | 'preview' | 'split'>('editor');
   const [htmlError, setHtmlError] = useState<string | null>(null);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [copied, setCopied] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -166,8 +167,10 @@ export default function CustomHTMLEditor({
     }
   ];
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(currentData.html);
+  const copyToClipboard = async () => {
+    await navigator.clipboard.writeText(currentData.html);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const exportHTML = () => {
@@ -197,6 +200,34 @@ export default function CustomHTMLEditor({
     handleChange(sanitized);
   };
 
+  const formatHTML = () => {
+    // Basic HTML formatting
+    let formatted = currentData.html;
+
+    // Remove extra whitespace
+    formatted = formatted.trim();
+
+    // Add newlines after closing tags
+    formatted = formatted.replace(/>\s*</g, '>\n<');
+
+    // Add indentation
+    let indent = 0;
+    const lines = formatted.split('\n');
+    formatted = lines.map(line => {
+      const trimmed = line.trim();
+      if (trimmed.match(/^<\//)) {
+        indent = Math.max(0, indent - 1);
+      }
+      const indented = '  '.repeat(indent) + trimmed;
+      if (trimmed.match(/^<[^/][^>]*[^/]>$/)) {
+        indent++;
+      }
+      return indented;
+    }).join('\n');
+
+    handleChange(formatted);
+  };
+
   if (!mounted) {
     return (
       <div className={`border border-gray-300 rounded-lg p-4 bg-white ${className}`}>
@@ -215,7 +246,7 @@ export default function CustomHTMLEditor({
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-lg font-semibold text-gray-900">Custom HTML Block</h3>
-            <p className="text-sm text-gray-600 mt-1">Add custom HTML, CSS, and interactive elements</p>
+            <p className="text-sm text-gray-700 mt-1">Add custom HTML, CSS, and interactive elements</p>
           </div>
 
           {/* View Mode Toggle */}
@@ -225,7 +256,7 @@ export default function CustomHTMLEditor({
               className={`px-3 py-1 rounded-md text-sm font-medium transition-colors flex items-center gap-1 ${
                 viewMode === 'editor'
                   ? 'bg-white text-blue-600 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
+                  : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
               }`}
             >
               <Code className="w-4 h-4" />
@@ -236,7 +267,7 @@ export default function CustomHTMLEditor({
               className={`px-3 py-1 rounded-md text-sm font-medium transition-colors flex items-center gap-1 ${
                 viewMode === 'preview'
                   ? 'bg-white text-blue-600 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
+                  : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
               }`}
             >
               <Eye className="w-4 h-4" />
@@ -247,7 +278,7 @@ export default function CustomHTMLEditor({
               className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
                 viewMode === 'split'
                   ? 'bg-white text-blue-600 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
+                  : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
               }`}
             >
               Split
@@ -260,34 +291,45 @@ export default function CustomHTMLEditor({
           <div className="flex items-center space-x-2">
             <button
               onClick={() => setShowTemplates(!showTemplates)}
-              className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+              className="px-3 py-1.5 text-sm font-medium text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-100 hover:border-gray-400 transition-colors"
             >
               Templates
             </button>
             <button
-              onClick={copyToClipboard}
-              className="p-1 text-gray-600 hover:text-gray-900 transition-colors"
-              title="Copy HTML"
+              onClick={formatHTML}
+              className="p-1.5 text-gray-700 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition-colors border border-transparent hover:border-purple-300"
+              title="Format/Beautify HTML"
             >
-              <Copy className="w-4 h-4" />
+              <Sparkles className="w-4 h-4" />
+            </button>
+            <button
+              onClick={copyToClipboard}
+              className={`p-1.5 rounded-lg transition-colors border ${
+                copied
+                  ? 'text-green-700 bg-green-50 border-green-300'
+                  : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100 border-transparent hover:border-gray-300'
+              }`}
+              title={copied ? "Copied!" : "Copy HTML"}
+            >
+              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
             </button>
             <button
               onClick={exportHTML}
-              className="p-1 text-gray-600 hover:text-gray-900 transition-colors"
+              className="p-1.5 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors border border-transparent hover:border-gray-300"
               title="Export HTML"
             >
               <Download className="w-4 h-4" />
             </button>
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="p-1 text-gray-600 hover:text-gray-900 transition-colors"
+              className="p-1.5 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors border border-transparent hover:border-gray-300"
               title="Import HTML"
             >
               <Upload className="w-4 h-4" />
             </button>
             <button
               onClick={sanitizeCurrentHTML}
-              className="p-1 text-gray-600 hover:text-green-600 transition-colors"
+              className="p-1.5 text-gray-700 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors border border-transparent hover:border-green-300"
               title="Sanitize HTML"
             >
               🛡️
@@ -303,20 +345,21 @@ export default function CustomHTMLEditor({
 
           {/* Error Warning */}
           {htmlError && (
-            <div className="flex items-center space-x-2 text-amber-600">
+            <div className="flex items-center space-x-2 text-amber-700 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200">
               <AlertTriangle className="w-4 h-4" />
-              <span className="text-sm">{htmlError}</span>
+              <span className="text-sm font-medium">{htmlError}</span>
             </div>
           )}
         </div>
 
         {/* Templates Panel */}
         {showTemplates && (
-          <div className="mt-4 border border-gray-200 rounded-lg bg-white">
-            <div className="p-3 border-b border-gray-200">
-              <h4 className="text-sm font-semibold text-gray-900">HTML Templates</h4>
+          <div className="mt-4 border-2 border-gray-200 rounded-lg bg-white shadow-sm">
+            <div className="p-3 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
+              <h4 className="text-sm font-semibold text-gray-900">📋 HTML Templates</h4>
+              <p className="text-xs text-gray-600 mt-0.5">Click to insert a template</p>
             </div>
-            <div className="p-3 space-y-2 max-h-40 overflow-y-auto">
+            <div className="p-3 space-y-2 max-h-60 overflow-y-auto">
               {templates.map((template, index) => (
                 <button
                   key={index}
@@ -324,10 +367,10 @@ export default function CustomHTMLEditor({
                     handleChange(template.html);
                     setShowTemplates(false);
                   }}
-                  className="w-full text-left p-2 rounded hover:bg-gray-50 transition-colors"
+                  className="w-full text-left p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 group"
                 >
-                  <div className="font-medium text-sm text-gray-900">{template.name}</div>
-                  <div className="text-xs text-gray-600">{template.description}</div>
+                  <div className="font-semibold text-sm text-gray-900 group-hover:text-blue-700">{template.name}</div>
+                  <div className="text-xs text-gray-600 mt-0.5 group-hover:text-blue-600">{template.description}</div>
                 </button>
               ))}
             </div>
@@ -339,36 +382,25 @@ export default function CustomHTMLEditor({
       <div className="p-4">
         {viewMode === 'editor' && (
           <div className="space-y-4">
-            <div className="relative">
-              <textarea
-                ref={textareaRef}
-                value={currentData.html}
-                onChange={(e) => handleChange(e.target.value)}
-                placeholder="Enter your custom HTML here..."
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-500 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 resize-none font-mono text-sm"
-                style={{ minHeight: '200px', tabSize: 2 }}
-              />
-
-              {/* Syntax Highlighted Overlay */}
-              <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                <div className="p-4">
-                  <pre
-                    className="font-mono text-sm text-transparent leading-6 whitespace-pre-wrap break-words"
-                    dangerouslySetInnerHTML={{
-                      __html: highlightHTML(currentData.html)
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
+            <textarea
+              ref={textareaRef}
+              value={currentData.html}
+              onChange={(e) => handleChange(e.target.value)}
+              placeholder="<!--Enter your custom HTML here...-->"
+              className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-400 bg-gray-50 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 resize-none font-mono text-sm leading-6"
+              style={{ minHeight: '300px', tabSize: 2 }}
+            />
           </div>
         )}
 
         {viewMode === 'preview' && (
-          <div className="border border-gray-200 rounded-lg p-4 bg-white min-h-[200px]">
+          <div className="border-2 border-gray-200 rounded-lg p-6 bg-gradient-to-br from-gray-50 to-white min-h-[300px]">
+            <div className="mb-3 pb-3 border-b border-gray-200">
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Preview</span>
+            </div>
             <div
               dangerouslySetInnerHTML={{
-                __html: currentData.html ? sanitizeCustomHTML(currentData.html) : '<p class="text-gray-500 italic">No HTML content to preview</p>'
+                __html: currentData.html ? sanitizeCustomHTML(currentData.html) : '<p class="text-gray-400 italic text-center py-8">No HTML content to preview</p>'
               }}
             />
           </div>
@@ -377,22 +409,22 @@ export default function CustomHTMLEditor({
         {viewMode === 'split' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">HTML Editor</label>
+              <label className="block text-sm font-semibold text-gray-800 mb-2 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100">HTML Editor</label>
               <textarea
                 ref={textareaRef}
                 value={currentData.html}
                 onChange={(e) => handleChange(e.target.value)}
-                placeholder="Enter your custom HTML here..."
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-500 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 resize-none font-mono text-sm"
-                style={{ height: '300px', tabSize: 2 }}
+                placeholder="<!--Enter your custom HTML here...-->"
+                className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-400 bg-gray-50 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 resize-none font-mono text-sm leading-6"
+                style={{ height: '350px', tabSize: 2 }}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Live Preview</label>
-              <div className="border border-gray-200 rounded-lg p-4 bg-white h-[300px] overflow-auto">
+              <label className="block text-sm font-semibold text-gray-800 mb-2 bg-green-50 px-3 py-1.5 rounded-lg border border-green-100">Live Preview</label>
+              <div className="border-2 border-gray-200 rounded-lg p-4 bg-gradient-to-br from-gray-50 to-white h-[350px] overflow-auto">
                 <div
                   dangerouslySetInnerHTML={{
-                    __html: currentData.html ? sanitizeCustomHTML(currentData.html) : '<p class="text-gray-500 italic">No HTML content to preview</p>'
+                    __html: currentData.html ? sanitizeCustomHTML(currentData.html) : '<p class="text-gray-400 italic text-center py-8">No HTML content to preview</p>'
                   }}
                 />
               </div>
@@ -402,16 +434,16 @@ export default function CustomHTMLEditor({
 
         {/* Footer Info */}
         <div className="flex items-center justify-between pt-4 border-t border-gray-200 mt-4">
-          <div className="text-sm text-gray-500">
-            Characters: {currentData.html.length} • Lines: {currentData.html.split('\n').length}
+          <div className="text-sm text-gray-700 font-medium">
+            <span className="text-gray-600">Characters:</span> {currentData.html.length} <span className="text-gray-400">•</span> <span className="text-gray-600">Lines:</span> {currentData.html.split('\n').length}
             {currentData.html.length > 10000 && (
-              <span className="text-amber-600 ml-2">
-                Large HTML blocks may impact page performance
+              <span className="text-amber-700 ml-2 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                ⚠️ Large HTML blocks may impact performance
               </span>
             )}
           </div>
           {isTyping && (
-            <div className="text-sm text-gray-500 flex items-center gap-2">
+            <div className="text-sm text-blue-600 font-medium flex items-center gap-2 bg-blue-50 px-3 py-1 rounded-lg border border-blue-200">
               <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
               Saving...
             </div>

@@ -642,7 +642,12 @@ export default function BlockRenderer({ blocks }: BlockRendererProps) {
         const customData = data as CustomData;
         return (
           <div key={block.id} className="my-8">
-            <div dangerouslySetInnerHTML={{ __html: sanitizeCustomHTML(customData.html || '<span class="text-white/60 italic">[No custom content]</span>') }} />
+            <div
+              className="custom-html-block rounded-xl p-6 bg-white/5 border border-white/10"
+              dangerouslySetInnerHTML={{
+                __html: sanitizeCustomHTML(customData.html || '<p class="text-white/60 italic text-center">No custom HTML content</p>')
+              }}
+            />
           </div>
         );
       
