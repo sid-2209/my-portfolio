@@ -129,6 +129,7 @@ interface EnhancedBlockEditorProps {
   onMoveDown?: () => void;
   isFirst?: boolean;
   isLast?: boolean;
+  onLiveUpdate?: (blockId: string, data: BlockData) => void;
 }
 
 export default function EnhancedBlockEditor({
@@ -139,7 +140,8 @@ export default function EnhancedBlockEditor({
   onMoveUp,
   onMoveDown,
   isFirst,
-  isLast
+  isLast,
+  onLiveUpdate
 }: EnhancedBlockEditorProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<BlockData>(block.data);
@@ -153,6 +155,13 @@ export default function EnhancedBlockEditor({
   useEffect(() => {
     setEditData(block.data);
   }, [block.data]);
+
+  // Trigger live preview update when editData changes during editing
+  useEffect(() => {
+    if (isEditing && onLiveUpdate) {
+      onLiveUpdate(block.id, editData);
+    }
+  }, [editData, isEditing, block.id, onLiveUpdate]);
 
   const handleSave = () => {
     onUpdate(editData);
