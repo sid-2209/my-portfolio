@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/db';
 import { uploadToBlob, validateMediaFile, getImageDimensions, getVideoMetadata } from '../../../../lib/blob-storage';
 
+// Configure route to allow larger file uploads
+export const runtime = 'nodejs';
+export const maxDuration = 60; // 60 seconds timeout
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();

@@ -89,7 +89,11 @@ export default function AudioPicker({
       });
 
       if (!response.ok) {
-        throw new Error('Upload failed');
+        if (response.status === 413) {
+          throw new Error('File too large. Please use a smaller audio file (max 50MB) or try using a URL embed instead.');
+        }
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Upload failed');
       }
 
       const result = await response.json();

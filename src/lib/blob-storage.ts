@@ -128,7 +128,28 @@ export function validateVideoFile(file: File): { valid: boolean; error?: string 
   return { valid: true };
 }
 
-export function validateMediaFile(file: File): { valid: boolean; error?: string; mediaType?: 'image' | 'video' } {
+export function validateAudioFile(file: File): { valid: boolean; error?: string } {
+  const MAX_SIZE = 50 * 1024 * 1024; // 50MB for audio
+  const ALLOWED_TYPES = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg', 'audio/x-m4a', 'audio/m4a', 'audio/flac'];
+
+  if (!ALLOWED_TYPES.includes(file.type)) {
+    return {
+      valid: false,
+      error: 'File type not supported. Please use MP3, WAV, OGG, M4A, or FLAC.'
+    };
+  }
+
+  if (file.size > MAX_SIZE) {
+    return {
+      valid: false,
+      error: 'File size too large. Maximum size is 50MB.'
+    };
+  }
+
+  return { valid: true };
+}
+
+export function validateMediaFile(file: File): { valid: boolean; error?: string; mediaType?: 'image' | 'video' | 'audio' } {
   // Check if it's an image
   const imageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
   if (imageTypes.includes(file.type)) {
@@ -143,9 +164,16 @@ export function validateMediaFile(file: File): { valid: boolean; error?: string;
     return result.valid ? { ...result, mediaType: 'video' } : result;
   }
 
+  // Check if it's an audio file
+  const audioTypes = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg', 'audio/x-m4a', 'audio/m4a', 'audio/flac'];
+  if (audioTypes.includes(file.type)) {
+    const result = validateAudioFile(file);
+    return result.valid ? { ...result, mediaType: 'audio' } : result;
+  }
+
   return {
     valid: false,
-    error: 'File type not supported. Please use images (JPEG, PNG, GIF, WebP) or videos (MP4, MOV, WEBM, AVI).'
+    error: 'File type not supported. Please use images (JPEG, PNG, GIF, WebP), videos (MP4, MOV, WEBM, AVI), or audio (MP3, WAV, OGG, M4A, FLAC).'
   };
 }
 
