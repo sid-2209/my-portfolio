@@ -180,7 +180,7 @@ export default ContentEditor;`);
             </p>
             <RichTextEditor
               content={blogContent}
-              onChange={setBlogContent}
+              onChange={(content) => setBlogContent(typeof content === 'string' ? content : content.text)}
               placeholder="Start writing your blog post..."
             />
             <div className="mt-4 p-3 bg-green-50 rounded-lg">
