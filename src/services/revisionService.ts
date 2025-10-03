@@ -172,7 +172,9 @@ export class RevisionService {
               contentId,
               blockType: blockRev.blockType,
               order: blockRev.order,
-              data: blockRev.data
+              data: (blockRev.data === null
+                ? Prisma.JsonNull
+                : (blockRev.data as Prisma.InputJsonValue))
             }
           })
         )
