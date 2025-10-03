@@ -3,6 +3,16 @@
 import { useState, useRef, useEffect } from "react";
 import AudioPicker from '../media/AudioPicker';
 
+interface AudioLanguage {
+  id: string;
+  label: string;
+  url: string;
+  type?: 'spotify' | 'soundcloud' | 'apple-music' | 'local' | 'other';
+  localAudioUrl?: string;
+  mediaId?: string;
+  isDefault?: boolean;
+}
+
 interface AudioEmbedData {
   url: string;
   type?: 'spotify' | 'soundcloud' | 'apple-music' | 'local' | 'other';
@@ -20,6 +30,9 @@ interface AudioEmbedData {
   localAudioUrl?: string;
   mediaId?: string;
   coverArt?: string;
+  // Multi-language support
+  enableLanguageSwitch?: boolean;
+  languages?: AudioLanguage[];
 }
 
 interface AudioEmbedEditorProps {
