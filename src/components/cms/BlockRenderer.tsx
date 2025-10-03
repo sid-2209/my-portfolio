@@ -507,6 +507,68 @@ export default function BlockRenderer({ blocks }: BlockRendererProps) {
           ? { width: '100%' }
           : { width: `${audioData.width || 100}%` };
 
+        // Platform-specific iframe embeds (CORS restrictions prevent direct audio loading)
+        const renderPlatformEmbed = () => {
+          if (audioData.type === 'spotify' && audioData.url) {
+            return (
+              <div className="backdrop-blur-[12px] bg-gradient-to-r from-white/[0.05] to-white/[0.08] border border-white/10 rounded-2xl overflow-hidden">
+                <iframe
+                  src={audioData.url.replace('open.spotify.com', 'open.spotify.com/embed')}
+                  width="100%"
+                  height="152"
+                  frameBorder="0"
+                  allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                  loading="lazy"
+                  className="w-full"
+                />
+              </div>
+            );
+          }
+
+          if (audioData.type === 'soundcloud' && audioData.url) {
+            return (
+              <div className="backdrop-blur-[12px] bg-gradient-to-r from-white/[0.05] to-white/[0.08] border border-white/10 rounded-2xl overflow-hidden">
+                <iframe
+                  width="100%"
+                  height="166"
+                  scrolling="no"
+                  frameBorder="no"
+                  allow="autoplay"
+                  src={`https://w.soundcloud.com/player/?url=${encodeURIComponent(audioData.url)}&color=%23ff5500&auto_play=false&hide_related=false&show_comments=true&show_user=true&show_reposts=false&show_teaser=true`}
+                  className="w-full"
+                />
+              </div>
+            );
+          }
+
+          if (audioData.type === 'apple-music' && audioData.url) {
+            return (
+              <div className="backdrop-blur-[12px] bg-gradient-to-r from-white/[0.05] to-white/[0.08] border border-white/10 rounded-2xl overflow-hidden">
+                <iframe
+                  allow="autoplay *; encrypted-media *; fullscreen *; clipboard-write"
+                  frameBorder="0"
+                  height="175"
+                  style={{ width: '100%', overflow: 'hidden' }}
+                  sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation"
+                  src={audioData.url}
+                  className="w-full"
+                />
+              </div>
+            );
+          }
+
+          // For local audio files, use WaveformPlayer
+          return (
+            <WaveformPlayer
+              url={audioUrl}
+              platform={audioData.type}
+              platformUrl={audioData.url}
+              autoplay={audioData.autoplay}
+              loop={audioData.loop}
+            />
+          );
+        };
+
         return (
           <div key={block.id} className="my-8">
             {audioUrl ? (
@@ -514,13 +576,7 @@ export default function BlockRenderer({ blocks }: BlockRendererProps) {
                 className={`${audioAlignmentClass}`}
                 style={audioWidthStyle}
               >
-                <WaveformPlayer
-                  url={audioUrl}
-                  platform={audioData.type}
-                  platformUrl={audioData.url}
-                  autoplay={audioData.autoplay}
-                  loop={audioData.loop}
-                />
+                {renderPlatformEmbed()}
               </div>
             ) : (
               <div className="p-8 bg-white/10 border border-white/30 rounded-2xl text-center">

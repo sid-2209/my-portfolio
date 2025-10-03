@@ -368,6 +368,37 @@ export default function LivePreviewPanel({
           ? { width: '100%' }
           : { width: `${audioData.width || 100}%` };
 
+        // Show preview for platform embeds
+        const renderAudioPreview = () => {
+          if (audioData.type === 'spotify' || audioData.type === 'soundcloud' || audioData.type === 'apple-music') {
+            return (
+              <div className="backdrop-blur-[12px] bg-gradient-to-r from-white/[0.05] to-white/[0.08] border border-white/10 rounded-2xl p-8">
+                <div className="text-center text-white/60">
+                  <svg className="w-16 h-16 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                  </svg>
+                  <p className="text-sm">
+                    {audioData.type === 'spotify' && 'Spotify player will appear on published post'}
+                    {audioData.type === 'soundcloud' && 'SoundCloud player will appear on published post'}
+                    {audioData.type === 'apple-music' && 'Apple Music player will appear on published post'}
+                  </p>
+                </div>
+              </div>
+            );
+          }
+
+          // For local audio, show waveform player
+          return (
+            <WaveformPlayer
+              url={audioUrl}
+              platform={audioData.type}
+              platformUrl={audioData.url}
+              autoplay={audioData.autoplay}
+              loop={audioData.loop}
+            />
+          );
+        };
+
         return (
           <div key={block.id} className="my-8">
             {audioUrl ? (
@@ -375,13 +406,7 @@ export default function LivePreviewPanel({
                 className={`${audioAlignmentClass}`}
                 style={audioWidthStyle}
               >
-                <WaveformPlayer
-                  url={audioUrl}
-                  platform={audioData.type}
-                  platformUrl={audioData.url}
-                  autoplay={audioData.autoplay}
-                  loop={audioData.loop}
-                />
+                {renderAudioPreview()}
               </div>
             ) : (
               <div className="p-8 bg-white/10 border border-white/30 rounded-2xl text-center">
