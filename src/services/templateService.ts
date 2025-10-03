@@ -1,4 +1,4 @@
-import { PrismaClient, BlockType } from '@prisma/client';
+import { PrismaClient, BlockType, Prisma } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -79,7 +79,9 @@ export class TemplateService {
           create: options.templateBlocks.map(block => ({
             blockType: block.blockType,
             order: block.order,
-            data: block.data as unknown,
+            data: (block.data === null
+              ? Prisma.JsonNull
+              : (block.data as Prisma.InputJsonValue)),
             isRequired: block.isRequired || false
           }))
         }
@@ -172,7 +174,9 @@ export class TemplateService {
             templateId: id,
             blockType: block.blockType,
             order: block.order,
-            data: block.data as unknown,
+            data: (block.data === null
+              ? Prisma.JsonNull
+              : (block.data as Prisma.InputJsonValue)),
             isRequired: block.isRequired || false
           }))
         });
@@ -223,7 +227,9 @@ export class TemplateService {
         blockType: options.blockType,
         isPublic: options.isPublic || false,
         createdBy: options.createdBy,
-        data: options.data as unknown
+        data: (options.data === null
+          ? Prisma.JsonNull
+          : (options.data as Prisma.InputJsonValue))
       }
     });
   }
@@ -275,7 +281,9 @@ export class TemplateService {
       data: {
         ...updates,
         tags: updates.tags,
-        data: updates.data as unknown
+        data: (updates.data === null
+          ? Prisma.JsonNull
+          : (updates.data as Prisma.InputJsonValue))
       }
     });
   }
