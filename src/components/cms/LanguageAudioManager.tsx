@@ -96,7 +96,7 @@ export default function LanguageAudioManager({
       {languages.length === 0 ? (
         <div className="text-center py-6 bg-gray-50 border border-gray-200 rounded-lg">
           <p className="text-gray-500 text-sm">No languages added yet</p>
-          <p className="text-gray-400 text-xs mt-1">Click "Add Language" to get started</p>
+          <p className="text-gray-400 text-xs mt-1">Click &quot;Add Language&quot; to get started</p>
         </div>
       ) : (
         <div className="space-y-3">
