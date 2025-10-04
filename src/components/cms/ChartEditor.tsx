@@ -257,7 +257,7 @@ export default function ChartEditor({
     handleCodeChange(formatted);
   };
 
-  const chartTypes: { value: 'bar' | 'line' | 'area' | 'pie' | 'radar'; label: string; icon: any }[] = [
+  const chartTypes: { value: 'bar' | 'line' | 'area' | 'pie' | 'radar'; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
     { value: 'bar', label: 'Bar Chart', icon: BarChart3 },
     { value: 'line', label: 'Line Chart', icon: LineChart },
     { value: 'area', label: 'Area Chart', icon: TrendingUp },
