@@ -155,7 +155,7 @@ export default function LanguageAudioManager({
                   {/* Language Label */}
                   <div>
                     <label className="block text-gray-700 text-sm font-medium mb-2">
-                      Language Label *
+                      Language Label
                     </label>
                     <input
                       type="text"
@@ -164,6 +164,9 @@ export default function LanguageAudioManager({
                       placeholder="e.g., English, Spanish, Hindi"
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 placeholder-gray-500 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-sm"
                     />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Optional. If left empty, will display as &quot;Language 1&quot;, &quot;Language 2&quot;, etc.
+                    </p>
                   </div>
 
                   {/* Audio Source Toggle */}

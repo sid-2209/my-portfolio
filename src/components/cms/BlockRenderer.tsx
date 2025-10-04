@@ -7,7 +7,7 @@ import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { useState } from 'react';
 import { ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
 import WaveformPlayer from '@/components/audio/WaveformPlayer';
-import LanguageSelector from './LanguageSelector';
+import InlineLanguageSwitcher from './InlineLanguageSwitcher';
 
 // Import the same interfaces used in BlockEditor for consistency
 interface ParagraphData {
@@ -73,6 +73,8 @@ interface AudioEmbedData {
   // Multi-language support
   enableLanguageSwitch?: boolean;
   languages?: AudioLanguage[];
+  languageSwitchIntro?: string;
+  languageSwitchOutro?: string;
 }
 
 interface CodeBlockData {
@@ -396,17 +398,14 @@ function AudioBlockRenderer({ block, audioData }: { block: ContentBlock; audioDa
         >
           {/* Language Selector */}
           {audioData.enableLanguageSwitch && audioData.languages && audioData.languages.length >= 1 && (
-            <div className="mb-4">
-              <div className="text-center mb-2">
-                <span className="text-white/70 text-sm font-medium">Listen in:</span>
-              </div>
-              <div className="flex justify-center">
-                <LanguageSelector
-                  languages={audioData.languages}
-                  currentLanguage={selectedLanguage}
-                  onLanguageChange={setSelectedLanguage}
-                />
-              </div>
+            <div className="mb-6">
+              <InlineLanguageSwitcher
+                languages={audioData.languages}
+                currentLanguage={selectedLanguage}
+                onLanguageChange={setSelectedLanguage}
+                introText={audioData.languageSwitchIntro}
+                outroText={audioData.languageSwitchOutro}
+              />
             </div>
           )}
 

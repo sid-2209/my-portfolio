@@ -34,6 +34,8 @@ interface AudioEmbedData {
   // Multi-language support
   enableLanguageSwitch?: boolean;
   languages?: AudioLanguage[];
+  languageSwitchIntro?: string;
+  languageSwitchOutro?: string;
 }
 
 interface AudioEmbedEditorProps {
@@ -450,14 +452,51 @@ export default function AudioEmbedEditor({
 
         {/* Language Manager */}
         {currentData.enableLanguageSwitch && (
-          <LanguageAudioManager
-            languages={currentData.languages || []}
-            onChange={(languages) => {
-              const newData = { ...currentData, languages };
-              setCurrentData(newData);
-              onChange(newData);
-            }}
-          />
+          <>
+            {/* Intro/Outro Text Fields */}
+            <div className="space-y-3 pt-4">
+              <div>
+                <label className="block text-gray-700 text-sm font-medium mb-2">
+                  Intro Text
+                </label>
+                <input
+                  type="text"
+                  value={currentData.languageSwitchIntro || ''}
+                  onChange={(e) => handleChange('languageSwitchIntro', e.target.value)}
+                  placeholder="e.g., Catch our podcast in"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 placeholder-gray-500 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-sm"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Text shown before language options (default: &quot;Listen in&quot;)
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-gray-700 text-sm font-medium mb-2">
+                  Outro Text
+                </label>
+                <input
+                  type="text"
+                  value={currentData.languageSwitchOutro || ''}
+                  onChange={(e) => handleChange('languageSwitchOutro', e.target.value)}
+                  placeholder="e.g., — tune in now!"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 placeholder-gray-500 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-sm"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Text shown after language options (optional)
+                </p>
+              </div>
+            </div>
+
+            <LanguageAudioManager
+              languages={currentData.languages || []}
+              onChange={(languages) => {
+                const newData = { ...currentData, languages };
+                setCurrentData(newData);
+                onChange(newData);
+              }}
+            />
+          </>
         )}
 
         {/* Status */}

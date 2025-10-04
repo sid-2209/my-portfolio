@@ -115,6 +115,8 @@ interface AudioEmbedData {
   coverArt?: string;
   enableLanguageSwitch?: boolean;
   languages?: AudioLanguage[];
+  languageSwitchIntro?: string;
+  languageSwitchOutro?: string;
 }
 
 interface CalloutData {

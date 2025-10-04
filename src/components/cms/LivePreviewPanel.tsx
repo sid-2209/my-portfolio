@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { Eye, EyeOff, Monitor, Smartphone, Tablet, RefreshCw } from "lucide-react";
 import { sanitizeRichText, sanitizeCustomHTML } from "@/lib/sanitize";
 import WaveformPlayer from "@/components/audio/WaveformPlayer";
-import LanguageSelector from "./LanguageSelector";
+import InlineLanguageSwitcher from "./InlineLanguageSwitcher";
 
 // Import the same interfaces
 interface ParagraphData {
@@ -106,6 +106,8 @@ interface AudioEmbedData {
   coverArt?: string;
   enableLanguageSwitch?: boolean;
   languages?: AudioLanguage[];
+  languageSwitchIntro?: string;
+  languageSwitchOutro?: string;
 }
 
 type BlockData =
@@ -204,17 +206,14 @@ function AudioPreviewBlock({ block, audioData }: { block: PreviewBlock; audioDat
         >
           {/* Language Selector */}
           {audioData.enableLanguageSwitch && audioData.languages && audioData.languages.length >= 1 && (
-            <div className="mb-4">
-              <div className="text-center mb-2">
-                <span className="text-white/70 text-sm font-medium">Listen in:</span>
-              </div>
-              <div className="flex justify-center">
-                <LanguageSelector
-                  languages={audioData.languages}
-                  currentLanguage={selectedAudioLang}
-                  onLanguageChange={setSelectedAudioLang}
-                />
-              </div>
+            <div className="mb-6">
+              <InlineLanguageSwitcher
+                languages={audioData.languages}
+                currentLanguage={selectedAudioLang}
+                onLanguageChange={setSelectedAudioLang}
+                introText={audioData.languageSwitchIntro}
+                outroText={audioData.languageSwitchOutro}
+              />
             </div>
           )}
 
