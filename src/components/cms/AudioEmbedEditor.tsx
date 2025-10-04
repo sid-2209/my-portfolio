@@ -465,13 +465,10 @@ export default function AudioEmbedEditor({
 
                 if (isEnabled) {
                   // Enable multi-language and ensure original audio is in the languages array
-                  let newData = {
+                  const newData = ensureOriginalInLanguages({
                     ...currentData,
                     enableLanguageSwitch: true
-                  };
-
-                  // Ensure the original audio is in the languages array
-                  newData = ensureOriginalInLanguages(newData);
+                  });
 
                   setCurrentData(newData);
                   onChange(newData);
