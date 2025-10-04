@@ -33,8 +33,10 @@ export default function LanguageAudioManager({
 
   // Helper to check if a language is the original audio
   const isOriginalAudio = (language: AudioLanguage): boolean => {
-    return (language.url && language.url === originalAudioUrl) ||
-           (language.localAudioUrl && language.localAudioUrl === originalLocalAudioUrl);
+    return !!(
+      (language.url && language.url === originalAudioUrl) ||
+      (language.localAudioUrl && language.localAudioUrl === originalLocalAudioUrl)
+    );
   };
 
   const detectAudioType = (url: string): 'spotify' | 'soundcloud' | 'apple-music' | 'other' => {
