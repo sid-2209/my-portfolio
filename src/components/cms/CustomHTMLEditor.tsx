@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Eye, Code, AlertTriangle, Copy, Download, Upload, Check, Sparkles } from "lucide-react";
-import { sanitizeCustomHTML, validateHTML } from "../../lib/sanitize";
+import { sanitizeCustomHTML, sanitizeCustomHTMLWithScripts, validateHTML } from "../../lib/sanitize";
 
 interface CustomData {
   html: string;
@@ -11,6 +11,9 @@ interface CustomData {
   showBorder?: boolean;
   showPadding?: boolean;
   showRounding?: boolean;
+  detectedLanguages?: string[];
+  allowScripts?: boolean;
+  isInteractive?: boolean;
 }
 
 interface CustomHTMLEditorProps {
@@ -18,6 +21,25 @@ interface CustomHTMLEditorProps {
   onChange: (data: CustomData) => void;
   className?: string;
   isEditing?: boolean;
+}
+
+// Preview Container Component - Scripts are NOT executed in preview for safety
+// Scripts will only execute on the published page when allowScripts is enabled
+function PreviewContainer({ html, allowScripts }: { html: string; allowScripts?: boolean }) {
+  // Always sanitize and strip scripts in preview mode for safety
+  // The published page (BlockRenderer) will handle script execution
+  const sanitizedHTML = sanitizeCustomHTML(html);
+
+  return (
+    <div className="relative">
+      {allowScripts && (
+        <div className="absolute top-0 right-0 bg-orange-500 text-white text-xs px-2 py-1 rounded-bl font-semibold">
+          ⚡ Scripts Enabled (will run on published page)
+        </div>
+      )}
+      <div dangerouslySetInnerHTML={{ __html: sanitizedHTML }} />
+    </div>
+  );
 }
 
 export default function CustomHTMLEditor({
@@ -43,7 +65,23 @@ export default function CustomHTMLEditor({
   }, []);
 
   useEffect(() => {
-    setCurrentData(data);
+    // When data changes from props, detect languages and update
+    const detectedLanguages = detectCodeLanguages(data.html || '');
+    const isInteractive = detectedLanguages.includes('JavaScript');
+    console.log('[CustomHTMLEditor] Language detection:', {
+      detectedLanguages,
+      isInteractive,
+      allowScripts: data.allowScripts,
+      hasHTML: !!data.html,
+      htmlLength: data.html?.length
+    });
+    setCurrentData({
+      ...data,
+      detectedLanguages,
+      isInteractive,
+      // Preserve allowScripts if already set, otherwise default to false
+      allowScripts: data.allowScripts !== undefined ? data.allowScripts : false
+    });
   }, [data]);
 
   // Cleanup timeout on unmount
@@ -64,7 +102,14 @@ export default function CustomHTMLEditor({
   }, [currentData.html]);
 
   const handleChange = (html: string) => {
-    const newData = { ...currentData, html };
+    const detectedLanguages = detectCodeLanguages(html);
+    const isInteractive = detectedLanguages.includes('JavaScript');
+    const newData = {
+      ...currentData,
+      html,
+      detectedLanguages,
+      isInteractive
+    };
     setCurrentData(newData);
     setIsTyping(true);
     validateHTMLContent(html);
@@ -99,6 +144,32 @@ export default function CustomHTMLEditor({
     } else {
       setHtmlError(null);
     }
+  };
+
+  const detectCodeLanguages = (html: string): string[] => {
+    const languages: string[] = [];
+
+    // Detect HTML tags (except script, style, svg)
+    if (/<(?!script|style|svg)[a-z][\s\S]*?>/i.test(html)) {
+      languages.push('HTML');
+    }
+
+    // Detect SVG
+    if (/<svg[\s\S]*?<\/svg>|<svg[\s\S]*?\/>/i.test(html)) {
+      languages.push('SVG');
+    }
+
+    // Detect CSS (in <style> tags or style attributes)
+    if (/<style[\s\S]*?<\/style>|style\s*=\s*["'][^"']*["']/i.test(html)) {
+      languages.push('CSS');
+    }
+
+    // Detect JavaScript (in <script> tags or event handlers)
+    if (/<script[\s\S]*?<\/script>|on\w+\s*=\s*["'][^"']*["']/i.test(html)) {
+      languages.push('JavaScript');
+    }
+
+    return languages;
   };
 
   const highlightHTML = (html: string): string => {
@@ -365,6 +436,62 @@ export default function CustomHTMLEditor({
           )}
         </div>
 
+        {/* Language Badges (Editor Only) */}
+        {currentData.detectedLanguages && currentData.detectedLanguages.length > 0 && (
+          <div className="mt-3 flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-medium text-gray-600">Detected:</span>
+            {currentData.detectedLanguages.map((lang) => {
+              const colors = {
+                HTML: 'bg-blue-100 text-blue-700 border-blue-300',
+                SVG: 'bg-purple-100 text-purple-700 border-purple-300',
+                CSS: 'bg-pink-100 text-pink-700 border-pink-300',
+                JavaScript: 'bg-orange-100 text-orange-700 border-orange-300'
+              };
+              return (
+                <span
+                  key={lang}
+                  className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold border ${colors[lang as keyof typeof colors] || 'bg-gray-100 text-gray-700 border-gray-300'}`}
+                >
+                  {lang}
+                </span>
+              );
+            })}
+          </div>
+        )}
+
+        {/* JavaScript Warning & Security Toggle */}
+        {(currentData.isInteractive || currentData.detectedLanguages?.includes('JavaScript')) && (
+          <div className="mt-4 border-2 border-orange-300 rounded-lg bg-orange-50 p-4 shadow-sm">
+            <div className="flex items-start gap-3">
+              <div className="text-orange-600 text-xl mt-0.5">⚠️</div>
+              <div className="flex-1">
+                <h4 className="text-sm font-bold text-orange-900">⚡ JavaScript Detected</h4>
+                <p className="text-xs text-orange-700 mt-1">
+                  This block contains JavaScript code. For security reasons, scripts are <strong>disabled by default</strong> on the published page.
+                </p>
+                <div className="mt-3 flex items-center gap-3">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={currentData.allowScripts === true}
+                      onChange={(e) => handleStyleChange({ allowScripts: e.target.checked })}
+                      className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+                    />
+                    <span className="text-sm font-semibold text-orange-900">
+                      ✅ Allow JavaScript execution on published page
+                    </span>
+                  </label>
+                </div>
+                {currentData.allowScripts && (
+                  <div className="mt-2 text-xs text-orange-700 bg-orange-100 px-3 py-2 rounded border border-orange-200">
+                    <strong>🔒 Security Note:</strong> Only enable this if you trust the source of this code. Malicious scripts can compromise your site and user data.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Templates Panel */}
         {showTemplates && (
           <div className="mt-4 border-2 border-gray-200 rounded-lg bg-white shadow-sm">
@@ -521,11 +648,15 @@ export default function CustomHTMLEditor({
           <div className="border-2 border-gray-200 rounded-lg p-6 bg-gradient-to-br from-gray-50 to-white min-h-[300px]">
             <div className="mb-3 pb-3 border-b border-gray-200">
               <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Preview</span>
+              {currentData.allowScripts && (
+                <span className="ml-2 text-xs font-medium text-orange-600 bg-orange-50 px-2 py-0.5 rounded border border-orange-200">
+                  ⚠️ Scripts Enabled
+                </span>
+              )}
             </div>
-            <div
-              dangerouslySetInnerHTML={{
-                __html: currentData.html ? sanitizeCustomHTML(currentData.html) : '<p class="text-gray-400 italic text-center py-8">No HTML content to preview</p>'
-              }}
+            <PreviewContainer
+              html={currentData.html || '<p class="text-gray-400 italic text-center py-8">No HTML content to preview</p>'}
+              allowScripts={currentData.allowScripts}
             />
           </div>
         )}
@@ -544,12 +675,18 @@ export default function CustomHTMLEditor({
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-gray-800 mb-2 bg-green-50 px-3 py-1.5 rounded-lg border border-green-100">Live Preview</label>
+              <label className="block text-sm font-semibold text-gray-800 mb-2 bg-green-50 px-3 py-1.5 rounded-lg border border-green-100">
+                Live Preview
+                {currentData.allowScripts && (
+                  <span className="ml-2 text-xs font-medium text-orange-600 bg-orange-50 px-2 py-0.5 rounded border border-orange-200">
+                    ⚠️ Scripts Enabled
+                  </span>
+                )}
+              </label>
               <div className="border-2 border-gray-200 rounded-lg p-4 bg-gradient-to-br from-gray-50 to-white h-[350px] overflow-auto">
-                <div
-                  dangerouslySetInnerHTML={{
-                    __html: currentData.html ? sanitizeCustomHTML(currentData.html) : '<p class="text-gray-400 italic text-center py-8">No HTML content to preview</p>'
-                  }}
+                <PreviewContainer
+                  html={currentData.html || '<p class="text-gray-400 italic text-center py-8">No HTML content to preview</p>'}
+                  allowScripts={currentData.allowScripts}
                 />
               </div>
             </div>

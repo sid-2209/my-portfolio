@@ -142,6 +142,32 @@ interface TableData {
   alignment?: 'left' | 'center' | 'right';
 }
 
+interface ChartDataPoint {
+  name: string;
+  value: number;
+  [key: string]: string | number;
+}
+
+interface ChartData {
+  // New universal chart fields
+  framework?: 'chartjs' | 'recharts' | 'd3' | 'svg' | 'mermaid' | 'custom';
+  code?: string;
+  isInteractive?: boolean;
+
+  // Legacy visual editor fields (backwards compatible)
+  chartType?: 'bar' | 'line' | 'area' | 'pie' | 'radar';
+  data?: ChartDataPoint[];
+  config?: {
+    title?: string;
+    xAxisLabel?: string;
+    yAxisLabel?: string;
+    colors?: string[];
+    showLegend?: boolean;
+    showGrid?: boolean;
+    animations?: boolean;
+  };
+}
+
 // Union type for all possible block data
 type BlockData =
   | ParagraphData
@@ -155,7 +181,8 @@ type BlockData =
   | VideoEmbedData
   | AudioEmbedData
   | CalloutData
-  | TableData;
+  | TableData
+  | ChartData;
 
 interface Block {
   id: string;
@@ -320,6 +347,12 @@ const getBlockIcon = (type: BlockType) => {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
         </svg>
       );
+    case 'CHART':
+      return (
+        <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+        </svg>
+      );
     default:
       return (
         <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -341,6 +374,7 @@ const blockTypes = [
   { type: 'TABLE' as BlockType, label: 'Table', description: 'Create data tables with styling' },
   { type: 'CALLOUT' as BlockType, label: 'Callout/Alert', description: 'Add info, warning, or success alert' },
   { type: 'DIVIDER' as BlockType, label: 'Divider', description: 'Add a visual separator' },
+  { type: 'CHART' as BlockType, label: 'Chart/Graph', description: 'Add interactive charts and visualizations' },
   { type: 'CUSTOM' as BlockType, label: 'Custom HTML', description: 'Add custom HTML content' }
 ];
 
@@ -491,6 +525,31 @@ export default function DragDropBlockBuilder({ contentId, initialBlocks, onBlock
         return { type: 'info', title: '', content: 'Enter your message here...', dismissible: false };
       case 'DIVIDER':
         return { style: 'solid', color: '#e5e7eb', thickness: 1, width: 100, marginTop: 20, marginBottom: 20 };
+      case 'CHART':
+        return {
+          // Default to visual editor with Recharts
+          framework: undefined,
+          code: undefined,
+          isInteractive: false,
+          // Visual editor defaults
+          chartType: 'bar',
+          data: [
+            { name: 'Jan', value: 400 },
+            { name: 'Feb', value: 300 },
+            { name: 'Mar', value: 600 },
+            { name: 'Apr', value: 800 },
+            { name: 'May', value: 500 },
+          ],
+          config: {
+            title: 'Sample Chart',
+            xAxisLabel: 'Months',
+            yAxisLabel: 'Values',
+            colors: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'],
+            showLegend: true,
+            showGrid: true,
+            animations: true
+          }
+        };
       case 'CUSTOM':
         return {
           html: '<!-- Enter your custom HTML here -->',

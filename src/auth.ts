@@ -20,7 +20,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH;
 
         if (!adminEmail || !adminPasswordHash) {
-          console.error("Admin credentials not configured in environment variables");
+          console.error("❌ [AUTH] Admin credentials not configured in environment variables");
           return null;
         }
 

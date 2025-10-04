@@ -124,6 +124,7 @@ enum BlockType {
   CALLOUT
   TABLE
   CUSTOM
+  CHART
 }
 
 model Media {

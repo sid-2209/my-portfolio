@@ -1,13 +1,14 @@
 'use client';
 
-import { ContentBlock, BlockType } from '@prisma/client';
+import { ContentBlock } from '@prisma/client';
 import { sanitizeRichText, sanitizeCustomHTML } from '@/lib/sanitize';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { useState } from 'react';
+import { useState, useRef, useLayoutEffect } from 'react';
 import { ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
 import WaveformPlayer from '@/components/audio/WaveformPlayer';
 import InlineLanguageSwitcher from './InlineLanguageSwitcher';
+import { BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 // Import the same interfaces used in BlockEditor for consistency
 interface ParagraphData {
@@ -112,6 +113,32 @@ interface TableData {
   alignment?: 'left' | 'center' | 'right';
 }
 
+interface ChartDataPoint {
+  name: string;
+  value: number;
+  [key: string]: string | number;
+}
+
+interface ChartData {
+  // New universal chart fields
+  framework?: 'chartjs' | 'recharts' | 'd3' | 'svg' | 'mermaid' | 'custom';
+  code?: string;
+  isInteractive?: boolean;
+
+  // Legacy visual editor fields (backwards compatible)
+  chartType?: 'bar' | 'line' | 'area' | 'pie' | 'radar';
+  data?: ChartDataPoint[];
+  config?: {
+    title?: string;
+    xAxisLabel?: string;
+    yAxisLabel?: string;
+    colors?: string[];
+    showLegend?: boolean;
+    showGrid?: boolean;
+    animations?: boolean;
+  };
+}
+
 interface DividerData {
   style: 'solid' | 'dashed' | 'dotted' | 'double';
   color: string;
@@ -124,6 +151,9 @@ interface CustomData {
   showBorder?: boolean;
   showPadding?: boolean;
   showRounding?: boolean;
+  detectedLanguages?: string[];
+  allowScripts?: boolean;
+  isInteractive?: boolean;
 }
 
 // Union type for all possible block data
@@ -418,6 +448,439 @@ function AudioBlockRenderer({ block, audioData }: { block: ContentBlock; audioDa
           <div className="text-white/80 text-lg">No audio URL provided</div>
         </div>
       )}
+    </div>
+  );
+}
+
+// Mermaid Chart Renderer Component
+function MermaidRenderer({ code }: { code: string }) {
+  const mermaidRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    if (!code || !mermaidRef.current) return;
+
+    const renderMermaidDiagram = async () => {
+      try {
+        const mermaid = (await import('mermaid')).default;
+        mermaid.initialize({
+          startOnLoad: false,
+          theme: 'dark',
+          themeVariables: {
+            primaryColor: '#3b82f6',
+            primaryTextColor: '#fff',
+            primaryBorderColor: '#60a5fa',
+            lineColor: '#94a3b8',
+            secondaryColor: '#1e293b',
+            tertiaryColor: '#0f172a',
+          }
+        });
+
+        const { svg } = await mermaid.render('mermaid-' + Math.random().toString(36).substr(2, 9), code);
+        if (mermaidRef.current) {
+          mermaidRef.current.innerHTML = svg;
+        }
+      } catch (error) {
+        console.error('[MermaidRenderer] Rendering error:', error);
+        if (mermaidRef.current) {
+          mermaidRef.current.innerHTML = `<div class="text-red-400">Error rendering diagram</div>`;
+        }
+      }
+    };
+
+    renderMermaidDiagram();
+  }, [code]);
+
+  return (
+    <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+      <div ref={mermaidRef} className="flex justify-center items-center min-h-[300px]" />
+    </div>
+  );
+}
+
+// D3 Chart Renderer Component
+function D3Renderer({ code }: { code: string }) {
+  const d3Ref = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    if (!code || !d3Ref.current) return;
+
+    const executeD3Code = async () => {
+      try {
+        const d3 = await import('d3');
+        const container = d3Ref.current;
+        if (!container) return;
+
+        container.innerHTML = '';
+
+        // Check if code contains HTML/SVG markup with script tags
+        const hasHTMLTags = /<[^>]+>/i.test(code);
+        const scriptRegex = /<script\b[^>]*>([\s\S]*?)<\/script>/gi;
+        const hasScriptTags = scriptRegex.test(code);
+
+        if (hasHTMLTags && hasScriptTags) {
+          // Code contains HTML with embedded scripts
+          // Extract HTML (without script tags) and scripts separately
+          const htmlWithoutScripts = code.replace(scriptRegex, '');
+          const scripts: string[] = [];
+          let match;
+
+          // Reset regex lastIndex
+          scriptRegex.lastIndex = 0;
+          while ((match = scriptRegex.exec(code)) !== null) {
+            scripts.push(match[1]);
+          }
+
+          // Render HTML first
+          container.innerHTML = htmlWithoutScripts;
+
+          // Execute scripts after a short delay to ensure DOM is ready
+          setTimeout(() => {
+            scripts.forEach((scriptContent) => {
+              try {
+                // Create script function with container and d3 context
+                const scriptFunc = new Function('container', 'd3', 'document', scriptContent);
+                scriptFunc(container, d3, document);
+              } catch (error) {
+                console.error('[D3Renderer] Script execution error:', error);
+              }
+            });
+          }, 0);
+        } else if (hasHTMLTags) {
+          // Pure HTML/SVG without scripts
+          container.innerHTML = code;
+        } else {
+          // Pure JavaScript code
+          const codeWithContext = `
+            const container = arguments[0];
+            const d3 = arguments[1];
+            ${code}
+          `;
+
+          const d3Function = new Function(codeWithContext);
+          d3Function(container, d3);
+        }
+      } catch (error) {
+        console.error('[D3Renderer] Execution error:', error);
+        if (d3Ref.current) {
+          d3Ref.current.innerHTML = `<div class="text-red-400">Error executing D3 code</div>`;
+        }
+      }
+    };
+
+    executeD3Code();
+  }, [code]);
+
+  return (
+    <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+      <div ref={d3Ref} className="flex justify-center items-center min-h-[300px]" id="chart" />
+    </div>
+  );
+}
+
+// Chart.js Renderer Component
+function ChartJSRenderer({ code }: { code: string }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const chartInstanceRef = useRef<unknown>(null);
+
+  useLayoutEffect(() => {
+    if (!code || !canvasRef.current) return;
+
+    const executeChartJS = async () => {
+      try {
+        const ChartJS = (await import('chart.js/auto')).default;
+
+        // Destroy previous chart instance
+        if (chartInstanceRef.current && typeof chartInstanceRef.current === 'object' && 'destroy' in chartInstanceRef.current) {
+          (chartInstanceRef.current as { destroy: () => void }).destroy();
+        }
+
+        const ctx = canvasRef.current?.getContext('2d');
+        if (!ctx) return;
+
+        const codeWithContext = `
+          const ctx = arguments[0];
+          const Chart = arguments[1];
+          ${code}
+        `;
+
+        const chartFunction = new Function(codeWithContext);
+        const chartInstance = chartFunction(ctx, ChartJS);
+
+        if (chartInstance) {
+          chartInstanceRef.current = chartInstance;
+        }
+      } catch (error) {
+        console.error('[ChartJSRenderer] Execution error:', error);
+      }
+    };
+
+    executeChartJS();
+
+    return () => {
+      if (chartInstanceRef.current && typeof chartInstanceRef.current === 'object' && 'destroy' in chartInstanceRef.current) {
+        (chartInstanceRef.current as { destroy: () => void }).destroy();
+      }
+    };
+  }, [code]);
+
+  return (
+    <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+      <div className="flex justify-center items-center">
+        <canvas ref={canvasRef} style={{ maxWidth: '100%', maxHeight: '400px' }} />
+      </div>
+    </div>
+  );
+}
+
+// Chart Block Component with Universal Framework Support
+function ChartBlock({ chartData }: { chartData: ChartData }) {
+  // Determine which framework to use
+  const framework = chartData.framework || (chartData.code ? 'custom' : 'recharts');
+
+  // Recharts Visual Editor Renderer
+  const renderRechartsVisual = () => {
+    const { chartType, data, config } = chartData;
+    const colors = config?.colors || ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+
+    const commonProps = {
+      data: data || [],
+      margin: { top: 20, right: 30, left: 20, bottom: 20 }
+    };
+
+    const renderChart = () => {
+      switch (chartType) {
+        case 'bar':
+          return (
+            <BarChart {...commonProps}>
+              {config?.showGrid && <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />}
+              <XAxis dataKey="name" stroke="#fff" opacity={0.7} label={config?.xAxisLabel ? { value: config.xAxisLabel, position: 'insideBottom', offset: -10, fill: '#fff' } : undefined} />
+              <YAxis stroke="#fff" opacity={0.7} label={config?.yAxisLabel ? { value: config.yAxisLabel, angle: -90, position: 'insideLeft', fill: '#fff' } : undefined} />
+              <Tooltip contentStyle={{ backgroundColor: 'rgba(0,0,0,0.8)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '8px' }} />
+              {config?.showLegend && <Legend wrapperStyle={{ color: '#fff' }} />}
+              <Bar dataKey="value" fill={colors[0]} animationDuration={config?.animations !== false ? 1000 : 0} />
+            </BarChart>
+          );
+
+        case 'line':
+          return (
+            <LineChart {...commonProps}>
+              {config?.showGrid && <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />}
+              <XAxis dataKey="name" stroke="#fff" opacity={0.7} label={config?.xAxisLabel ? { value: config.xAxisLabel, position: 'insideBottom', offset: -10, fill: '#fff' } : undefined} />
+              <YAxis stroke="#fff" opacity={0.7} label={config?.yAxisLabel ? { value: config.yAxisLabel, angle: -90, position: 'insideLeft', fill: '#fff' } : undefined} />
+              <Tooltip contentStyle={{ backgroundColor: 'rgba(0,0,0,0.8)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '8px' }} />
+              {config?.showLegend && <Legend wrapperStyle={{ color: '#fff' }} />}
+              <Line type="monotone" dataKey="value" stroke={colors[0]} strokeWidth={2} animationDuration={config?.animations !== false ? 1000 : 0} />
+            </LineChart>
+          );
+
+        case 'area':
+          return (
+            <AreaChart {...commonProps}>
+              {config?.showGrid && <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />}
+              <XAxis dataKey="name" stroke="#fff" opacity={0.7} label={config?.xAxisLabel ? { value: config.xAxisLabel, position: 'insideBottom', offset: -10, fill: '#fff' } : undefined} />
+              <YAxis stroke="#fff" opacity={0.7} label={config?.yAxisLabel ? { value: config.yAxisLabel, angle: -90, position: 'insideLeft', fill: '#fff' } : undefined} />
+              <Tooltip contentStyle={{ backgroundColor: 'rgba(0,0,0,0.8)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '8px' }} />
+              {config?.showLegend && <Legend wrapperStyle={{ color: '#fff' }} />}
+              <Area type="monotone" dataKey="value" stroke={colors[0]} fill={colors[0]} fillOpacity={0.6} animationDuration={config?.animations !== false ? 1000 : 0} />
+            </AreaChart>
+          );
+
+        case 'pie':
+          return (
+            <PieChart>
+              <Pie
+                data={data || []}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={(entry) => entry.name}
+                outerRadius={120}
+                fill="#8884d8"
+                dataKey="value"
+                animationDuration={config?.animations !== false ? 1000 : 0}
+              >
+                {(data || []).map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                ))}
+              </Pie>
+              <Tooltip contentStyle={{ backgroundColor: 'rgba(0,0,0,0.8)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '8px' }} />
+              {config?.showLegend && <Legend wrapperStyle={{ color: '#fff' }} />}
+            </PieChart>
+          );
+
+        default:
+          return <div className="text-white/60 text-center">Unsupported chart type: {chartType}</div>;
+      }
+    };
+
+    return (
+      <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+        {config?.title && (
+          <h3 className="text-xl font-semibold text-white mb-4 text-center">{config.title}</h3>
+        )}
+        <ResponsiveContainer width="100%" height={400}>
+          {renderChart()}
+        </ResponsiveContainer>
+      </div>
+    );
+  };
+
+  // Main renderer - detect framework and render accordingly
+  if (framework === 'svg' && chartData.code) {
+    return (
+      <div className="my-8">
+        <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+          <div dangerouslySetInnerHTML={{ __html: chartData.code }} />
+        </div>
+      </div>
+    );
+  }
+
+  if (framework === 'mermaid' && chartData.code) {
+    return (
+      <div className="my-8">
+        <MermaidRenderer code={chartData.code} />
+      </div>
+    );
+  }
+
+  if (framework === 'd3' && chartData.code) {
+    return (
+      <div className="my-8">
+        <D3Renderer code={chartData.code} />
+      </div>
+    );
+  }
+
+  if (framework === 'chartjs' && chartData.code) {
+    return (
+      <div className="my-8">
+        <ChartJSRenderer code={chartData.code} />
+      </div>
+    );
+  }
+
+  if (framework === 'recharts' && chartData.code) {
+    return (
+      <div className="my-8">
+        <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+          <div className="text-yellow-400 text-center p-4">
+            <p className="mb-2">⚠️ Recharts JSX code detected</p>
+            <p className="text-sm text-white/60">Recharts code needs to be rendered as React components. Please use the visual editor or convert to another format.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (framework === 'custom') {
+    return (
+      <div className="my-8">
+        <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+          <div className="text-white/60 text-center">Custom chart code - framework not detected</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Default: Recharts visual editor
+  return (
+    <div className="my-8">
+      {renderRechartsVisual()}
+    </div>
+  );
+}
+
+// Custom HTML Block with Script Support
+function CustomHTMLBlock({ customData }: { customData: CustomData }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    if (!customData.allowScripts || !customData.html || !containerRef.current) {
+      return;
+    }
+
+    const container = containerRef.current;
+    console.log('[CustomHTMLBlock] Executing scripts for interactive content');
+
+    // Extract scripts from HTML
+    const scriptRegex = /<script\b[^>]*>([\s\S]*?)<\/script>/gi;
+    const scripts: string[] = [];
+    let match;
+
+    while ((match = scriptRegex.exec(customData.html)) !== null) {
+      scripts.push(match[1]);
+    }
+
+    if (scripts.length === 0) {
+      return;
+    }
+
+    console.log('[CustomHTMLBlock] Found', scripts.length, 'script(s) to execute');
+
+    // Defer script execution to ensure DOM is ready
+    // Use setTimeout to wait for the dangerouslySetInnerHTML to complete
+    const timeoutId = setTimeout(() => {
+      // Execute scripts with container context
+      // Replace document.getElementById calls with container-scoped queries
+      scripts.forEach((scriptContent, index) => {
+        try {
+          // Replace document.getElementById with container.querySelector
+          // This ensures elements are found within the container
+          const modifiedScript = scriptContent.replace(
+            /document\.getElementById\s*\(\s*(['"`])([^'"`]+)\1\s*\)/g,
+            "container.querySelector('#$2')"
+          );
+
+          console.log('[CustomHTMLBlock] Executing script', index + 1);
+          console.log('[CustomHTMLBlock] Script preview:', modifiedScript.substring(0, 200));
+
+          // Provide both container and document in the function context
+          const scriptFunc = new Function('container', 'document', modifiedScript);
+          scriptFunc(container, document);
+          console.log('[CustomHTMLBlock] Successfully executed script', index + 1);
+        } catch (error) {
+          console.error('[CustomHTMLBlock] Script execution error:', error);
+          console.error('[CustomHTMLBlock] Failed script:', scriptContent.substring(0, 500));
+        }
+      });
+    }, 0);
+
+    // Cleanup function
+    return () => {
+      console.log('[CustomHTMLBlock] Cleaning up scripts');
+      clearTimeout(timeoutId);
+    };
+  }, [customData.html, customData.allowScripts]);
+
+  // Determine styling based on containerStyle or granular options
+  const getContainerClasses = () => {
+    const classes = ['custom-html-block'];
+
+    // Apply granular controls (they override preset styles)
+    const showBg = customData.showBackground !== false;
+    const showBorder = customData.showBorder !== false;
+    const showPadding = customData.showPadding !== false;
+    const showRounding = customData.showRounding !== false;
+
+    if (showBg) classes.push('bg-white/5');
+    if (showBorder) classes.push('border', 'border-white/10');
+    if (showPadding) classes.push('p-6');
+    if (showRounding) classes.push('rounded-xl');
+
+    return classes.join(' ');
+  };
+
+  // Sanitize HTML - strip scripts as they'll be executed separately via Function()
+  const sanitizedHTML = sanitizeCustomHTML(customData.html || '');
+
+  return (
+    <div ref={containerRef} className={getContainerClasses()}>
+      <div
+        dangerouslySetInnerHTML={{
+          __html: sanitizedHTML || '<p class="text-white/60 italic text-center">No custom HTML content</p>'
+        }}
+      />
     </div>
   );
 }
@@ -811,35 +1274,21 @@ export default function BlockRenderer({ blocks }: BlockRendererProps) {
       case 'CUSTOM':
         const customData = data as CustomData;
 
-        // Determine styling based on containerStyle or granular options
-        const getContainerClasses = () => {
-          const classes = ['custom-html-block'];
+        return (
+          <div key={block.id} className="my-8">
+            <CustomHTMLBlock customData={customData} />
+          </div>
+        );
 
-          // Apply granular controls (they override preset styles)
-          const showBg = customData.showBackground !== false;
-          const showBorder = customData.showBorder !== false;
-          const showPadding = customData.showPadding !== false;
-          const showRounding = customData.showRounding !== false;
-
-          if (showBg) classes.push('bg-white/5');
-          if (showBorder) classes.push('border', 'border-white/10');
-          if (showPadding) classes.push('p-6');
-          if (showRounding) classes.push('rounded-xl');
-
-          return classes.join(' ');
-        };
+      case 'CHART':
+        const chartData = data as ChartData;
 
         return (
           <div key={block.id} className="my-8">
-            <div
-              className={getContainerClasses()}
-              dangerouslySetInnerHTML={{
-                __html: sanitizeCustomHTML(customData.html || '<p class="text-white/60 italic text-center">No custom HTML content</p>')
-              }}
-            />
+            <ChartBlock chartData={chartData} />
           </div>
         );
-      
+
       default:
         return (
           <div key={block.id} className="my-6 p-4 bg-white/5 border border-white/20 rounded-lg">

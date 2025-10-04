@@ -12,6 +12,7 @@ import VideoEmbedEditor from "./VideoEmbedEditor";
 import AudioEmbedEditor from "./AudioEmbedEditor";
 import CalloutEditor from "./CalloutEditor";
 import TableEditor from "./TableEditor";
+import ChartEditor from "./ChartEditor";
 import ImagePicker from "../media/ImagePicker";
 import { sanitizeRichText } from '@/lib/sanitize';
 
@@ -136,6 +137,32 @@ interface TableData {
   alignment?: 'left' | 'center' | 'right';
 }
 
+interface ChartDataPoint {
+  name: string;
+  value: number;
+  [key: string]: string | number;
+}
+
+interface ChartData {
+  // New universal chart fields
+  framework?: 'chartjs' | 'recharts' | 'd3' | 'svg' | 'mermaid' | 'custom';
+  code?: string;
+  isInteractive?: boolean;
+
+  // Legacy visual editor fields (backwards compatible)
+  chartType?: 'bar' | 'line' | 'area' | 'pie' | 'radar';
+  data?: ChartDataPoint[];
+  config?: {
+    title?: string;
+    xAxisLabel?: string;
+    yAxisLabel?: string;
+    colors?: string[];
+    showLegend?: boolean;
+    showGrid?: boolean;
+    animations?: boolean;
+  };
+}
+
 // Union type for all possible block data
 type BlockData =
   | ParagraphData
@@ -149,7 +176,8 @@ type BlockData =
   | DividerData
   | TableData
   | CalloutData
-  | CustomData;
+  | CustomData
+  | ChartData;
 
 interface Block {
   id: string;
@@ -479,6 +507,44 @@ export default function EnhancedBlockEditor({
               onChange={(data) => setEditData(data)}
               className="w-full"
               isEditing={isEditing}
+            />
+          );
+        }
+
+        if (block.blockType === 'CHART') {
+          const chartData = editData as ChartData;
+          return (
+            <ChartEditor
+              framework={chartData.framework}
+              code={chartData.code}
+              chartType={chartData.chartType}
+              data={chartData.data}
+              config={chartData.config}
+              onChange={(framework, code, chartType, data, config) => {
+                // Build new data object, only including defined values
+                const newData: ChartData = {};
+
+                if (framework !== null && framework !== undefined) {
+                  newData.framework = framework;
+                }
+                if (code !== null && code !== undefined) {
+                  newData.code = code;
+                }
+                if (framework === 'd3' || framework === 'chartjs') {
+                  newData.isInteractive = true;
+                }
+                if (chartType !== null && chartType !== undefined) {
+                  newData.chartType = chartType;
+                }
+                if (data !== null && data !== undefined) {
+                  newData.data = data;
+                }
+                if (config !== null && config !== undefined) {
+                  newData.config = config;
+                }
+
+                setEditData(newData);
+              }}
             />
           );
         }
@@ -878,6 +944,28 @@ export default function EnhancedBlockEditor({
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {block.blockType === 'CHART' && (
+            <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+              <div className="text-center text-gray-600">
+                <p className="text-sm font-medium mb-2">Chart Preview</p>
+                <p className="text-xs text-gray-500">Chart will render interactively on the published page</p>
+                <div className="mt-3 flex justify-center gap-2 text-xs">
+                  {(editData as ChartData).framework ? (
+                    <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded">Framework: {(editData as ChartData).framework}</span>
+                  ) : (
+                    <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded">Type: {(editData as ChartData).chartType}</span>
+                  )}
+                  {(editData as ChartData).data && (
+                    <span className="px-2 py-1 bg-green-100 text-green-700 rounded">Data Points: {(editData as ChartData).data.length}</span>
+                  )}
+                  {(editData as ChartData).code && (
+                    <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded">Code Mode</span>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 

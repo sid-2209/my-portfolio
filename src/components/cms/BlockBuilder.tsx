@@ -110,6 +110,32 @@ interface TableData {
   alignment?: 'left' | 'center' | 'right';
 }
 
+interface ChartDataPoint {
+  name: string;
+  value: number;
+  [key: string]: string | number;
+}
+
+interface ChartData {
+  // New universal chart fields
+  framework?: 'chartjs' | 'recharts' | 'd3' | 'svg' | 'mermaid' | 'custom';
+  code?: string;
+  isInteractive?: boolean;
+
+  // Legacy visual editor fields (backwards compatible)
+  chartType?: 'bar' | 'line' | 'area' | 'pie' | 'radar';
+  data?: ChartDataPoint[];
+  config?: {
+    title?: string;
+    xAxisLabel?: string;
+    yAxisLabel?: string;
+    colors?: string[];
+    showLegend?: boolean;
+    showGrid?: boolean;
+    animations?: boolean;
+  };
+}
+
 // Union type for all possible block data
 type BlockData =
   | ParagraphData
@@ -123,7 +149,8 @@ type BlockData =
   | DividerData
   | TableData
   | CalloutData
-  | CustomData;
+  | CustomData
+  | ChartData;
 
 interface Block {
   id: string;

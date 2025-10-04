@@ -116,6 +116,12 @@ export async function PUT(
       );
     }
 
+    // Clean block data to remove undefined values (they cause JSON serialization issues)
+    const cleanBlocks = blocks.map(block => ({
+      ...block,
+      data: JSON.parse(JSON.stringify(block.data)) // Removes undefined values
+    }));
+
     // ATOMIC TRANSACTION: Delete and recreate all blocks
     // This ensures either all operations succeed or all fail
     const updatedBlocks = await prisma.$transaction(async (tx) => {
@@ -124,23 +130,24 @@ export async function PUT(
         where: { contentId: id }
       });
 
-      // Step 2: Create all new blocks with validated data
-      const newBlocks = await Promise.all(
-        blocks.map(async (block: { blockType: string; data: unknown; id?: string }, index: number) => {
-          return tx.contentBlock.create({
-            data: {
-              contentId: id,
-              blockType: block.blockType as BlockType,
-              order: index, // Use index to ensure unique, sequential order
-              data: block.data as Prisma.InputJsonValue
-            }
-          });
-        })
-      );
+      // Step 2: Create all new blocks sequentially to avoid unique constraint conflicts
+      const newBlocks = [];
+      for (let index = 0; index < cleanBlocks.length; index++) {
+        const block = cleanBlocks[index];
+        const createdBlock = await tx.contentBlock.create({
+          data: {
+            contentId: id,
+            blockType: block.blockType as BlockType,
+            order: index, // Use index to ensure unique, sequential order
+            data: block.data as Prisma.InputJsonValue
+          }
+        });
+        newBlocks.push(createdBlock);
+      }
 
       return newBlocks;
     }, {
-      timeout: 10000, // 10 second timeout for the transaction
+      timeout: 15000, // 15 second timeout for the transaction (increased for sequential operations)
       maxWait: 5000,  // Maximum time to wait for a transaction slot
     });
 
