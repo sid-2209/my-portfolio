@@ -398,13 +398,53 @@ export default function AudioEmbedEditor({
             <input
               type="checkbox"
               checked={currentData.enableLanguageSwitch || false}
-              onChange={(e) => handleChange('enableLanguageSwitch', e.target.checked)}
+              onChange={(e) => {
+                const isEnabled = e.target.checked;
+
+                if (isEnabled && (currentData.url || currentData.localAudioUrl)) {
+                  // Auto-migrate existing audio to languages array as the first language
+                  const existingLanguages = currentData.languages || [];
+
+                  // Check if we already have this audio in languages
+                  const hasOriginalInLanguages = existingLanguages.some(
+                    lang => lang.url === currentData.url || lang.localAudioUrl === currentData.localAudioUrl
+                  );
+
+                  if (!hasOriginalInLanguages) {
+                    const originalLanguage = {
+                      id: `lang-original-${Date.now()}`,
+                      label: 'Original',
+                      url: currentData.url || '',
+                      type: currentData.type,
+                      localAudioUrl: currentData.localAudioUrl,
+                      mediaId: currentData.mediaId,
+                      isDefault: true
+                    };
+
+                    // Set other languages as non-default
+                    const updatedLanguages = [originalLanguage, ...existingLanguages.map(lang => ({ ...lang, isDefault: false }))];
+
+                    const newData = {
+                      ...currentData,
+                      enableLanguageSwitch: true,
+                      languages: updatedLanguages
+                    };
+                    setCurrentData(newData);
+                    onChange(newData);
+                    return;
+                  }
+                }
+
+                handleChange('enableLanguageSwitch', isEnabled);
+              }}
               className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
             />
             <span className="ml-2 text-sm text-gray-700 font-medium">Enable Multi-Language Audio</span>
           </label>
           <p className="text-xs text-gray-500 mt-1 ml-6">
-            Allow users to switch between different language versions of this audio
+            {currentData.enableLanguageSwitch
+              ? 'Your original audio has been added as the first language. Add more languages below.'
+              : 'Allow users to switch between different language versions of this audio'}
           </p>
         </div>
 

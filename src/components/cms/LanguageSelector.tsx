@@ -28,28 +28,33 @@ export default function LanguageSelector({
 }: LanguageSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
 
-  if (!languages || languages.length <= 1) {
+  if (!languages || languages.length === 0) {
     return null;
   }
 
   const current = currentLanguage || languages.find(lang => lang.isDefault) || languages[0];
+  const hasMultipleLanguages = languages.length > 1;
 
   return (
     <div className={`relative inline-block ${className}`}>
       <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-white transition-all duration-200"
+        onClick={() => hasMultipleLanguages && setIsOpen(!isOpen)}
+        className={`flex items-center gap-2 px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white transition-all duration-200 ${
+          hasMultipleLanguages ? 'hover:bg-white/20 cursor-pointer' : 'cursor-default'
+        }`}
       >
         <Globe className="w-4 h-4" />
         <span className="text-sm font-medium">{current.label}</span>
-        <svg
-          className={`w-4 h-4 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
+        {hasMultipleLanguages && (
+          <svg
+            className={`w-4 h-4 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        )}
       </button>
 
       {isOpen && (

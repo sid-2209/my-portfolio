@@ -203,13 +203,18 @@ function AudioPreviewBlock({ block, audioData }: { block: PreviewBlock; audioDat
           style={audioWidthStyle}
         >
           {/* Language Selector */}
-          {audioData.enableLanguageSwitch && audioData.languages && audioData.languages.length > 1 && (
-            <div className="mb-4 flex justify-center">
-              <LanguageSelector
-                languages={audioData.languages}
-                currentLanguage={selectedAudioLang}
-                onLanguageChange={setSelectedAudioLang}
-              />
+          {audioData.enableLanguageSwitch && audioData.languages && audioData.languages.length >= 1 && (
+            <div className="mb-4">
+              <div className="text-center mb-2">
+                <span className="text-white/70 text-sm font-medium">Listen in:</span>
+              </div>
+              <div className="flex justify-center">
+                <LanguageSelector
+                  languages={audioData.languages}
+                  currentLanguage={selectedAudioLang}
+                  onLanguageChange={setSelectedAudioLang}
+                />
+              </div>
             </div>
           )}
 
