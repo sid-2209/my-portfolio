@@ -29,7 +29,7 @@ interface ChartEditorProps {
   data?: ChartDataPoint[];
   config?: ChartConfig;
 
-  onChange: (framework: 'chartjs' | 'recharts' | 'd3' | 'svg' | 'mermaid' | 'custom' | undefined, code: string | undefined, chartType?: string, data?: ChartDataPoint[], config?: ChartConfig) => void;
+  onChange: (framework: 'chartjs' | 'recharts' | 'd3' | 'svg' | 'mermaid' | 'custom' | undefined, code: string | undefined, chartType?: 'bar' | 'line' | 'area' | 'pie' | 'radar', data?: ChartDataPoint[], config?: ChartConfig) => void;
   className?: string;
 }
 
@@ -55,7 +55,7 @@ export default function ChartEditor({
   const [viewMode, setViewMode] = useState<'editor' | 'preview' | 'split'>('editor');
 
   // Visual editor state
-  const [chartType, setChartType] = useState<string>(propChartType || 'bar');
+  const [chartType, setChartType] = useState<'bar' | 'line' | 'area' | 'pie' | 'radar'>(propChartType || 'bar');
   const [title, setTitle] = useState(propConfig?.title || '');
   const [xAxisLabel, setXAxisLabel] = useState(propConfig?.xAxisLabel || '');
   const [yAxisLabel, setYAxisLabel] = useState(propConfig?.yAxisLabel || '');
@@ -257,7 +257,7 @@ export default function ChartEditor({
     handleCodeChange(formatted);
   };
 
-  const chartTypes = [
+  const chartTypes: { value: 'bar' | 'line' | 'area' | 'pie' | 'radar'; label: string; icon: any }[] = [
     { value: 'bar', label: 'Bar Chart', icon: BarChart3 },
     { value: 'line', label: 'Line Chart', icon: LineChart },
     { value: 'area', label: 'Area Chart', icon: TrendingUp },
