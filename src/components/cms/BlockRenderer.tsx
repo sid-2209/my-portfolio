@@ -7,6 +7,7 @@ import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { useState } from 'react';
 import { ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
 import WaveformPlayer from '@/components/audio/WaveformPlayer';
+import LanguageSelector from './LanguageSelector';
 
 // Import the same interfaces used in BlockEditor for consistency
 interface ParagraphData {
@@ -294,6 +295,128 @@ interface BlockRendererProps {
   blocks: ContentBlock[];
 }
 
+// Audio Block Component to handle state properly
+function AudioBlockRenderer({ block, audioData }: { block: ContentBlock; audioData: AudioEmbedData }) {
+  const [selectedLanguage, setSelectedLanguage] = useState(() => {
+    if (audioData.enableLanguageSwitch && audioData.languages && audioData.languages.length > 0) {
+      return audioData.languages.find(lang => lang.isDefault) || audioData.languages[0];
+    }
+    return null;
+  });
+
+  const currentAudioUrl = audioData.enableLanguageSwitch && selectedLanguage
+    ? (selectedLanguage.localAudioUrl || selectedLanguage.url)
+    : (audioData.localAudioUrl || audioData.url);
+
+  const currentAudioType = audioData.enableLanguageSwitch && selectedLanguage
+    ? selectedLanguage.type
+    : audioData.type;
+
+  const audioAlignmentClass =
+    audioData.alignment === 'left' ? 'mr-auto' :
+    audioData.alignment === 'right' ? 'ml-auto' :
+    audioData.alignment === 'full' ? 'w-full' : 'mx-auto';
+
+  const audioWidthStyle = audioData.alignment === 'full'
+    ? { width: '100%' }
+    : { width: `${audioData.width || 100}%` };
+
+  // Platform-specific iframe embeds (CORS restrictions prevent direct audio loading)
+  const renderPlatformEmbed = () => {
+    if (currentAudioType === 'spotify' && currentAudioUrl) {
+      // Spotify supports dark mode via theme parameter (0 = dark, 1 = light)
+      const embedUrl = currentAudioUrl.replace('open.spotify.com', 'open.spotify.com/embed');
+      const themeParam = audioData.theme === 'light' ? '&theme=1' : '&theme=0';
+      const separator = embedUrl.includes('?') ? '' : '?';
+
+      return (
+        <iframe
+          src={`${embedUrl}${separator}${themeParam}`}
+          width="100%"
+          height="152"
+          frameBorder="0"
+          allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+          loading="lazy"
+          className="w-full rounded-2xl"
+        />
+      );
+    }
+
+    if (currentAudioType === 'soundcloud' && currentAudioUrl) {
+      // SoundCloud doesn't have full dark mode, but we can customize the play button color
+      // White for dark theme, orange for light theme
+      const color = audioData.theme === 'light' ? 'ff5500' : 'ffffff';
+
+      return (
+        <iframe
+          width="100%"
+          height="166"
+          scrolling="no"
+          frameBorder="no"
+          allow="autoplay"
+          src={`https://w.soundcloud.com/player/?url=${encodeURIComponent(currentAudioUrl)}&color=%23${color}&auto_play=false&hide_related=false&show_comments=true&show_user=true&show_reposts=false&show_teaser=true`}
+          className="w-full rounded-2xl"
+        />
+      );
+    }
+
+    if (currentAudioType === 'apple-music' && currentAudioUrl) {
+      // Apple Music doesn't support theme parameters in iframe embeds
+      return (
+        <iframe
+          allow="autoplay *; encrypted-media *; fullscreen *; clipboard-write"
+          frameBorder="0"
+          height="175"
+          style={{ width: '100%', overflow: 'hidden' }}
+          sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation"
+          src={currentAudioUrl}
+          className="w-full rounded-2xl"
+        />
+      );
+    }
+
+    // For local audio files, use WaveformPlayer
+    return (
+      <WaveformPlayer
+        url={currentAudioUrl}
+        platform={currentAudioType}
+        platformUrl={currentAudioUrl}
+        autoplay={audioData.autoplay}
+        loop={audioData.loop}
+      />
+    );
+  };
+
+  return (
+    <div key={block.id} className="my-8">
+      {currentAudioUrl ? (
+        <div
+          className={`${audioAlignmentClass}`}
+          style={audioWidthStyle}
+        >
+          {/* Language Selector */}
+          {audioData.enableLanguageSwitch && audioData.languages && audioData.languages.length > 1 && (
+            <div className="mb-4 flex justify-center">
+              <LanguageSelector
+                languages={audioData.languages}
+                currentLanguage={selectedLanguage}
+                onLanguageChange={setSelectedLanguage}
+              />
+            </div>
+          )}
+
+          {renderPlatformEmbed()}
+        </div>
+      ) : (
+        <div className="p-8 bg-white/10 border border-white/30 rounded-2xl text-center">
+          <div className="text-white/60 text-sm mb-2 font-medium">[Audio Placeholder]</div>
+          <div className="text-white/80 text-lg">No audio URL provided</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function BlockRenderer({ blocks }: BlockRendererProps) {
   const renderBlock = (block: ContentBlock) => {
     const data = block.data as unknown as BlockData;
@@ -509,100 +632,7 @@ export default function BlockRenderer({ blocks }: BlockRendererProps) {
 
       case 'AUDIO_EMBED':
         const audioData = data as AudioEmbedData;
-        const audioUrl = audioData.localAudioUrl || audioData.url;
-
-        const audioAlignmentClass =
-          audioData.alignment === 'left' ? 'mr-auto' :
-          audioData.alignment === 'right' ? 'ml-auto' :
-          audioData.alignment === 'full' ? 'w-full' : 'mx-auto';
-
-        const audioWidthStyle = audioData.alignment === 'full'
-          ? { width: '100%' }
-          : { width: `${audioData.width || 100}%` };
-
-        // Platform-specific iframe embeds (CORS restrictions prevent direct audio loading)
-        const renderPlatformEmbed = () => {
-          if (audioData.type === 'spotify' && audioData.url) {
-            // Spotify supports dark mode via theme parameter (0 = dark, 1 = light)
-            const embedUrl = audioData.url.replace('open.spotify.com', 'open.spotify.com/embed');
-            const themeParam = audioData.theme === 'light' ? '&theme=1' : '&theme=0';
-            const separator = embedUrl.includes('?') ? '' : '?';
-
-            return (
-              <iframe
-                src={`${embedUrl}${separator}${themeParam}`}
-                width="100%"
-                height="152"
-                frameBorder="0"
-                allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-                loading="lazy"
-                className="w-full rounded-2xl"
-              />
-            );
-          }
-
-          if (audioData.type === 'soundcloud' && audioData.url) {
-            // SoundCloud doesn't have full dark mode, but we can customize the play button color
-            // White for dark theme, orange for light theme
-            const color = audioData.theme === 'light' ? 'ff5500' : 'ffffff';
-
-            return (
-              <iframe
-                width="100%"
-                height="166"
-                scrolling="no"
-                frameBorder="no"
-                allow="autoplay"
-                src={`https://w.soundcloud.com/player/?url=${encodeURIComponent(audioData.url)}&color=%23${color}&auto_play=false&hide_related=false&show_comments=true&show_user=true&show_reposts=false&show_teaser=true`}
-                className="w-full rounded-2xl"
-              />
-            );
-          }
-
-          if (audioData.type === 'apple-music' && audioData.url) {
-            // Apple Music doesn't support theme parameters in iframe embeds
-            return (
-              <iframe
-                allow="autoplay *; encrypted-media *; fullscreen *; clipboard-write"
-                frameBorder="0"
-                height="175"
-                style={{ width: '100%', overflow: 'hidden' }}
-                sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation"
-                src={audioData.url}
-                className="w-full rounded-2xl"
-              />
-            );
-          }
-
-          // For local audio files, use WaveformPlayer
-          return (
-            <WaveformPlayer
-              url={audioUrl}
-              platform={audioData.type}
-              platformUrl={audioData.url}
-              autoplay={audioData.autoplay}
-              loop={audioData.loop}
-            />
-          );
-        };
-
-        return (
-          <div key={block.id} className="my-8">
-            {audioUrl ? (
-              <div
-                className={`${audioAlignmentClass}`}
-                style={audioWidthStyle}
-              >
-                {renderPlatformEmbed()}
-              </div>
-            ) : (
-              <div className="p-8 bg-white/10 border border-white/30 rounded-2xl text-center">
-                <div className="text-white/60 text-sm mb-2 font-medium">[Audio Placeholder]</div>
-                <div className="text-white/80 text-lg">No audio URL provided</div>
-              </div>
-            )}
-          </div>
-        );
+        return <AudioBlockRenderer key={block.id} block={block} audioData={audioData} />;
 
       case 'CODE_BLOCK':
         const codeData = data as CodeBlockData;

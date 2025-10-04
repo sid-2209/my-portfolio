@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import AudioPicker from '../media/AudioPicker';
+import LanguageAudioManager from './LanguageAudioManager';
 
 interface AudioLanguage {
   id: string;
@@ -390,6 +391,34 @@ export default function AudioEmbedEditor({
             </label>
           )}
         </div>
+
+        {/* Multi-Language Toggle */}
+        <div className="pt-4 border-t border-gray-200">
+          <label className="flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={currentData.enableLanguageSwitch || false}
+              onChange={(e) => handleChange('enableLanguageSwitch', e.target.checked)}
+              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+            />
+            <span className="ml-2 text-sm text-gray-700 font-medium">Enable Multi-Language Audio</span>
+          </label>
+          <p className="text-xs text-gray-500 mt-1 ml-6">
+            Allow users to switch between different language versions of this audio
+          </p>
+        </div>
+
+        {/* Language Manager */}
+        {currentData.enableLanguageSwitch && (
+          <LanguageAudioManager
+            languages={currentData.languages || []}
+            onChange={(languages) => {
+              const newData = { ...currentData, languages };
+              setCurrentData(newData);
+              onChange(newData);
+            }}
+          />
+        )}
 
         {/* Status */}
         <div className="flex items-center justify-between pt-3 border-t border-gray-200">

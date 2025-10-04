@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { Eye, EyeOff, Monitor, Smartphone, Tablet, RefreshCw } from "lucide-react";
 import { sanitizeRichText, sanitizeCustomHTML } from "@/lib/sanitize";
 import WaveformPlayer from "@/components/audio/WaveformPlayer";
+import LanguageSelector from "./LanguageSelector";
 
 // Import the same interfaces
 interface ParagraphData {
@@ -76,6 +77,16 @@ interface VideoEmbedData {
   mediaId?: string;
 }
 
+interface AudioLanguage {
+  id: string;
+  label: string;
+  url: string;
+  type?: 'spotify' | 'soundcloud' | 'apple-music' | 'local' | 'other';
+  localAudioUrl?: string;
+  mediaId?: string;
+  isDefault?: boolean;
+}
+
 interface AudioEmbedData {
   url: string;
   type?: 'spotify' | 'soundcloud' | 'apple-music' | 'local' | 'other';
@@ -93,6 +104,8 @@ interface AudioEmbedData {
   localAudioUrl?: string;
   mediaId?: string;
   coverArt?: string;
+  enableLanguageSwitch?: boolean;
+  languages?: AudioLanguage[];
 }
 
 type BlockData =
@@ -124,6 +137,93 @@ interface LivePreviewPanelProps {
 }
 
 type ViewportSize = 'desktop' | 'tablet' | 'mobile';
+
+// Audio Preview Component to handle state properly
+function AudioPreviewBlock({ block, audioData }: { block: PreviewBlock; audioData: AudioEmbedData }) {
+  const [selectedAudioLang, setSelectedAudioLang] = useState(() => {
+    if (audioData.enableLanguageSwitch && audioData.languages && audioData.languages.length > 0) {
+      return audioData.languages.find(lang => lang.isDefault) || audioData.languages[0];
+    }
+    return null;
+  });
+
+  const currentPreviewAudioUrl = audioData.enableLanguageSwitch && selectedAudioLang
+    ? (selectedAudioLang.localAudioUrl || selectedAudioLang.url)
+    : (audioData.localAudioUrl || audioData.url);
+
+  const currentPreviewAudioType = audioData.enableLanguageSwitch && selectedAudioLang
+    ? selectedAudioLang.type
+    : audioData.type;
+
+  const audioAlignmentClass =
+    audioData.alignment === 'left' ? 'mr-auto' :
+    audioData.alignment === 'right' ? 'ml-auto' :
+    audioData.alignment === 'full' ? 'w-full' : 'mx-auto';
+
+  const audioWidthStyle = audioData.alignment === 'full'
+    ? { width: '100%' }
+    : { width: `${audioData.width || 100}%` };
+
+  // Show preview for platform embeds
+  const renderAudioPreview = () => {
+    if (currentPreviewAudioType === 'spotify' || currentPreviewAudioType === 'soundcloud' || currentPreviewAudioType === 'apple-music') {
+      return (
+        <div className="p-8 border border-white/10 rounded-2xl">
+          <div className="text-center text-white/60">
+            <svg className="w-16 h-16 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+            </svg>
+            <p className="text-sm">
+              {currentPreviewAudioType === 'spotify' && 'Spotify player will appear on published post'}
+              {currentPreviewAudioType === 'soundcloud' && 'SoundCloud player will appear on published post'}
+              {currentPreviewAudioType === 'apple-music' && 'Apple Music player will appear on published post'}
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    // For local audio, show waveform player
+    return (
+      <WaveformPlayer
+        url={currentPreviewAudioUrl}
+        platform={currentPreviewAudioType}
+        platformUrl={currentPreviewAudioUrl}
+        autoplay={audioData.autoplay}
+        loop={audioData.loop}
+      />
+    );
+  };
+
+  return (
+    <div key={block.id} className="my-8">
+      {currentPreviewAudioUrl ? (
+        <div
+          className={`${audioAlignmentClass}`}
+          style={audioWidthStyle}
+        >
+          {/* Language Selector */}
+          {audioData.enableLanguageSwitch && audioData.languages && audioData.languages.length > 1 && (
+            <div className="mb-4 flex justify-center">
+              <LanguageSelector
+                languages={audioData.languages}
+                currentLanguage={selectedAudioLang}
+                onLanguageChange={setSelectedAudioLang}
+              />
+            </div>
+          )}
+
+          {renderAudioPreview()}
+        </div>
+      ) : (
+        <div className="p-8 bg-white/10 border border-white/30 rounded-2xl text-center">
+          <div className="text-white/60 text-sm mb-2 font-medium">[Audio Placeholder]</div>
+          <div className="text-white/80 text-lg">No audio URL provided</div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function LivePreviewPanel({
   blocks,
@@ -357,65 +457,7 @@ export default function LivePreviewPanel({
 
       case 'AUDIO_EMBED':
         const audioData = data as AudioEmbedData;
-        const audioUrl = audioData.localAudioUrl || audioData.url;
-
-        const audioAlignmentClass =
-          audioData.alignment === 'left' ? 'mr-auto' :
-          audioData.alignment === 'right' ? 'ml-auto' :
-          audioData.alignment === 'full' ? 'w-full' : 'mx-auto';
-
-        const audioWidthStyle = audioData.alignment === 'full'
-          ? { width: '100%' }
-          : { width: `${audioData.width || 100}%` };
-
-        // Show preview for platform embeds
-        const renderAudioPreview = () => {
-          if (audioData.type === 'spotify' || audioData.type === 'soundcloud' || audioData.type === 'apple-music') {
-            return (
-              <div className="p-8 border border-white/10 rounded-2xl">
-                <div className="text-center text-white/60">
-                  <svg className="w-16 h-16 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-                  </svg>
-                  <p className="text-sm">
-                    {audioData.type === 'spotify' && 'Spotify player will appear on published post'}
-                    {audioData.type === 'soundcloud' && 'SoundCloud player will appear on published post'}
-                    {audioData.type === 'apple-music' && 'Apple Music player will appear on published post'}
-                  </p>
-                </div>
-              </div>
-            );
-          }
-
-          // For local audio, show waveform player
-          return (
-            <WaveformPlayer
-              url={audioUrl}
-              platform={audioData.type}
-              platformUrl={audioData.url}
-              autoplay={audioData.autoplay}
-              loop={audioData.loop}
-            />
-          );
-        };
-
-        return (
-          <div key={block.id} className="my-8">
-            {audioUrl ? (
-              <div
-                className={`${audioAlignmentClass}`}
-                style={audioWidthStyle}
-              >
-                {renderAudioPreview()}
-              </div>
-            ) : (
-              <div className="p-8 bg-white/10 border border-white/30 rounded-2xl text-center">
-                <div className="text-white/60 text-sm mb-2 font-medium">[Audio Placeholder]</div>
-                <div className="text-white/80 text-lg">No audio URL provided</div>
-              </div>
-            )}
-          </div>
-        );
+        return <AudioPreviewBlock key={block.id} block={block} audioData={audioData} />;
 
       case 'VIDEO_EMBED':
         const videoData = data as VideoEmbedData;
