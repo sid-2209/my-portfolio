@@ -108,6 +108,7 @@ interface AudioEmbedData {
   languages?: AudioLanguage[];
   languageSwitchIntro?: string;
   languageSwitchOutro?: string;
+  originalLanguageLabel?: string;
 }
 
 type BlockData =

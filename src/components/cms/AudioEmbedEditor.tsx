@@ -36,6 +36,7 @@ interface AudioEmbedData {
   languages?: AudioLanguage[];
   languageSwitchIntro?: string;
   languageSwitchOutro?: string;
+  originalLanguageLabel?: string;
 }
 
 interface AudioEmbedEditorProps {
@@ -81,11 +82,70 @@ export default function AudioEmbedEditor({
     return 'other';
   };
 
+  // Helper function to ensure original audio is always in languages array
+  const ensureOriginalInLanguages = (audioData: AudioEmbedData): AudioEmbedData => {
+    if (!audioData.enableLanguageSwitch || !audioData.url && !audioData.localAudioUrl) {
+      return audioData;
+    }
+
+    const existingLanguages = audioData.languages || [];
+
+    // Check if original audio is already in the languages array
+    const hasOriginal = existingLanguages.some(
+      lang => (lang.url && lang.url === audioData.url) ||
+              (lang.localAudioUrl && lang.localAudioUrl === audioData.localAudioUrl)
+    );
+
+    if (!hasOriginal) {
+      // Create the original language entry
+      const originalLanguage: AudioLanguage = {
+        id: `lang-original-${Date.now()}`,
+        label: audioData.originalLanguageLabel || 'Original',
+        url: audioData.url || '',
+        type: audioData.type,
+        localAudioUrl: audioData.localAudioUrl,
+        mediaId: audioData.mediaId,
+        isDefault: !existingLanguages.some(lang => lang.isDefault) // Only set as default if no other default exists
+      };
+
+      // Add original at the beginning, ensuring any existing default stays default
+      const updatedLanguages = existingLanguages.some(lang => lang.isDefault)
+        ? [originalLanguage, ...existingLanguages]
+        : [originalLanguage, ...existingLanguages.map(lang => ({ ...lang, isDefault: false }))];
+
+      return {
+        ...audioData,
+        languages: updatedLanguages
+      };
+    } else {
+      // Update the label if originalLanguageLabel changed
+      const updatedLanguages = existingLanguages.map(lang => {
+        const isOriginal = (lang.url && lang.url === audioData.url) ||
+                          (lang.localAudioUrl && lang.localAudioUrl === audioData.localAudioUrl);
+        if (isOriginal && audioData.originalLanguageLabel) {
+          return { ...lang, label: audioData.originalLanguageLabel };
+        }
+        return lang;
+      });
+
+      return {
+        ...audioData,
+        languages: updatedLanguages
+      };
+    }
+  };
+
   const handleChange = (field: keyof AudioEmbedData, value: string | boolean | number) => {
-    const newData = { ...currentData, [field]: value };
+    let newData = { ...currentData, [field]: value };
     if (field === 'url') {
       newData.type = detectAudioType(value as string);
     }
+
+    // If originalLanguageLabel changed and multi-language is enabled, update the original language's label
+    if (field === 'originalLanguageLabel' && newData.enableLanguageSwitch) {
+      newData = ensureOriginalInLanguages(newData);
+    }
+
     setCurrentData(newData);
     setIsTyping(true);
 
@@ -403,41 +463,21 @@ export default function AudioEmbedEditor({
               onChange={(e) => {
                 const isEnabled = e.target.checked;
 
-                if (isEnabled && (currentData.url || currentData.localAudioUrl)) {
-                  // Auto-migrate existing audio to languages array as the first language
-                  const existingLanguages = currentData.languages || [];
+                if (isEnabled) {
+                  // Enable multi-language and ensure original audio is in the languages array
+                  let newData = {
+                    ...currentData,
+                    enableLanguageSwitch: true
+                  };
 
-                  // Check if we already have this audio in languages
-                  const hasOriginalInLanguages = existingLanguages.some(
-                    lang => lang.url === currentData.url || lang.localAudioUrl === currentData.localAudioUrl
-                  );
+                  // Ensure the original audio is in the languages array
+                  newData = ensureOriginalInLanguages(newData);
 
-                  if (!hasOriginalInLanguages) {
-                    const originalLanguage = {
-                      id: `lang-original-${Date.now()}`,
-                      label: 'Original',
-                      url: currentData.url || '',
-                      type: currentData.type,
-                      localAudioUrl: currentData.localAudioUrl,
-                      mediaId: currentData.mediaId,
-                      isDefault: true
-                    };
-
-                    // Set other languages as non-default
-                    const updatedLanguages = [originalLanguage, ...existingLanguages.map(lang => ({ ...lang, isDefault: false }))];
-
-                    const newData = {
-                      ...currentData,
-                      enableLanguageSwitch: true,
-                      languages: updatedLanguages
-                    };
-                    setCurrentData(newData);
-                    onChange(newData);
-                    return;
-                  }
+                  setCurrentData(newData);
+                  onChange(newData);
+                } else {
+                  handleChange('enableLanguageSwitch', false);
                 }
-
-                handleChange('enableLanguageSwitch', isEnabled);
               }}
               className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
             />
@@ -486,7 +526,59 @@ export default function AudioEmbedEditor({
                   Text shown after language options (optional)
                 </p>
               </div>
+
+              <div>
+                <label className="block text-gray-700 text-sm font-medium mb-2">
+                  Original Audio Language Label
+                </label>
+                <input
+                  type="text"
+                  value={currentData.originalLanguageLabel || ''}
+                  onChange={(e) => handleChange('originalLanguageLabel', e.target.value)}
+                  placeholder="e.g., English, Original, Default"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 placeholder-gray-500 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-sm"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Label for the original audio you embedded above. This will appear as the first language option.
+                </p>
+              </div>
             </div>
+
+            {/* Validation Warning */}
+            {(() => {
+              const existingLanguages = currentData.languages || [];
+              const hasOriginal = existingLanguages.some(
+                lang => (lang.url && lang.url === currentData.url) ||
+                        (lang.localAudioUrl && lang.localAudioUrl === currentData.localAudioUrl)
+              );
+
+              if (!hasOriginal && (currentData.url || currentData.localAudioUrl)) {
+                return (
+                  <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <div className="text-yellow-600 mt-0.5">⚠️</div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-yellow-900">Original audio not in language list</p>
+                        <p className="text-xs text-yellow-700 mt-1">
+                          Your original audio isn&apos;t included in the multi-language options. Users won&apos;t be able to switch back to it.
+                        </p>
+                        <button
+                          onClick={() => {
+                            const fixedData = ensureOriginalInLanguages(currentData);
+                            setCurrentData(fixedData);
+                            onChange(fixedData);
+                          }}
+                          className="mt-2 px-3 py-1.5 bg-yellow-600 hover:bg-yellow-700 text-white text-xs font-medium rounded transition-colors"
+                        >
+                          Add Original Audio to Languages
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+              return null;
+            })()}
 
             <LanguageAudioManager
               languages={currentData.languages || []}
@@ -495,6 +587,8 @@ export default function AudioEmbedEditor({
                 setCurrentData(newData);
                 onChange(newData);
               }}
+              originalAudioUrl={currentData.url}
+              originalLocalAudioUrl={currentData.localAudioUrl}
             />
           </>
         )}

@@ -18,14 +18,24 @@ interface LanguageAudioManagerProps {
   languages: AudioLanguage[];
   onChange: (languages: AudioLanguage[]) => void;
   className?: string;
+  originalAudioUrl?: string;
+  originalLocalAudioUrl?: string;
 }
 
 export default function LanguageAudioManager({
   languages = [],
   onChange,
-  className = ""
+  className = "",
+  originalAudioUrl = "",
+  originalLocalAudioUrl = ""
 }: LanguageAudioManagerProps) {
   const [expandedLanguage, setExpandedLanguage] = useState<string | null>(null);
+
+  // Helper to check if a language is the original audio
+  const isOriginalAudio = (language: AudioLanguage): boolean => {
+    return (language.url && language.url === originalAudioUrl) ||
+           (language.localAudioUrl && language.localAudioUrl === originalLocalAudioUrl);
+  };
 
   const detectAudioType = (url: string): 'spotify' | 'soundcloud' | 'apple-music' | 'other' => {
     if (url.includes('spotify.com')) return 'spotify';
@@ -62,6 +72,14 @@ export default function LanguageAudioManager({
   };
 
   const removeLanguage = (id: string) => {
+    const languageToRemove = languages.find(lang => lang.id === id);
+
+    // Prevent deletion of original audio
+    if (languageToRemove && isOriginalAudio(languageToRemove)) {
+      alert('Cannot delete the original audio. It must remain in the language list so users can switch back to it.');
+      return;
+    }
+
     const filtered = languages.filter(lang => lang.id !== id);
     // If we removed the default, make the first language default
     if (filtered.length > 0 && !filtered.some(lang => lang.isDefault)) {
@@ -111,10 +129,15 @@ export default function LanguageAudioManager({
                     onClick={() => setExpandedLanguage(expandedLanguage === language.id ? null : language.id)}
                     className="text-left flex-1"
                   >
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium text-gray-900">
                         {language.label || 'Unnamed Language'}
                       </span>
+                      {isOriginalAudio(language) && (
+                        <span className="inline-flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded font-medium">
+                          🎵 Original Audio
+                        </span>
+                      )}
                       {language.isDefault && (
                         <span className="inline-flex items-center gap-1 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
                           <Star className="w-3 h-3" />

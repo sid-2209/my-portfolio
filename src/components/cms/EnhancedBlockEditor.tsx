@@ -117,6 +117,7 @@ interface AudioEmbedData {
   languages?: AudioLanguage[];
   languageSwitchIntro?: string;
   languageSwitchOutro?: string;
+  originalLanguageLabel?: string;
 }
 
 interface CalloutData {
