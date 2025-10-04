@@ -29,7 +29,7 @@ interface ChartEditorProps {
   data?: ChartDataPoint[];
   config?: ChartConfig;
 
-  onChange: (framework: string | undefined, code: string | undefined, chartType?: string, data?: ChartDataPoint[], config?: ChartConfig) => void;
+  onChange: (framework: 'chartjs' | 'recharts' | 'd3' | 'svg' | 'mermaid' | 'custom' | undefined, code: string | undefined, chartType?: string, data?: ChartDataPoint[], config?: ChartConfig) => void;
   className?: string;
 }
 
