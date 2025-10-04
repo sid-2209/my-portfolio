@@ -85,7 +85,7 @@ export default function ChartEditor({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Detect framework from code
-  const detectFramework = (code: string): string | null => {
+  const detectFramework = (code: string): 'chartjs' | 'recharts' | 'd3' | 'svg' | 'mermaid' | 'custom' | null => {
     if (!code.trim()) return null;
 
     // Chart.js detection
@@ -152,7 +152,7 @@ export default function ChartEditor({
       const detected = detectFramework(code);
       setDetectedFramework(detected);
       if (detected && detected !== 'custom' && detected !== null) {
-        setFramework(detected as 'chartjs' | 'recharts' | 'd3' | 'svg' | 'mermaid');
+        setFramework(detected);
       }
     }
   }, [code, editorMode]);
