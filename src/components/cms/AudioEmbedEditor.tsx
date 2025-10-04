@@ -84,7 +84,7 @@ export default function AudioEmbedEditor({
 
   // Helper function to ensure original audio is always in languages array
   const ensureOriginalInLanguages = (audioData: AudioEmbedData): AudioEmbedData => {
-    if (!audioData.enableLanguageSwitch || !audioData.url && !audioData.localAudioUrl) {
+    if (!audioData.enableLanguageSwitch || (!audioData.url && !audioData.localAudioUrl)) {
       return audioData;
     }
 
