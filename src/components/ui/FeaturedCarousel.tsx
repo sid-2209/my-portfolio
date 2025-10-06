@@ -215,7 +215,7 @@ export default function FeaturedCarousel({ content, onContentClick }: FeaturedCa
                     <button
                       key={post.id}
                       onClick={() => handleThumbnailClick(post)}
-                      className="flex-shrink-0 w-40 lg:w-44 cursor-pointer transition-all duration-300 ease-out hover:scale-105"
+                      className="flex-shrink-0 w-60 lg:w-64 cursor-pointer transition-all duration-300 ease-out hover:scale-105"
                       aria-label={`View ${post.title}`}
                     >
                       {/* Gradient border container */}
@@ -233,7 +233,7 @@ export default function FeaturedCarousel({ content, onContentClick }: FeaturedCa
                               alt={post.title}
                               fill
                               className="object-cover transition-all duration-300"
-                              sizes="(max-width: 1024px) 160px, 176px"
+                              sizes="(max-width: 1024px) 240px, 256px"
                             />
                           ) : (
                             <div className="w-full h-full bg-gradient-to-br from-gray-800 via-gray-900 to-black flex items-center justify-center">
