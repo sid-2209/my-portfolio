@@ -5,8 +5,8 @@ export default function AboutPage() {
     <div className="w-full min-h-full pb-24">
       <div className="w-full max-w-full md:max-w-4xl lg:max-w-[45vw] mx-auto px-4 md:px-0 pt-12">
         <div className="space-y-8">
-          <div className="text-center space-y-6">
-            <div className="space-y-6 text-left max-w-3xl mx-auto">
+          <div className="space-y-6">
+            <div className="space-y-6 text-left">
               <p className="michroma text-base md:text-lg lg:text-xl text-white/80 leading-relaxed">
                 Welcome to my digital portfolio. I&apos;m a passionate developer and designer focused on creating
                 innovative solutions that bridge technology and user experience.

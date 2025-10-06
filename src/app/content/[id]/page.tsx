@@ -143,9 +143,9 @@ export default function ContentPage() {
 
       {/* Content Section */}
       <div id="content-start" className="w-full bg-black scroll-mt-20">
-        <div className="max-w-4xl mx-auto px-8 py-16">
+        <div className="max-w-4xl mx-auto px-8 py-16 overflow-visible">
           {/* Main Content Area - CMS Blocks */}
-          <div className="prose prose-invert max-w-none">
+          <div className="prose prose-invert max-w-none overflow-visible">
             {/* CMS Content Blocks */}
             {content.contentBlocks && content.contentBlocks.length > 0 ? (
               <BlockRenderer blocks={content.contentBlocks.map(block => ({

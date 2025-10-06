@@ -36,6 +36,9 @@ export default function Navbar() {
             <NavigationLink href="/about">
               About
             </NavigationLink>
+            <NavigationLink href="/collaborate">
+              Collaborate
+            </NavigationLink>
             <GlassmorphismButton
               onClick={() => setIsSearchOpen(true)}
               size="md"

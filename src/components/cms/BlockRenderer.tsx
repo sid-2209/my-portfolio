@@ -8,6 +8,8 @@ import { useState, useRef, useLayoutEffect } from 'react';
 import { ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
 import WaveformPlayer from '@/components/audio/WaveformPlayer';
 import InlineLanguageSwitcher from './InlineLanguageSwitcher';
+import BreakoutContainer from '@/components/ui/BreakoutContainer';
+import ChartErrorBoundary from './ChartErrorBoundary';
 import { BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 // Import the same interfaces used in BlockEditor for consistency
@@ -124,6 +126,7 @@ interface ChartData {
   framework?: 'chartjs' | 'recharts' | 'd3' | 'svg' | 'mermaid' | 'custom';
   code?: string;
   isInteractive?: boolean;
+  containerWidth?: 'text' | 'media' | 'full'; // Breakout container width
 
   // Legacy visual editor fields (backwards compatible)
   chartType?: 'bar' | 'line' | 'area' | 'pie' | 'radar';
@@ -455,9 +458,16 @@ function AudioBlockRenderer({ block, audioData }: { block: ContentBlock; audioDa
 // Mermaid Chart Renderer Component
 function MermaidRenderer({ code }: { code: string }) {
   const mermaidRef = useRef<HTMLDivElement>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const isRenderingRef = useRef(false);
 
   useLayoutEffect(() => {
-    if (!code || !mermaidRef.current) return;
+    if (!code || !mermaidRef.current || isRenderingRef.current) return;
+
+    isRenderingRef.current = true;
+    setIsLoading(true);
+    setError(null);
 
     const renderMermaidDiagram = async () => {
       try {
@@ -472,27 +482,56 @@ function MermaidRenderer({ code }: { code: string }) {
             lineColor: '#94a3b8',
             secondaryColor: '#1e293b',
             tertiaryColor: '#0f172a',
-          }
+          },
+          securityLevel: 'loose', // Allow more flexibility in diagrams
         });
 
-        const { svg } = await mermaid.render('mermaid-' + Math.random().toString(36).substr(2, 9), code);
+        // Generate unique ID for this render
+        const id = 'mermaid-' + Math.random().toString(36).substr(2, 9);
+
+        const { svg } = await mermaid.render(id, code);
+
         if (mermaidRef.current) {
           mermaidRef.current.innerHTML = svg;
+          setIsLoading(false);
         }
       } catch (error) {
         console.error('[MermaidRenderer] Rendering error:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        setError(errorMessage);
+        setIsLoading(false);
+
         if (mermaidRef.current) {
-          mermaidRef.current.innerHTML = `<div class="text-red-400">Error rendering diagram</div>`;
+          mermaidRef.current.innerHTML = `
+            <div class="text-red-400 text-center py-4">
+              <p class="mb-2">Error rendering Mermaid diagram</p>
+              <p class="text-sm text-red-300">${errorMessage}</p>
+            </div>
+          `;
         }
+      } finally {
+        isRenderingRef.current = false;
       }
     };
 
     renderMermaidDiagram();
+
+    return () => {
+      isRenderingRef.current = false;
+    };
   }, [code]);
 
   return (
     <div className="bg-white/5 border border-white/10 rounded-xl p-6">
-      <div ref={mermaidRef} className="flex justify-center items-center min-h-[300px]" />
+      {isLoading && !error && (
+        <div className="flex justify-center items-center min-h-[300px]">
+          <div className="text-white/60 text-sm">Rendering diagram...</div>
+        </div>
+      )}
+      <div
+        ref={mermaidRef}
+        className={`flex justify-center items-center min-h-[300px] ${isLoading ? 'hidden' : ''}`}
+      />
     </div>
   );
 }
@@ -500,54 +539,193 @@ function MermaidRenderer({ code }: { code: string }) {
 // D3 Chart Renderer Component
 function D3Renderer({ code }: { code: string }) {
   const d3Ref = useRef<HTMLDivElement>(null);
+  const isRenderingRef = useRef(false);
+  const cleanupFnRef = useRef<(() => void) | null>(null);
 
   useLayoutEffect(() => {
-    if (!code || !d3Ref.current) return;
+    if (!code || !d3Ref.current || isRenderingRef.current) return;
+
+    // Prevent concurrent renders
+    isRenderingRef.current = true;
 
     const executeD3Code = async () => {
       try {
         const d3 = await import('d3');
         const container = d3Ref.current;
-        if (!container) return;
+        if (!container) {
+          isRenderingRef.current = false;
+          return;
+        }
 
+        // Clean up previous render
+        if (cleanupFnRef.current) {
+          cleanupFnRef.current();
+          cleanupFnRef.current = null;
+        }
+
+        // Clear container
         container.innerHTML = '';
 
-        // Check if code contains HTML/SVG markup with script tags
-        const hasHTMLTags = /<[^>]+>/i.test(code);
-        const scriptRegex = /<script\b[^>]*>([\s\S]*?)<\/script>/gi;
-        const hasScriptTags = scriptRegex.test(code);
+        // Detect if this is a full HTML document
+        const isFullHTMLDoc = /<!doctype\s+html>/i.test(code) ||
+                              /<html[\s>]/i.test(code) ||
+                              /<body[\s>]/i.test(code);
 
-        if (hasHTMLTags && hasScriptTags) {
-          // Code contains HTML with embedded scripts
-          // Extract HTML (without script tags) and scripts separately
-          const htmlWithoutScripts = code.replace(scriptRegex, '');
+        let processedHTML = code;
+        let styles = '';
+
+        // Extract and process full HTML documents
+        if (isFullHTMLDoc) {
+          // Extract content from <body> tag
+          const bodyMatch = code.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+          if (bodyMatch) {
+            processedHTML = bodyMatch[1];
+          }
+
+          // Extract and scope <style> tags
+          const styleRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
+          let styleMatch;
+          const extractedStyles: string[] = [];
+
+          while ((styleMatch = styleRegex.exec(processedHTML)) !== null) {
+            extractedStyles.push(styleMatch[1]);
+          }
+
+          // Remove style tags from HTML
+          processedHTML = processedHTML.replace(styleRegex, '');
+
+          // Scope styles to container to prevent global contamination
+          if (extractedStyles.length > 0) {
+            styles = extractedStyles.map(styleContent => {
+              // Replace 'body' selectors with container class
+              return styleContent
+                .replace(/\bbody\s*\{/gi, '.d3-chart-container {')
+                .replace(/\bbody\s+/gi, '.d3-chart-container ')
+                // Scope all other selectors
+                .split('}')
+                .map(rule => {
+                  if (!rule.trim()) return '';
+                  const hasContainerClass = rule.includes('.d3-chart-container');
+                  if (hasContainerClass) return rule + '}';
+                  // Scope rule to container
+                  const parts = rule.split('{');
+                  if (parts.length === 2) {
+                    const selector = parts[0].trim();
+                    const declaration = parts[1];
+                    // Don't scope if already has container class or is a keyframe/media query
+                    if (selector.startsWith('@') || selector.includes('.d3-chart-container')) {
+                      return rule + '}';
+                    }
+                    return `.d3-chart-container ${selector} { ${declaration}}`;
+                  }
+                  return rule + '}';
+                })
+                .join('\n');
+            }).join('\n');
+          }
+        }
+
+        // Check if code contains script tags
+        const scriptRegex = /<script\b[^>]*>([\s\S]*?)<\/script>/gi;
+        const hasScriptTags = scriptRegex.test(processedHTML);
+
+        // Add scoped container class
+        container.classList.add('d3-chart-container');
+
+        if (hasScriptTags) {
+          // Extract scripts
           const scripts: string[] = [];
           let match;
 
-          // Reset regex lastIndex
           scriptRegex.lastIndex = 0;
-          while ((match = scriptRegex.exec(code)) !== null) {
+          while ((match = scriptRegex.exec(processedHTML)) !== null) {
             scripts.push(match[1]);
           }
 
-          // Render HTML first
-          container.innerHTML = htmlWithoutScripts;
+          // Remove script tags from HTML
+          const htmlWithoutScripts = processedHTML.replace(scriptRegex, '');
 
-          // Execute scripts after a short delay to ensure DOM is ready
-          setTimeout(() => {
+          // Inject scoped styles
+          if (styles) {
+            const styleEl = document.createElement('style');
+            styleEl.textContent = styles;
+            container.appendChild(styleEl);
+          }
+
+          // Render HTML
+          const contentDiv = document.createElement('div');
+          contentDiv.innerHTML = htmlWithoutScripts;
+          container.appendChild(contentDiv);
+
+          // Execute scripts with container context
+          requestAnimationFrame(() => {
             scripts.forEach((scriptContent) => {
               try {
+                // Replace document.querySelector/d3.select("body") calls with container-scoped versions
+                let scopedScript = scriptContent
+                  .replace(/d3\.select\s*\(\s*["']body["']\s*\)/gi, 'd3.select(container)')
+                  .replace(/document\.querySelector\s*\(\s*["']body["']\s*\)/gi, 'container')
+                  .replace(/document\.querySelectorAll\s*\(\s*["']body["']\s*\)/gi, '[container]');
+
+                // Add comprehensive event handling null checks
+
+                // Pattern 1: event.sourceEvent.target (without parentNode)
+                scopedScript = scopedScript.replace(
+                  /event\.sourceEvent\.target(?!\.)/g,
+                  '(event.sourceEvent?.target || event.target)'
+                );
+
+                // Pattern 2: event.sourceEvent.target.parentNode
+                scopedScript = scopedScript.replace(
+                  /event\.sourceEvent\.target\.parentNode/g,
+                  '(event.sourceEvent?.target?.parentNode || event.target?.parentNode)'
+                );
+
+                // Pattern 3: event.target.value (for input handlers)
+                scopedScript = scopedScript.replace(
+                  /event\.target\.value/g,
+                  '(event?.target?.value ?? (event.currentTarget?.value || "0"))'
+                );
+
+                // Pattern 4: Standalone event.target references
+                scopedScript = scopedScript.replace(
+                  /\bevent\.target\b(?!\.)/g,
+                  '(event?.target || event?.currentTarget)'
+                );
+
+                // Wrap entire script in try-catch for runtime errors
+                const wrappedScript = `
+                  try {
+                    ${scopedScript}
+                  } catch (err) {
+                    // Only log non-event-related errors
+                    if (err && !err.message?.includes('Cannot read properties of undefined')) {
+                      console.error('[D3 Script Error]:', err);
+                    }
+                  }
+                `;
+
                 // Create script function with container and d3 context
-                const scriptFunc = new Function('container', 'd3', 'document', scriptContent);
-                scriptFunc(container, d3, document);
+                const scriptFunc = new Function('container', 'd3', 'document', 'window', wrappedScript);
+                scriptFunc(container, d3, document, window);
               } catch (error) {
                 console.error('[D3Renderer] Script execution error:', error);
               }
             });
-          }, 0);
-        } else if (hasHTMLTags) {
+            isRenderingRef.current = false;
+          });
+        } else if (/<[^>]+>/i.test(processedHTML)) {
           // Pure HTML/SVG without scripts
-          container.innerHTML = code;
+          if (styles) {
+            const styleEl = document.createElement('style');
+            styleEl.textContent = styles;
+            container.appendChild(styleEl);
+          }
+
+          const contentDiv = document.createElement('div');
+          contentDiv.innerHTML = processedHTML;
+          container.appendChild(contentDiv);
+          isRenderingRef.current = false;
         } else {
           // Pure JavaScript code
           const codeWithContext = `
@@ -558,21 +736,51 @@ function D3Renderer({ code }: { code: string }) {
 
           const d3Function = new Function(codeWithContext);
           d3Function(container, d3);
+          isRenderingRef.current = false;
         }
+
+        // Store cleanup function
+        cleanupFnRef.current = () => {
+          // Remove all D3 selections and event listeners
+          if (container) {
+            const selection = d3.select(container);
+            selection.selectAll('*').remove();
+            selection.on('.', null); // Remove all event listeners
+            container.classList.remove('d3-chart-container');
+          }
+        };
       } catch (error) {
         console.error('[D3Renderer] Execution error:', error);
         if (d3Ref.current) {
-          d3Ref.current.innerHTML = `<div class="text-red-400">Error executing D3 code</div>`;
+          d3Ref.current.innerHTML = `<div class="text-red-400 text-center py-4">
+            <p class="mb-2">Error rendering D3 chart</p>
+            <p class="text-sm text-red-300">Check console for details</p>
+          </div>`;
         }
+        isRenderingRef.current = false;
       }
     };
 
     executeD3Code();
+
+    // Cleanup function
+    return () => {
+      isRenderingRef.current = false;
+      if (cleanupFnRef.current) {
+        cleanupFnRef.current();
+        cleanupFnRef.current = null;
+      }
+    };
   }, [code]);
 
   return (
-    <div className="bg-white/5 border border-white/10 rounded-xl p-6">
-      <div ref={d3Ref} className="flex justify-center items-center min-h-[300px]" id="chart" />
+    <div className="bg-white/5 border border-white/10 rounded-xl p-6 overflow-hidden">
+      <div
+        ref={d3Ref}
+        className="flex justify-center items-center min-h-[300px] max-w-full overflow-x-auto"
+        id="chart"
+        style={{ position: 'relative' }}
+      />
     </div>
   );
 }
@@ -581,21 +789,32 @@ function D3Renderer({ code }: { code: string }) {
 function ChartJSRenderer({ code }: { code: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const chartInstanceRef = useRef<unknown>(null);
+  const isRenderingRef = useRef(false);
 
   useLayoutEffect(() => {
-    if (!code || !canvasRef.current) return;
+    if (!code || !canvasRef.current || isRenderingRef.current) return;
+
+    // Prevent concurrent renders
+    isRenderingRef.current = true;
 
     const executeChartJS = async () => {
       try {
         const ChartJS = (await import('chart.js/auto')).default;
 
-        // Destroy previous chart instance
+        // Destroy previous chart instance and wait for it to complete
         if (chartInstanceRef.current && typeof chartInstanceRef.current === 'object' && 'destroy' in chartInstanceRef.current) {
           (chartInstanceRef.current as { destroy: () => void }).destroy();
+          chartInstanceRef.current = null;
+
+          // Wait for next frame to ensure destroy is complete
+          await new Promise(resolve => requestAnimationFrame(resolve));
         }
 
         const ctx = canvasRef.current?.getContext('2d');
-        if (!ctx) return;
+        if (!ctx) {
+          isRenderingRef.current = false;
+          return;
+        }
 
         const codeWithContext = `
           const ctx = arguments[0];
@@ -609,16 +828,31 @@ function ChartJSRenderer({ code }: { code: string }) {
         if (chartInstance) {
           chartInstanceRef.current = chartInstance;
         }
+
+        isRenderingRef.current = false;
       } catch (error) {
         console.error('[ChartJSRenderer] Execution error:', error);
+        isRenderingRef.current = false;
+
+        // Show error message on canvas
+        const ctx = canvasRef.current?.getContext('2d');
+        if (ctx && canvasRef.current) {
+          ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+          ctx.fillStyle = '#f87171';
+          ctx.font = '14px Arial';
+          ctx.textAlign = 'center';
+          ctx.fillText('Error rendering Chart.js chart', canvasRef.current.width / 2, canvasRef.current.height / 2);
+        }
       }
     };
 
     executeChartJS();
 
     return () => {
+      isRenderingRef.current = false;
       if (chartInstanceRef.current && typeof chartInstanceRef.current === 'object' && 'destroy' in chartInstanceRef.current) {
         (chartInstanceRef.current as { destroy: () => void }).destroy();
+        chartInstanceRef.current = null;
       }
     };
   }, [code]);
@@ -725,13 +959,20 @@ function ChartBlock({ chartData }: { chartData: ChartData }) {
     );
   };
 
+  // Get container width (default to 'media' for charts)
+  const containerWidth = chartData.containerWidth || 'media';
+
   // Main renderer - detect framework and render accordingly
   if (framework === 'svg' && chartData.code) {
     return (
       <div className="my-8">
-        <div className="bg-white/5 border border-white/10 rounded-xl p-6">
-          <div dangerouslySetInnerHTML={{ __html: chartData.code }} />
-        </div>
+        <BreakoutContainer width={containerWidth}>
+          <ChartErrorBoundary framework="SVG">
+            <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+              <div dangerouslySetInnerHTML={{ __html: chartData.code }} />
+            </div>
+          </ChartErrorBoundary>
+        </BreakoutContainer>
       </div>
     );
   }
@@ -739,7 +980,11 @@ function ChartBlock({ chartData }: { chartData: ChartData }) {
   if (framework === 'mermaid' && chartData.code) {
     return (
       <div className="my-8">
-        <MermaidRenderer code={chartData.code} />
+        <BreakoutContainer width={containerWidth}>
+          <ChartErrorBoundary framework="Mermaid">
+            <MermaidRenderer code={chartData.code} />
+          </ChartErrorBoundary>
+        </BreakoutContainer>
       </div>
     );
   }
@@ -747,7 +992,11 @@ function ChartBlock({ chartData }: { chartData: ChartData }) {
   if (framework === 'd3' && chartData.code) {
     return (
       <div className="my-8">
-        <D3Renderer code={chartData.code} />
+        <BreakoutContainer width={containerWidth}>
+          <ChartErrorBoundary framework="D3.js">
+            <D3Renderer code={chartData.code} />
+          </ChartErrorBoundary>
+        </BreakoutContainer>
       </div>
     );
   }
@@ -755,7 +1004,11 @@ function ChartBlock({ chartData }: { chartData: ChartData }) {
   if (framework === 'chartjs' && chartData.code) {
     return (
       <div className="my-8">
-        <ChartJSRenderer code={chartData.code} />
+        <BreakoutContainer width={containerWidth}>
+          <ChartErrorBoundary framework="Chart.js">
+            <ChartJSRenderer code={chartData.code} />
+          </ChartErrorBoundary>
+        </BreakoutContainer>
       </div>
     );
   }
@@ -763,12 +1016,14 @@ function ChartBlock({ chartData }: { chartData: ChartData }) {
   if (framework === 'recharts' && chartData.code) {
     return (
       <div className="my-8">
-        <div className="bg-white/5 border border-white/10 rounded-xl p-6">
-          <div className="text-yellow-400 text-center p-4">
-            <p className="mb-2">⚠️ Recharts JSX code detected</p>
-            <p className="text-sm text-white/60">Recharts code needs to be rendered as React components. Please use the visual editor or convert to another format.</p>
+        <BreakoutContainer width={containerWidth}>
+          <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+            <div className="text-yellow-400 text-center p-4">
+              <p className="mb-2">⚠️ Recharts JSX code detected</p>
+              <p className="text-sm text-white/60">Recharts code needs to be rendered as React components. Please use the visual editor or convert to another format.</p>
+            </div>
           </div>
-        </div>
+        </BreakoutContainer>
       </div>
     );
   }
@@ -776,9 +1031,13 @@ function ChartBlock({ chartData }: { chartData: ChartData }) {
   if (framework === 'custom') {
     return (
       <div className="my-8">
-        <div className="bg-white/5 border border-white/10 rounded-xl p-6">
-          <div className="text-white/60 text-center">Custom chart code - framework not detected</div>
-        </div>
+        <BreakoutContainer width={containerWidth}>
+          <ChartErrorBoundary framework="Custom">
+            <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+              <div className="text-white/60 text-center">Custom chart code - framework not detected</div>
+            </div>
+          </ChartErrorBoundary>
+        </BreakoutContainer>
       </div>
     );
   }
@@ -786,7 +1045,11 @@ function ChartBlock({ chartData }: { chartData: ChartData }) {
   // Default: Recharts visual editor
   return (
     <div className="my-8">
-      {renderRechartsVisual()}
+      <BreakoutContainer width={containerWidth}>
+        <ChartErrorBoundary framework="Recharts">
+          {renderRechartsVisual()}
+        </ChartErrorBoundary>
+      </BreakoutContainer>
     </div>
   );
 }
@@ -927,44 +1190,49 @@ export default function BlockRenderer({ blocks }: BlockRendererProps) {
         const borderRadius = imageData.borderRadius || 0;
         const shadow = imageData.shadow || false;
 
+        // Determine breakout width based on alignment
+        const imageBreakoutWidth = alignment === 'full' ? 'full' : 'media';
+
         return (
           <div key={block.id} className="my-8">
-            {imageData.src ? (
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: alignment === 'left' ? 'flex-start' : alignment === 'right' ? 'flex-end' : alignment === 'full' ? 'stretch' : 'center',
-                  width: '100%'
-                }}
-              >
-                <div style={{ width: alignment === 'full' ? '100%' : `${width}%` }}>
-                  <img
-                    src={imageData.src}
-                    alt={imageData.alt || ''}
-                    className="w-full h-auto"
-                    style={{
-                      borderRadius: `${borderRadius}px`,
-                      boxShadow: shadow ? '0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2)' : 'none'
-                    }}
-                  />
-                  {imageData.caption && (
-                    <p
-                      className="text-white/60 text-sm mt-3 italic"
+            <BreakoutContainer width={imageBreakoutWidth}>
+              {imageData.src ? (
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: alignment === 'left' ? 'flex-start' : alignment === 'right' ? 'flex-end' : alignment === 'full' ? 'stretch' : 'center',
+                    width: '100%'
+                  }}
+                >
+                  <div style={{ width: alignment === 'full' ? '100%' : `${width}%` }}>
+                    <img
+                      src={imageData.src}
+                      alt={imageData.alt || ''}
+                      className="w-full h-auto"
                       style={{
-                        textAlign: alignment === 'left' ? 'left' : alignment === 'right' ? 'right' : 'center'
+                        borderRadius: `${borderRadius}px`,
+                        boxShadow: shadow ? '0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2)' : 'none'
                       }}
-                    >
-                      {imageData.caption}
-                    </p>
-                  )}
+                    />
+                    {imageData.caption && (
+                      <p
+                        className="text-white/60 text-sm mt-3 italic"
+                        style={{
+                          textAlign: alignment === 'left' ? 'left' : alignment === 'right' ? 'right' : 'center'
+                        }}
+                      >
+                        {imageData.caption}
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className="p-8 bg-white/10 border border-white/30 rounded-2xl text-center">
-                <div className="text-white/60 text-sm mb-2 font-medium">[Image Placeholder]</div>
-                <div className="text-white/80 text-lg">{imageData.alt || 'No image'}</div>
-              </div>
-            )}
+              ) : (
+                <div className="p-8 bg-white/10 border border-white/30 rounded-2xl text-center">
+                  <div className="text-white/60 text-sm mb-2 font-medium">[Image Placeholder]</div>
+                  <div className="text-white/80 text-lg">{imageData.alt || 'No image'}</div>
+                </div>
+              )}
+            </BreakoutContainer>
           </div>
         );
 
@@ -1014,17 +1282,21 @@ export default function BlockRenderer({ blocks }: BlockRendererProps) {
         const videoBorderRadius = videoData.borderRadius || 0;
         const videoShadow = videoData.shadow || false;
 
+        // Determine breakout width based on alignment
+        const videoBreakoutWidth = videoAlignment === 'full' ? 'full' : 'media';
+
         return (
           <div key={block.id} className="my-8">
-            {(embedUrl || videoSource) ? (
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: videoAlignment === 'left' ? 'flex-start' : videoAlignment === 'right' ? 'flex-end' : videoAlignment === 'full' ? 'stretch' : 'center',
-                  width: '100%'
-                }}
-              >
-                <div style={{ width: videoAlignment === 'full' ? '100%' : `${videoWidth}%` }}>
+            <BreakoutContainer width={videoBreakoutWidth}>
+              {(embedUrl || videoSource) ? (
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: videoAlignment === 'left' ? 'flex-start' : videoAlignment === 'right' ? 'flex-end' : videoAlignment === 'full' ? 'stretch' : 'center',
+                    width: '100%'
+                  }}
+                >
+                  <div style={{ width: videoAlignment === 'full' ? '100%' : `${videoWidth}%` }}>
                   {isLocalVideo && videoSource ? (
                     isGif ? (
                       // Render GIF using img tag
@@ -1095,6 +1367,7 @@ export default function BlockRenderer({ blocks }: BlockRendererProps) {
                 <div className="text-white/80 text-lg">No video URL provided</div>
               </div>
             )}
+            </BreakoutContainer>
           </div>
         );
 

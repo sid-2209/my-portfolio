@@ -148,6 +148,7 @@ interface ChartData {
   framework?: 'chartjs' | 'recharts' | 'd3' | 'svg' | 'mermaid' | 'custom';
   code?: string;
   isInteractive?: boolean;
+  containerWidth?: 'text' | 'media' | 'full'; // Breakout container width
 
   // Legacy visual editor fields (backwards compatible)
   chartType?: 'bar' | 'line' | 'area' | 'pie' | 'radar';
@@ -520,7 +521,8 @@ export default function EnhancedBlockEditor({
               chartType={chartData.chartType}
               data={chartData.data}
               config={chartData.config}
-              onChange={(framework, code, chartType, data, config) => {
+              containerWidth={chartData.containerWidth}
+              onChange={(framework, code, chartType, data, config, containerWidth) => {
                 // Build new data object, only including defined values
                 const newData: ChartData = {};
 
@@ -541,6 +543,9 @@ export default function EnhancedBlockEditor({
                 }
                 if (config !== null && config !== undefined) {
                   newData.config = config;
+                }
+                if (containerWidth !== null && containerWidth !== undefined) {
+                  newData.containerWidth = containerWidth;
                 }
 
                 setEditData(newData);

@@ -17,6 +17,7 @@ export interface Content {
   contentType: 'project' | 'case_study' | 'blog';
   category?: string | null;
   featured?: boolean;
+  featuredOrder?: number | null;
   posterImage?: string | null;
   imageUrl?: string | null;
   contentUrl?: string | null;
@@ -137,7 +138,7 @@ export async function searchContent(query: string): Promise<Content[]> {
   }
 }
 
-export async function getFeaturedContent(page: number = 1, limit: number = 4): Promise<{
+export async function getFeaturedContent(page: number = 1, limit: number = 5): Promise<{
   content: Content[];
   totalCount: number;
   totalPages: number;
@@ -147,26 +148,56 @@ export async function getFeaturedContent(page: number = 1, limit: number = 4): P
 }> {
   try {
     const skip = (page - 1) * limit;
-    
+
     // Get total count of featured content
     const totalCount = await prisma.content.count({
       where: { featured: true },
     });
-    
-    // Get featured content with pagination
-    const content = await prisma.content.findMany({
-      where: { featured: true },
-      orderBy: { publishedDate: 'desc' },
-      skip,
-      take: limit,
-    });
-    
+
+    // Try to use featuredOrder if it exists, otherwise fall back to publishedDate
+    let content: Content[] = [];
+
+    try {
+      // Fetch posts with explicit order first, then posts without order
+      // This ensures NULLs come last
+      const orderedContent = await prisma.content.findMany({
+        where: {
+          featured: true,
+          featuredOrder: { not: null }
+        },
+        orderBy: { featuredOrder: 'asc' },
+      });
+
+      const unorderedContent = await prisma.content.findMany({
+        where: {
+          featured: true,
+          featuredOrder: null
+        },
+        orderBy: { publishedDate: 'desc' },
+      });
+
+      // Combine: ordered posts first, then unordered posts
+      const allContent = [...orderedContent, ...unorderedContent];
+
+      // Apply pagination
+      content = allContent.slice(skip, skip + limit) as Content[];
+    } catch (columnError) {
+      // If featuredOrder column doesn't exist yet, fall back to simple query
+      console.warn('featuredOrder column not found, using publishedDate ordering:', columnError);
+      content = await prisma.content.findMany({
+        where: { featured: true },
+        orderBy: { publishedDate: 'desc' },
+        skip,
+        take: limit,
+      }) as Content[];
+    }
+
     const totalPages = Math.ceil(totalCount / limit);
     const hasNext = page < totalPages;
     const hasPrevious = page > 1;
-    
+
     return {
-      content: content as Content[],
+      content,
       totalCount,
       totalPages,
       currentPage: page,
@@ -182,6 +213,28 @@ export async function getFeaturedContent(page: number = 1, limit: number = 4): P
       currentPage: page,
       hasNext: false,
       hasPrevious: false,
+    };
+  }
+}
+
+export async function updateFeaturedOrder(orderedIds: string[]): Promise<{ success: boolean; error?: string }> {
+  try {
+    await prisma.$transaction(async (tx) => {
+      // Update featuredOrder for each content item
+      for (let i = 0; i < orderedIds.length; i++) {
+        await tx.content.update({
+          where: { id: orderedIds[i] },
+          data: { featuredOrder: i + 1 } // 1-indexed order
+        });
+      }
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating featured order:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to update featured order'
     };
   }
 }

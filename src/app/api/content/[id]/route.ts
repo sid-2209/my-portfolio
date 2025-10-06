@@ -86,22 +86,20 @@ export async function PATCH(
       }
     }
 
-    // Handle featured content validation
+    // Handle featured content validation (5-post carousel limit)
     if (body.featured !== undefined && body.featured === true) {
-      // Check if there's already a featured content item
-      const currentFeatured = await getCurrentFeaturedContent();
+      // Check if we're already at the 5-post limit
+      const currentFeaturedCount = await prisma.content.count({
+        where: {
+          featured: true,
+          id: { not: id } // Exclude current item if it's already featured
+        }
+      });
 
-      if (currentFeatured && currentFeatured.id !== id) {
-        // There's already a different featured content
+      if (currentFeaturedCount >= 5) {
         return NextResponse.json({
-          error: 'A featured content already exists',
-          requiresConfirmation: true,
-          currentFeatured: {
-            id: currentFeatured.id,
-            title: currentFeatured.title,
-            description: currentFeatured.description,
-            contentType: currentFeatured.contentType
-          }
+          error: 'Maximum 5 featured posts allowed. Please unfeature another post first.',
+          code: 'FEATURED_LIMIT_REACHED'
         }, { status: 409 });
       }
     }
@@ -117,6 +115,7 @@ export async function PATCH(
 
     const updateData: {
       featured?: boolean;
+      featuredOrder?: number | null;
       title?: string;
       description?: string | null;
       status?: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
@@ -131,6 +130,7 @@ export async function PATCH(
     } = {};
 
     if (body.featured !== undefined) updateData.featured = body.featured;
+    if (body.featuredOrder !== undefined) updateData.featuredOrder = body.featuredOrder;
     if (body.title) updateData.title = body.title;
     if (body.description !== undefined) updateData.description = body.description || null;
     if (body.status) updateData.status = body.status as 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';

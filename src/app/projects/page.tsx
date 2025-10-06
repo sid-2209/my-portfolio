@@ -57,11 +57,11 @@ export default function ProjectsPage() {
 
         {/* Projects List */}
         {projects.length > 0 ? (
-          <div className="space-y-8">
+          <div className="space-y-16">
             {projects.map((project) => (
               <article
                 key={project.id}
-                className="group cursor-pointer focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-transparent rounded-lg transition-all duration-300 p-6 text-center"
+                className="group cursor-pointer focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-transparent rounded-lg transition-all duration-300 text-left"
                 role="article"
                 aria-label={`Project: ${project.title}`}
                 tabIndex={0}
@@ -74,19 +74,19 @@ export default function ProjectsPage() {
                 }}
               >
                 {/* Project Content */}
-                <div className="space-y-6">
-                  <h2 className="michroma text-3xl md:text-4xl lg:text-5xl font-semibold text-white transition-all duration-300 ease-out group-hover:underline decoration-2 underline-offset-4">
+                <div className="space-y-4">
+                  <h2 className="michroma text-xl md:text-2xl lg:text-3xl xl:text-4xl font-bold text-white transition-all duration-300 ease-out group-hover:underline decoration-2 underline-offset-4">
                     {project.title}
                   </h2>
 
-                  <p className="michroma text-base md:text-lg lg:text-xl text-white/80 leading-relaxed max-w-3xl mx-auto">
+                  <p className="michroma text-sm md:text-base lg:text-lg text-white/90 leading-relaxed">
                     {project.description && project.description.length > 150
                       ? project.description.substring(0, 150).substring(0, project.description.substring(0, 150).lastIndexOf(' ')) + '...'
                       : project.description || ''
                     }
                   </p>
 
-                  <div className="michroma text-sm md:text-base text-white/60 flex flex-wrap items-center justify-center gap-2">
+                  <div className="michroma text-xs md:text-sm text-white/70 flex flex-wrap items-center gap-2">
                     <span className="font-medium">Project</span>
                     <span aria-hidden="true" className="text-white/40">•</span>
                     <time

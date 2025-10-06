@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import FeaturedSection from "../components/ui/FeaturedSection";
+import FeaturedCarousel from "../components/ui/FeaturedCarousel";
 import MinimalistDivider from "../components/ui/MinimalistDivider";
 import ContentSection from "../components/ui/ContentSection";
 
@@ -18,7 +18,7 @@ interface ContentItem {
 }
 
 export default function Home() {
-  const [featuredContent, setFeaturedContent] = useState<ContentItem | null>(null);
+  const [featuredContent, setFeaturedContent] = useState<ContentItem[]>([]);
   const [projectsContent, setProjectsContent] = useState<ContentItem[]>([]);
   const [caseStudiesContent, setCaseStudiesContent] = useState<ContentItem[]>([]);
   const [notesContent, setNotesContent] = useState<ContentItem[]>([]);
@@ -29,7 +29,7 @@ export default function Home() {
     notes: true
   });
 
-  const fetchSectionContent = useCallback(async (featuredId: string | null) => {
+  const fetchSectionContent = useCallback(async (featuredIds: string[]) => {
     const sections = [
       { type: 'project', setter: setProjectsContent, key: 'projects' },
       { type: 'case_study', setter: setCaseStudiesContent, key: 'caseStudies' },
@@ -43,8 +43,8 @@ export default function Home() {
           limit: '3'
         });
 
-        if (featuredId) {
-          params.append('exclude', featuredId);
+        if (featuredIds.length > 0) {
+          params.append('exclude', featuredIds.join(','));
         }
 
         const response = await fetch(`/api/content?${params}`);
@@ -70,27 +70,25 @@ export default function Home() {
   const fetchFeaturedContent = useCallback(async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/content/featured?page=1&limit=1', {
+      const response = await fetch('/api/content/featured?page=1&limit=5', {
         cache: 'no-store'
       });
       if (!response.ok) {
         throw new Error('Failed to fetch featured content');
       }
       const data = await response.json();
-      const featured = data.content[0] || null;
+      const featured = data.content || [];
       setFeaturedContent(featured);
 
       // After featured content is loaded, fetch section content
-      if (featured) {
-        await fetchSectionContent(featured.id);
-      } else {
-        await fetchSectionContent(null);
-      }
+      // Exclude all featured content IDs from section content
+      const featuredIds = featured.map((item: ContentItem) => item.id);
+      await fetchSectionContent(featuredIds);
     } catch (error) {
       console.error('Error fetching featured content:', error);
-      setFeaturedContent(null);
+      setFeaturedContent([]);
       // Still try to fetch section content even if featured fails
-      await fetchSectionContent(null);
+      await fetchSectionContent([]);
     } finally {
       setIsLoading(false);
     }
@@ -114,9 +112,9 @@ export default function Home() {
 
   return (
     <div className="w-full h-full">
-      {featuredContent ? (
+      {featuredContent.length > 0 ? (
         <>
-          <FeaturedSection
+          <FeaturedCarousel
             content={featuredContent}
             onContentClick={handleContentClick}
           />

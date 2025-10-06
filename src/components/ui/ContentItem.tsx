@@ -66,7 +66,7 @@ export default function ContentItem({
 
   return (
     <article
-      className="flex gap-8 p-6 cursor-pointer focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-transparent rounded-lg transition-all duration-300 group"
+      className="flex gap-8 cursor-pointer focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-transparent rounded-lg transition-all duration-300 group"
       role="article"
       aria-label={`${contentTypeLabel}: ${title}`}
       tabIndex={0}

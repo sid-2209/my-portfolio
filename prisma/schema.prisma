@@ -21,6 +21,7 @@ model Content {
   updatedAt     DateTime @updatedAt
   category      String?
   featured      Boolean  @default(false)
+  featuredOrder Int?     // null = not featured, 1 = main display, 2-5 = carousel thumbnails
   imageUrl      String?
 
   // New CMS fields
@@ -34,6 +35,7 @@ model Content {
   @@index([publishedDate])
   @@index([tags])
   @@index([featured])
+  @@index([featuredOrder])
   @@index([category])
   @@index([status])
   @@index([slug])

@@ -1,24 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-  DragStartEvent,
-  DragOverlay,
-} from "@dnd-kit/core";
-import {
-  arrayMove,
   SortableContext,
-  sortableKeyboardCoordinates,
   rectSortingStrategy,
+  useSortable,
 } from "@dnd-kit/sortable";
-import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { ContentCard } from "../data-display";
 
@@ -74,6 +60,8 @@ interface SortableContentGridProps {
   onRemove: (item: Content) => void;
   isUpdating: boolean;
   searchQuery: string;
+  sectionId?: 'featured' | 'all';
+  hideInstructions?: boolean;
 }
 
 // Sortable Content Card Component
@@ -101,7 +89,12 @@ function SortableContentCard(props: SortableContentCardProps) {
     transform,
     transition,
     isDragging: isSortableDragging,
-  } = useSortable({ id: props.content.id });
+  } = useSortable({
+    id: props.content.id,
+    data: {
+      content: props.content
+    }
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -165,44 +158,10 @@ export default function SortableContentGrid({
   onOpenBlocks,
   onRemove,
   isUpdating,
-  searchQuery
+  searchQuery,
+  sectionId,
+  hideInstructions = false
 }: SortableContentGridProps) {
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [draggedContent, setDraggedContent] = useState<Content | null>(null);
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
-
-  const handleDragStart = (event: DragStartEvent) => {
-    const { active } = event;
-    setActiveId(active.id as string);
-
-    const draggedItem = content.find(item => item.id === active.id);
-    setDraggedContent(draggedItem || null);
-  };
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-
-    if (active.id !== over?.id) {
-      const oldIndex = content.findIndex((item) => item.id === active.id);
-      const newIndex = content.findIndex((item) => item.id === over?.id);
-
-      const reorderedContent = arrayMove(content, oldIndex, newIndex);
-      onContentReorder(reorderedContent);
-    }
-
-    setActiveId(null);
-    setDraggedContent(null);
-  };
 
   if (content.length === 0) {
     return (
@@ -221,71 +180,42 @@ export default function SortableContentGrid({
   return (
     <div className="space-y-6">
       {/* Instructions */}
-      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-        <div className="flex items-start gap-3">
-          <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <div className="text-sm text-blue-800">
-            <p className="font-medium mb-1">Drag & Drop Content Organization</p>
-            <p>Hover over any content card and use the drag handle (≡) in the top-right corner to reorder your content. Changes are saved automatically.</p>
+      {!hideInstructions && (
+        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-start gap-3">
+            <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div className="text-sm text-blue-800">
+              <p className="font-medium mb-1">Drag & Drop Content Organization</p>
+              <p>Hover over any content card and use the drag handle (≡) in the top-right corner to reorder your content. Drag between Featured and All Content sections to feature/unfeature posts. Changes are saved automatically.</p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Sortable Content Grid */}
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-      >
-        <SortableContext items={content.map(item => item.id)} strategy={rectSortingStrategy}>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {content.map((item) => (
-              <SortableContentCard
-                key={item.id}
-                content={item}
-                isEditing={editingId === item.id}
-                editForm={editForm}
-                onEditFormChange={onEditFormChange}
-                onStartEditing={() => onStartEditing(item)}
-                onSaveEdit={onSaveEdit}
-                onCancelEdit={onCancelEdit}
-                onToggleFeatured={() => onToggleFeatured(item.id, item.featured)}
-                onOpenBlocks={() => onOpenBlocks(item.id)}
-                onRemove={() => onRemove(item)}
-                isUpdating={isUpdating}
-                searchQuery={searchQuery}
-                isDragging={item.id === activeId}
-              />
-            ))}
-          </div>
-        </SortableContext>
-
-        {/* Drag Overlay */}
-        <DragOverlay>
-          {activeId && draggedContent ? (
-            <div className="opacity-90 transform rotate-2 shadow-2xl">
-              <SortableContentCard
-                content={draggedContent}
-                isEditing={false}
-                editForm={editForm}
-                onEditFormChange={() => {}}
-                onStartEditing={() => {}}
-                onSaveEdit={() => {}}
-                onCancelEdit={() => {}}
-                onToggleFeatured={() => {}}
-                onOpenBlocks={() => {}}
-                onRemove={() => {}}
-                isUpdating={false}
-                searchQuery=""
-                isDragging={true}
-              />
-            </div>
-          ) : null}
-        </DragOverlay>
-      </DndContext>
+      <SortableContext items={content.map(item => item.id)} strategy={rectSortingStrategy}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {content.map((item) => (
+            <SortableContentCard
+              key={item.id}
+              content={item}
+              isEditing={editingId === item.id}
+              editForm={editForm}
+              onEditFormChange={onEditFormChange}
+              onStartEditing={() => onStartEditing(item)}
+              onSaveEdit={onSaveEdit}
+              onCancelEdit={onCancelEdit}
+              onToggleFeatured={() => onToggleFeatured(item.id, item.featured)}
+              onOpenBlocks={() => onOpenBlocks(item.id)}
+              onRemove={() => onRemove(item)}
+              isUpdating={isUpdating}
+              searchQuery={searchQuery}
+            />
+          ))}
+        </div>
+      </SortableContext>
     </div>
   );
 }

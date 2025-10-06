@@ -26,9 +26,17 @@ export async function GET(request: NextRequest) {
     }
 
     if (exclude) {
-      where.id = {
-        not: exclude
-      };
+      // Support comma-separated list of IDs to exclude
+      const excludeIds = exclude.split(',').map(id => id.trim()).filter(Boolean);
+      if (excludeIds.length === 1) {
+        where.id = {
+          not: excludeIds[0]
+        };
+      } else if (excludeIds.length > 1) {
+        where.id = {
+          notIn: excludeIds
+        };
+      }
     }
 
     const content = await prisma.content.findMany({

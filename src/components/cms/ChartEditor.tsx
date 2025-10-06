@@ -23,13 +23,14 @@ interface ChartEditorProps {
   // New universal chart fields
   framework?: 'chartjs' | 'recharts' | 'd3' | 'svg' | 'mermaid' | 'custom';
   code?: string;
+  containerWidth?: 'text' | 'media' | 'full';
 
   // Legacy visual editor fields (backwards compatible)
   chartType?: 'bar' | 'line' | 'area' | 'pie' | 'radar';
   data?: ChartDataPoint[];
   config?: ChartConfig;
 
-  onChange: (framework: 'chartjs' | 'recharts' | 'd3' | 'svg' | 'mermaid' | 'custom' | undefined, code: string | undefined, chartType?: 'bar' | 'line' | 'area' | 'pie' | 'radar', data?: ChartDataPoint[], config?: ChartConfig) => void;
+  onChange: (framework: 'chartjs' | 'recharts' | 'd3' | 'svg' | 'mermaid' | 'custom' | undefined, code: string | undefined, chartType?: 'bar' | 'line' | 'area' | 'pie' | 'radar', data?: ChartDataPoint[], config?: ChartConfig, containerWidth?: 'text' | 'media' | 'full') => void;
   className?: string;
 }
 
@@ -48,6 +49,7 @@ export default function ChartEditor({
   chartType: propChartType,
   data: propData,
   config: propConfig,
+  containerWidth: propContainerWidth,
   onChange,
   className = ""
 }: ChartEditorProps) {
@@ -75,6 +77,7 @@ export default function ChartEditor({
   // Code editor state
   const [code, setCode] = useState(propCode || '');
   const [framework, setFramework] = useState(propFramework || 'recharts');
+  const [containerWidth, setContainerWidth] = useState<'text' | 'media' | 'full'>(propContainerWidth || 'media');
   const [detectedFramework, setDetectedFramework] = useState<string | null>(null);
   const [isTyping, setIsTyping] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -88,31 +91,58 @@ export default function ChartEditor({
   const detectFramework = (code: string): 'chartjs' | 'recharts' | 'd3' | 'svg' | 'mermaid' | 'custom' | null => {
     if (!code.trim()) return null;
 
-    // Chart.js detection
-    if (/new\s+Chart\(|Chart\.register|chartjs|chart\.js/i.test(code)) {
+    const lowerCode = code.toLowerCase();
+
+    // Chart.js detection - more comprehensive patterns
+    if (
+      /new\s+Chart\(/.test(code) ||
+      /Chart\.register/.test(code) ||
+      /chartjs|chart\.js/.test(lowerCode) ||
+      /Chart\.defaults/.test(code) ||
+      /(bar|line|pie|doughnut|radar|polarArea)Chart/i.test(code) ||
+      /getContext\s*\(\s*['"]2d['"]\s*\)/.test(code) // canvas 2d context often used with Chart.js
+    ) {
       return 'chartjs';
     }
 
-    // Recharts detection
-    if (/<(BarChart|LineChart|AreaChart|PieChart|RadarChart|ScatterChart)[\s\S]*?>/i.test(code)) {
+    // Recharts detection - JSX components
+    if (
+      /<(BarChart|LineChart|AreaChart|PieChart|RadarChart|ScatterChart|ComposedChart|Treemap|Funnel)[\s\S]*?>/i.test(code) ||
+      /<(ResponsiveContainer|CartesianGrid|XAxis|YAxis|Tooltip|Legend)[\s\S]*?>/i.test(code) ||
+      /recharts/i.test(lowerCode)
+    ) {
       return 'recharts';
     }
 
-    // D3.js detection
-    if (/d3\.(select|scale|svg|axis|brush|zoom)/i.test(code)) {
+    // D3.js detection - more patterns
+    if (
+      /d3\.(select|selectAll|scale|svg|axis|brush|zoom|drag|force|layout|geo|time|format|transition|ease)/i.test(code) ||
+      /import.*d3/i.test(code) ||
+      /from\s+['"]d3['"]/i.test(code) ||
+      /d3-/.test(lowerCode) // d3 modules like d3-scale, d3-array, etc.
+    ) {
       return 'd3';
     }
 
-    // Mermaid detection
-    if (/(graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|journey)/i.test(code)) {
+    // Mermaid detection - diagram types
+    if (
+      /^(graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|journey|gitGraph|mindmap|timeline|quadrantChart|requirement|c4)\s/im.test(code) ||
+      /mermaid/i.test(lowerCode) ||
+      /```mermaid/i.test(code)
+    ) {
       return 'mermaid';
     }
 
-    // SVG detection (must be last as it's most generic)
-    if (/<svg[\s\S]*?<\/svg>|<svg[\s\S]*?\/>/i.test(code)) {
+    // SVG detection (must be after D3 as D3 often generates SVG)
+    if (
+      /<svg[\s\S]*?<\/svg>/i.test(code) ||
+      /<svg[\s\S]*?\/>/i.test(code) ||
+      (/xmlns\s*=\s*['"]http:\/\/www\.w3\.org\/2000\/svg['"]/.test(code) && !(/d3\./i.test(code)))
+    ) {
       return 'svg';
     }
 
+    // If nothing matches, it's custom code
     return 'custom';
   };
 
@@ -127,9 +157,9 @@ export default function ChartEditor({
         showLegend,
         showGrid,
         animations
-      });
+      }, containerWidth);
     }
-  }, [editorMode, chartType, dataPoints, title, xAxisLabel, yAxisLabel, colors, showLegend, showGrid, animations]);
+  }, [editorMode, chartType, dataPoints, title, xAxisLabel, yAxisLabel, colors, showLegend, showGrid, animations, containerWidth]);
 
   // Sync JSON input with dataPoints
   useEffect(() => {
@@ -169,7 +199,7 @@ export default function ChartEditor({
     // Debounce the onChange call
     timeoutRef.current = setTimeout(() => {
       const detected = detectFramework(newCode);
-      onChange(detected || framework, newCode);
+      onChange(detected || framework, newCode, undefined, undefined, undefined, containerWidth);
       setIsTyping(false);
     }, 300);
   };
@@ -564,25 +594,41 @@ svg.selectAll("rect")
           <>
             {/* Header with View Mode Toggle */}
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <label className="text-sm font-semibold text-gray-950">Framework:</label>
-                <select
-                  value={framework}
-                  onChange={(e) => setFramework(e.target.value as 'chartjs' | 'recharts' | 'd3' | 'svg' | 'mermaid' | 'custom')}
-                  className="px-3 py-1.5 text-sm text-gray-900 font-medium border-2 border-gray-400 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="recharts">Recharts</option>
-                  <option value="chartjs">Chart.js</option>
-                  <option value="d3">D3.js</option>
-                  <option value="svg">SVG</option>
-                  <option value="mermaid">Mermaid</option>
-                  <option value="custom">Custom</option>
-                </select>
-                {detectedFramework && detectedFramework !== framework && (
-                  <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-700 rounded border border-yellow-300">
-                    Detected: {detectedFramework}
-                  </span>
-                )}
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-semibold text-gray-950">Framework:</label>
+                  <select
+                    value={framework}
+                    onChange={(e) => setFramework(e.target.value as 'chartjs' | 'recharts' | 'd3' | 'svg' | 'mermaid' | 'custom')}
+                    className="px-3 py-1.5 text-sm text-gray-900 font-medium border-2 border-gray-400 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="recharts">Recharts</option>
+                    <option value="chartjs">Chart.js</option>
+                    <option value="d3">D3.js</option>
+                    <option value="svg">SVG</option>
+                    <option value="mermaid">Mermaid</option>
+                    <option value="custom">Custom</option>
+                  </select>
+                  {detectedFramework && detectedFramework !== framework && (
+                    <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-700 rounded border border-yellow-300">
+                      Detected: {detectedFramework}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-semibold text-gray-950">Width:</label>
+                  <select
+                    value={containerWidth}
+                    onChange={(e) => setContainerWidth(e.target.value as 'text' | 'media' | 'full')}
+                    className="px-3 py-1.5 text-sm text-gray-900 font-medium border-2 border-gray-400 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    title="Chart container width on the page"
+                  >
+                    <option value="text">Text Width (45%)</option>
+                    <option value="media">Media Width (70%)</option>
+                    <option value="full">Full Width (100%)</option>
+                  </select>
+                </div>
               </div>
 
               {/* View Mode Toggle */}

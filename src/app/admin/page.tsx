@@ -1,6 +1,19 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
+import {
+  DndContext,
+  DragOverlay,
+  DragStartEvent,
+  DragEndEvent,
+  DragOverEvent,
+  closestCenter,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import DragDropBlockBuilder from "../../components/cms/DragDropBlockBuilder";
 import EnhancedContentEditor from "../../components/cms/EnhancedContentEditor";
 import EnhancedContentAnalytics from "../../components/cms/EnhancedContentAnalytics";
@@ -8,6 +21,7 @@ import LivePreviewPanel from "../../components/cms/LivePreviewPanel";
 import RevisionHistoryPanel from "../../components/cms/RevisionHistoryPanel";
 import TemplateManager from "../../components/cms/TemplateManager";
 import SortableContentGrid from "../../components/cms/SortableContentGrid";
+import DroppableSection from "../../components/cms/DroppableSection";
 import { useLivePreview } from "../../hooks/useLivePreview";
 import { useRevisionHistory } from "../../hooks/useRevisionHistory";
 import { BlockType } from "@prisma/client";
@@ -16,6 +30,7 @@ import { LoadingSpinner } from "../../components/feedback";
 import { SearchAndFilterBar } from "../../components/navigation";
 import ConfirmFeaturedReplaceModal from "../../components/modals/ConfirmFeaturedReplaceModal";
 import ConfirmDeleteModal from "../../components/modals/ConfirmDeleteModal";
+import FeaturedLimitModal from "../../components/modals/FeaturedLimitModal";
 
 // Import the same interfaces used in BlockEditor for consistency
 interface ParagraphData {
@@ -175,6 +190,22 @@ export default function AdminPage() {
   const [filterFeatured, setFilterFeatured] = useState('');
   const [filterDateRange, setFilterDateRange] = useState('');
   const [sortBy, setSortBy] = useState('newest');
+
+  // Drag and Drop State
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [showFeaturedLimitModal, setShowFeaturedLimitModal] = useState(false);
+
+  // Drag sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   // Live Preview System
   const currentContent = useMemo(() =>
@@ -369,7 +400,7 @@ export default function AdminPage() {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ featured: false }),
+          body: JSON.stringify({ featured: false, featuredOrder: null }),
         });
 
         if (!response.ok) {
@@ -378,21 +409,33 @@ export default function AdminPage() {
 
         setContent(prev => prev.map(item =>
           item.id === contentId
-            ? { ...item, featured: false }
+            ? { ...item, featured: false, featuredOrder: null }
             : item
         ));
         setIsUpdating(false);
         return;
       }
 
+      // Check 5-post limit before featuring
+      const currentFeaturedCount = content.filter(item => item.featured).length;
+      if (currentFeaturedCount >= 5) {
+        alert('Maximum 5 featured posts allowed. Please unfeature another post first.');
+        setIsUpdating(false);
+        return;
+      }
+
       // If featuring, check for conflicts
       console.log('⭐ Attempting to feature content:', contentId);
+
+      // Calculate next featuredOrder (append to end)
+      const nextOrder = currentFeaturedCount + 1;
+
       const response = await fetch(`/api/content/${contentId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ featured: true }),
+        body: JSON.stringify({ featured: true, featuredOrder: nextOrder }),
       });
 
       console.log('📡 Response status:', response.status);
@@ -446,7 +489,7 @@ export default function AdminPage() {
       // Success: update the content
       setContent(prev => prev.map(item =>
         item.id === contentId
-          ? { ...item, featured: true }
+          ? { ...item, featured: true, featuredOrder: nextOrder }
           : item
       ));
       setIsUpdating(false);
@@ -564,6 +607,185 @@ export default function AdminPage() {
     setContent(reorderedContent);
     // Optionally, you could save the new order to the backend here
     // For now, we'll just update the local state
+  };
+
+  // Drag and Drop Handlers
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over) {
+      setActiveId(null);
+      return;
+    }
+
+    const activeId = active.id as string;
+    const overId = over.id as string;
+
+    // Get the dragged item
+    const draggedItem = content.find(item => item.id === activeId);
+    if (!draggedItem) {
+      setActiveId(null);
+      return;
+    }
+
+    // Check if dropped on a section
+    if (overId === 'featured' || overId === 'all') {
+      const targetIsFeatured = overId === 'featured';
+
+      // If already in the target section, do nothing
+      if (draggedItem.featured === targetIsFeatured) {
+        setActiveId(null);
+        return;
+      }
+
+      // If unfeaturing, just proceed
+      if (!targetIsFeatured) {
+        try {
+          setIsUpdating(true);
+
+          const response = await fetch(`/api/content/${activeId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              featured: false,
+              featuredOrder: null
+            }),
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            console.error('PATCH error response:', response.status, errorData);
+            throw new Error(errorData.error || 'Failed to unfeature content');
+          }
+
+          // Update local state
+          setContent(prev => prev.map(item =>
+            item.id === activeId
+              ? { ...item, featured: false, featuredOrder: null }
+              : item
+          ));
+        } catch (error) {
+          console.error('Error unfeaturing content:', error);
+          alert(`Error: ${error instanceof Error ? error.message : 'Failed to unfeature content'}`);
+        } finally {
+          setIsUpdating(false);
+          setActiveId(null);
+        }
+        return;
+      }
+
+      // If trying to feature, check the 5-post limit
+      const currentFeaturedCount = content.filter(item => item.featured).length;
+      if (currentFeaturedCount >= 5) {
+        setShowFeaturedLimitModal(true);
+        setActiveId(null);
+        return;
+      }
+
+      // Feature the item
+      try {
+        setIsUpdating(true);
+
+        const nextOrder = currentFeaturedCount + 1;
+
+        const response = await fetch(`/api/content/${activeId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            featured: true,
+            featuredOrder: nextOrder
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          console.error('PATCH error response:', response.status, errorData);
+
+          // Show limit modal if we hit the limit
+          if (errorData.code === 'FEATURED_LIMIT_REACHED') {
+            setShowFeaturedLimitModal(true);
+          } else {
+            alert(errorData.error || 'Failed to feature content');
+          }
+
+          setIsUpdating(false);
+          setActiveId(null);
+          return;
+        }
+
+        // Update local state
+        setContent(prev => prev.map(item =>
+          item.id === activeId
+            ? { ...item, featured: true, featuredOrder: nextOrder }
+            : item
+        ));
+      } catch (error) {
+        console.error('Error featuring content:', error);
+        alert(`Error: ${error instanceof Error ? error.message : 'Failed to feature content'}`);
+      } finally {
+        setIsUpdating(false);
+        setActiveId(null);
+      }
+      return;
+    }
+
+    // Handle reordering within the same section
+    const activeItem = content.find(item => item.id === activeId);
+    const overItem = content.find(item => item.id === overId);
+
+    if (activeItem && overItem && activeItem.featured === overItem.featured) {
+      // Reorder within the same section
+      const sectionItems = content.filter(item => item.featured === activeItem.featured);
+      const activeIndex = sectionItems.findIndex(item => item.id === activeId);
+      const overIndex = sectionItems.findIndex(item => item.id === overId);
+
+      if (activeIndex !== overIndex) {
+        const reorderedSection = arrayMove(sectionItems, activeIndex, overIndex);
+
+        // If it's featured section, update featuredOrder
+        if (activeItem.featured) {
+          try {
+            setIsUpdating(true);
+
+            // Update featuredOrder for all reordered items
+            const orderedIds = reorderedSection.map(item => item.id);
+            const response = await fetch('/api/content/featured/reorder', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ orderedIds }),
+            });
+
+            if (!response.ok) {
+              throw new Error('Failed to update order');
+            }
+
+            // Update local state with new order
+            setContent(prev => prev.map(item => {
+              const newIndex = orderedIds.indexOf(item.id);
+              if (newIndex !== -1) {
+                return { ...item, featuredOrder: newIndex + 1 };
+              }
+              return item;
+            }));
+          } catch (error) {
+            console.error('Error updating order:', error);
+            alert('Failed to update order');
+          } finally {
+            setIsUpdating(false);
+          }
+        } else {
+          // For non-featured section, just update local state
+          const otherItems = content.filter(item => item.featured !== activeItem.featured);
+          setContent([...reorderedSection, ...otherItems]);
+        }
+      }
+    }
+
+    setActiveId(null);
   };
 
 
@@ -1139,89 +1361,147 @@ export default function AdminPage() {
 
               {/* Content Overview */}
               {!selectedContentId && (
-                <div className="space-y-8">
-                  {/* Featured Content Section */}
-                  <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-200">
-                    <div className="flex items-center justify-between mb-8">
-                      <div className="flex items-center gap-3">
-                        <div className="w-1 h-8 bg-gray-800 rounded-full"></div>
-                        <h2 className="text-2xl font-bold text-gray-900">Featured Content</h2>
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
+                >
+                  <div className="space-y-8">
+                    {/* Drag Instructions */}
+                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex items-start gap-3">
+                        <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <div className="text-sm text-blue-800">
+                          <p className="font-medium mb-1">Cross-Section Drag & Drop</p>
+                          <p>Drag posts between Featured and All Content sections to feature/unfeature them. Drag within the Featured section to reorder carousel posts. Maximum 5 featured posts allowed.</p>
+                        </div>
                       </div>
-                      <span className="text-sm text-gray-500 font-medium">
-                        {filteredContent.filter((item) => item.featured).length} posts
-                      </span>
                     </div>
-                    <SortableContentGrid
-                      content={filteredContent.filter((item) => item.featured)}
-                      onContentReorder={handleContentReorder}
-                      editingId={editingId}
-                      editForm={editForm}
-                      onEditFormChange={(field, value) => setEditForm(prev => ({ ...prev, [field]: value }))}
-                      onStartEditing={startEditing}
-                      onSaveEdit={saveEdit}
-                      onCancelEdit={() => setEditingId(null)}
-                      onToggleFeatured={(id, currentFeatured) => !isUpdating && toggleFeatured(id, currentFeatured)}
-                      onOpenBlocks={(id) => setSelectedContentId(id)}
-                      onRemove={handleRemoveContent}
-                      isUpdating={isUpdating}
-                      searchQuery={searchQuery}
-                    />
-                    {filteredContent.filter((item) => item.featured).length === 0 && (
-                      <EmptyState
-                        title="No Featured Content Yet"
-                        description="Start by creating content and marking it as featured to showcase your best work."
-                        icon={
-                          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                          </svg>
-                        }
-                        actionText="+ Create Content"
-                        onAction={() => setShowAddForm(true)}
-                      />
-                    )}
+
+                    {/* Featured Content Section */}
+                    <DroppableSection
+                      id="featured"
+                      title="Featured Content"
+                      count={`${filteredContent.filter((item) => item.featured).length}/5 posts`}
+                      maxCount={5}
+                      currentCount={filteredContent.filter((item) => item.featured).length}
+                      className="bg-white"
+                    >
+                      {filteredContent.filter((item) => item.featured).length > 0 ? (
+                        <SortableContentGrid
+                          content={filteredContent.filter((item) => item.featured)}
+                          onContentReorder={handleContentReorder}
+                          editingId={editingId}
+                          editForm={editForm}
+                          onEditFormChange={(field, value) => setEditForm(prev => ({ ...prev, [field]: value }))}
+                          onStartEditing={startEditing}
+                          onSaveEdit={saveEdit}
+                          onCancelEdit={() => setEditingId(null)}
+                          onToggleFeatured={(id, currentFeatured) => !isUpdating && toggleFeatured(id, currentFeatured)}
+                          onOpenBlocks={(id) => setSelectedContentId(id)}
+                          onRemove={handleRemoveContent}
+                          isUpdating={isUpdating}
+                          searchQuery={searchQuery}
+                          sectionId="featured"
+                          hideInstructions={true}
+                        />
+                      ) : (
+                        <EmptyState
+                          title="No Featured Content Yet"
+                          description="Drag posts here from All Content section to feature them (max 5)."
+                          icon={
+                            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                            </svg>
+                          }
+                          actionText="+ Create Content"
+                          onAction={() => setShowAddForm(true)}
+                        />
+                      )}
+                    </DroppableSection>
+
+                    {/* Non-Featured Content Section */}
+                    <DroppableSection
+                      id="all"
+                      title="All Content"
+                      count={`${filteredContent.filter((item) => !item.featured).length} posts`}
+                      currentCount={filteredContent.filter((item) => !item.featured).length}
+                      className="bg-white"
+                    >
+                      {filteredContent.filter((item) => !item.featured).length > 0 ? (
+                        <SortableContentGrid
+                          content={filteredContent.filter((item) => !item.featured)}
+                          onContentReorder={handleContentReorder}
+                          editingId={editingId}
+                          editForm={editForm}
+                          onEditFormChange={(field, value) => setEditForm(prev => ({ ...prev, [field]: value }))}
+                          onStartEditing={startEditing}
+                          onSaveEdit={saveEdit}
+                          onCancelEdit={() => setEditingId(null)}
+                          onToggleFeatured={(id, currentFeatured) => !isUpdating && toggleFeatured(id, currentFeatured)}
+                          onOpenBlocks={(id) => setSelectedContentId(id)}
+                          onRemove={handleRemoveContent}
+                          isUpdating={isUpdating}
+                          searchQuery={searchQuery}
+                          sectionId="all"
+                          hideInstructions={true}
+                        />
+                      ) : (
+                        <EmptyState
+                          title="No Content Yet"
+                          description="Create your first piece of content to get started with your portfolio."
+                          icon={
+                            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                          }
+                          actionText="+ Create Content"
+                          onAction={() => setShowAddForm(true)}
+                        />
+                      )}
+                    </DroppableSection>
                   </div>
 
-                  {/* Non-Featured Content Section */}
-                  <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-200">
-                    <div className="flex items-center justify-between mb-8">
-                      <div className="flex items-center gap-3">
-                        <div className="w-1 h-8 bg-gray-800 rounded-full"></div>
-                        <h2 className="text-2xl font-bold text-gray-900">All Content</h2>
+                  {/* Drag Overlay */}
+                  <DragOverlay>
+                    {activeId ? (
+                      <div className="opacity-90 transform rotate-2 shadow-2xl">
+                        {(() => {
+                          const draggedItem = content.find(item => item.id === activeId);
+                          if (!draggedItem) return null;
+                          return (
+                            <ContentCard
+                              content={{
+                                id: draggedItem.id,
+                                title: draggedItem.title,
+                                description: draggedItem.description,
+                                contentType: draggedItem.contentType,
+                                status: draggedItem.status,
+                                featured: draggedItem.featured,
+                                publishedDate: draggedItem.publishedDate,
+                                createdAt: draggedItem.createdAt
+                              }}
+                              isEditing={false}
+                              editForm={editForm}
+                              onEditFormChange={() => {}}
+                              onStartEditing={() => {}}
+                              onSaveEdit={() => {}}
+                              onCancelEdit={() => {}}
+                              onToggleFeatured={() => {}}
+                              onOpenBlocks={() => {}}
+                              onRemove={() => {}}
+                              isUpdating={false}
+                              searchQuery=""
+                            />
+                          );
+                        })()}
                       </div>
-                      <span className="text-sm text-gray-500 font-medium">
-                        {filteredContent.filter((item) => !item.featured).length} posts
-                      </span>
-                    </div>
-                    <SortableContentGrid
-                      content={filteredContent.filter((item) => !item.featured)}
-                      onContentReorder={handleContentReorder}
-                      editingId={editingId}
-                      editForm={editForm}
-                      onEditFormChange={(field, value) => setEditForm(prev => ({ ...prev, [field]: value }))}
-                      onStartEditing={startEditing}
-                      onSaveEdit={saveEdit}
-                      onCancelEdit={() => setEditingId(null)}
-                      onToggleFeatured={(id, currentFeatured) => !isUpdating && toggleFeatured(id, currentFeatured)}
-                      onOpenBlocks={(id) => setSelectedContentId(id)}
-                      onRemove={handleRemoveContent}
-                      isUpdating={isUpdating}
-                      searchQuery={searchQuery}
-                    />
-                    {filteredContent.filter((item) => !item.featured).length === 0 && (
-                      <EmptyState
-                        title="No Content Yet"
-                        description="Create your first piece of content to get started with your portfolio."
-                        icon={
-                          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                          </svg>
-                        }
-                        actionText="+ Create Content"
-                        onAction={() => setShowAddForm(true)}
-                      />
-                    )}
-                  </div>
-                </div>
+                    ) : null}
+                  </DragOverlay>
+                </DndContext>
               )}
             </>
               )}
@@ -1248,6 +1528,12 @@ export default function AdminPage() {
         onConfirm={handleDeleteConfirm}
         content={deleteModalData}
         isLoading={isDeleting}
+      />
+
+      {/* Featured Limit Modal */}
+      <FeaturedLimitModal
+        isOpen={showFeaturedLimitModal}
+        onClose={() => setShowFeaturedLimitModal(false)}
       />
 
       {/* Revision History Panel */}
