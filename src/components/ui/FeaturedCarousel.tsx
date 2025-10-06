@@ -168,7 +168,7 @@ export default function FeaturedCarousel({ content, onContentClick }: FeaturedCa
                         src={activePost.imageUrl}
                         alt={activePost.title}
                         fill
-                        className="object-cover transition-opacity duration-300"
+                        className="object-cover transition-all duration-300 grayscale group-hover:grayscale-0"
                         priority
                         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 45vw"
                       />
@@ -215,7 +215,7 @@ export default function FeaturedCarousel({ content, onContentClick }: FeaturedCa
                     <button
                       key={post.id}
                       onClick={() => handleThumbnailClick(post)}
-                      className="flex-shrink-0 w-60 lg:w-64 cursor-pointer transition-all duration-300 ease-out hover:scale-105"
+                      className="flex-shrink-0 w-60 lg:w-64 cursor-pointer transition-all duration-300 ease-out"
                       aria-label={`View ${post.title}`}
                     >
                       {/* Gradient border container */}
@@ -232,7 +232,7 @@ export default function FeaturedCarousel({ content, onContentClick }: FeaturedCa
                               src={post.imageUrl}
                               alt={post.title}
                               fill
-                              className="object-cover transition-all duration-300"
+                              className="object-cover transition-all duration-300 grayscale hover:grayscale-0"
                               sizes="(max-width: 1024px) 240px, 256px"
                             />
                           ) : (
