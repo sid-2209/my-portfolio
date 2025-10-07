@@ -13,6 +13,7 @@ import { createPortal } from 'react-dom';
 import type WaveSurfer from 'wavesurfer.js';
 import { useEmbedAPIs } from '@/hooks/useEmbedAPIs';
 import BreakoutContainer from '@/components/ui/BreakoutContainer';
+import GlassmorphismContainer from '@/components/ui/GlassmorphismContainer';
 import ChartErrorBoundary from './ChartErrorBoundary';
 import { BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
@@ -748,7 +749,7 @@ function MermaidRenderer({ code }: { code: string }) {
   }, [code]);
 
   return (
-    <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+    <div className="backdrop-blur-[12px] bg-gradient-to-b from-white/[0.12] via-white/[0.06] via-white/[0.03] via-white/[0.06] to-white/[0.12] border border-white/[0.15] rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.6),0_2px_8px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.2),inset_0_-1px_0_rgba(0,0,0,0.4),0_0_25px_rgba(255,255,255,0.02),0_0_50px_rgba(255,255,255,0.01)] p-6">
       {isLoading && !error && (
         <div className="flex justify-center items-center min-h-[300px]">
           <div className="text-white/60 text-sm">Rendering diagram...</div>
@@ -1000,7 +1001,7 @@ function D3Renderer({ code }: { code: string }) {
   }, [code]);
 
   return (
-    <div className="bg-white/5 border border-white/10 rounded-xl p-6 overflow-hidden">
+    <div className="backdrop-blur-[12px] bg-gradient-to-b from-white/[0.12] via-white/[0.06] via-white/[0.03] via-white/[0.06] to-white/[0.12] border border-white/[0.15] rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.6),0_2px_8px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.2),inset_0_-1px_0_rgba(0,0,0,0.4),0_0_25px_rgba(255,255,255,0.02),0_0_50px_rgba(255,255,255,0.01)] p-6 overflow-hidden">
       <div
         ref={d3Ref}
         className="flex justify-center items-center min-h-[300px] max-w-full overflow-x-auto"
@@ -1084,7 +1085,7 @@ function ChartJSRenderer({ code }: { code: string }) {
   }, [code]);
 
   return (
-    <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+    <div className="backdrop-blur-[12px] bg-gradient-to-b from-white/[0.12] via-white/[0.06] via-white/[0.03] via-white/[0.06] to-white/[0.12] border border-white/[0.15] rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.6),0_2px_8px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.2),inset_0_-1px_0_rgba(0,0,0,0.4),0_0_25px_rgba(255,255,255,0.02),0_0_50px_rgba(255,255,255,0.01)] p-6">
       <div className="flex justify-center items-center">
         <canvas ref={canvasRef} style={{ maxWidth: '100%', maxHeight: '400px' }} />
       </div>
@@ -1105,6 +1106,11 @@ function ChartBlock({ chartData }: { chartData: ChartData }) {
     const commonProps = {
       data: data || [],
       margin: { top: 20, right: 30, left: 20, bottom: 20 }
+    };
+
+    // Make chart backgrounds transparent to show glassmorphism
+    const chartStyle = {
+      background: 'transparent'
     };
 
     const renderChart = () => {
@@ -1174,11 +1180,11 @@ function ChartBlock({ chartData }: { chartData: ChartData }) {
     };
 
     return (
-      <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+      <div className="backdrop-blur-[12px] bg-gradient-to-b from-white/[0.12] via-white/[0.06] via-white/[0.03] via-white/[0.06] to-white/[0.12] border border-white/[0.15] rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.6),0_2px_8px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.2),inset_0_-1px_0_rgba(0,0,0,0.4),0_0_25px_rgba(255,255,255,0.02),0_0_50px_rgba(255,255,255,0.01)] p-6">
         {config?.title && (
           <h3 className="text-xl font-semibold text-white mb-4 text-center">{config.title}</h3>
         )}
-        <ResponsiveContainer width="100%" height={400}>
+        <ResponsiveContainer width="100%" height={400} style={chartStyle}>
           {renderChart()}
         </ResponsiveContainer>
       </div>
@@ -1194,7 +1200,7 @@ function ChartBlock({ chartData }: { chartData: ChartData }) {
       <div className="my-8">
         <BreakoutContainer width={containerWidth}>
           <ChartErrorBoundary framework="SVG">
-            <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+            <div className="backdrop-blur-[12px] bg-gradient-to-b from-white/[0.12] via-white/[0.06] via-white/[0.03] via-white/[0.06] to-white/[0.12] border border-white/[0.15] rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.6),0_2px_8px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.2),inset_0_-1px_0_rgba(0,0,0,0.4),0_0_25px_rgba(255,255,255,0.02),0_0_50px_rgba(255,255,255,0.01)] p-6">
               <div dangerouslySetInnerHTML={{ __html: chartData.code }} />
             </div>
           </ChartErrorBoundary>
@@ -1243,7 +1249,7 @@ function ChartBlock({ chartData }: { chartData: ChartData }) {
     return (
       <div className="my-8">
         <BreakoutContainer width={containerWidth}>
-          <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+          <div className="backdrop-blur-[12px] bg-gradient-to-b from-white/[0.12] via-white/[0.06] via-white/[0.03] via-white/[0.06] to-white/[0.12] border border-white/[0.15] rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.6),0_2px_8px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.2),inset_0_-1px_0_rgba(0,0,0,0.4),0_0_25px_rgba(255,255,255,0.02),0_0_50px_rgba(255,255,255,0.01)] p-6">
             <div className="text-yellow-400 text-center p-4">
               <p className="mb-2">⚠️ Recharts JSX code detected</p>
               <p className="text-sm text-white/60">Recharts code needs to be rendered as React components. Please use the visual editor or convert to another format.</p>
@@ -1259,7 +1265,7 @@ function ChartBlock({ chartData }: { chartData: ChartData }) {
       <div className="my-8">
         <BreakoutContainer width={containerWidth}>
           <ChartErrorBoundary framework="Custom">
-            <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+            <div className="backdrop-blur-[12px] bg-gradient-to-b from-white/[0.12] via-white/[0.06] via-white/[0.03] via-white/[0.06] to-white/[0.12] border border-white/[0.15] rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.6),0_2px_8px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.2),inset_0_-1px_0_rgba(0,0,0,0.4),0_0_25px_rgba(255,255,255,0.02),0_0_50px_rgba(255,255,255,0.01)] p-6">
               <div className="text-white/60 text-center">Custom chart code - framework not detected</div>
             </div>
           </ChartErrorBoundary>

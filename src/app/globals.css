@@ -15,8 +15,12 @@
   --font-michroma: 'Michroma', serif;
   --homepage-bg-image: url('/images/pixeliota-nLbMbYVmeD0-unsplash (1).svg');
 
-  /* Washi paper texture - SVG noise pattern */
-  --washi-texture: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.5'/%3E%3C/svg%3E");
+  /* Visible washi paper grain texture - simplified approach with higher opacity */
+  --washi-grain:
+    repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255, 255, 255, 0.03) 2px, rgba(255, 255, 255, 0.03) 3px),
+    repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(0, 0, 0, 0.04) 2px, rgba(0, 0, 0, 0.04) 3px),
+    repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(255, 255, 255, 0.02) 3px, rgba(255, 255, 255, 0.02) 4px),
+    repeating-linear-gradient(-45deg, transparent, transparent 3px, rgba(0, 0, 0, 0.025) 3px, rgba(0, 0, 0, 0.025) 4px);
 }
 
 @theme inline {
@@ -68,10 +72,9 @@ body.homepage::after {
   width: 100%;
   height: 100%;
   background-color: rgba(0, 0, 0, 0.33);
-  background-image: var(--washi-texture);
-  background-size: 300px 300px;
-  background-repeat: repeat;
-  background-blend-mode: multiply;
+  background-image: var(--washi-grain);
+  background-size: 4px 4px, 4px 4px, 5px 5px, 5px 5px;
+  background-blend-mode: soft-light;
   z-index: 15;
   pointer-events: none;
 }
@@ -102,10 +105,9 @@ body.projects-page::after {
   width: 100%;
   height: 100%;
   background-color: rgba(0, 0, 0, 0.33);
-  background-image: var(--washi-texture);
-  background-size: 300px 300px;
-  background-repeat: repeat;
-  background-blend-mode: multiply;
+  background-image: var(--washi-grain);
+  background-size: 4px 4px, 4px 4px, 5px 5px, 5px 5px;
+  background-blend-mode: soft-light;
   z-index: 15;
   pointer-events: none;
 }
@@ -136,10 +138,9 @@ body.case-studies-page::after {
   width: 100%;
   height: 100%;
   background-color: rgba(0, 0, 0, 0.33);
-  background-image: var(--washi-texture);
-  background-size: 300px 300px;
-  background-repeat: repeat;
-  background-blend-mode: multiply;
+  background-image: var(--washi-grain);
+  background-size: 4px 4px, 4px 4px, 5px 5px, 5px 5px;
+  background-blend-mode: soft-light;
   z-index: 15;
   pointer-events: none;
 }
@@ -170,10 +171,9 @@ body.notes-page::after {
   width: 100%;
   height: 100%;
   background-color: rgba(0, 0, 0, 0.33);
-  background-image: var(--washi-texture);
-  background-size: 300px 300px;
-  background-repeat: repeat;
-  background-blend-mode: multiply;
+  background-image: var(--washi-grain);
+  background-size: 4px 4px, 4px 4px, 5px 5px, 5px 5px;
+  background-blend-mode: soft-light;
   z-index: 15;
   pointer-events: none;
 }
@@ -204,10 +204,9 @@ body.about-page::after {
   width: 100%;
   height: 100%;
   background-color: rgba(0, 0, 0, 0.33);
-  background-image: var(--washi-texture);
-  background-size: 300px 300px;
-  background-repeat: repeat;
-  background-blend-mode: multiply;
+  background-image: var(--washi-grain);
+  background-size: 4px 4px, 4px 4px, 5px 5px, 5px 5px;
+  background-blend-mode: soft-light;
   z-index: 15;
   pointer-events: none;
 }
@@ -238,10 +237,9 @@ body.collaborate-page::after {
   width: 100%;
   height: 100%;
   background-color: rgba(0, 0, 0, 0.33);
-  background-image: var(--washi-texture);
-  background-size: 300px 300px;
-  background-repeat: repeat;
-  background-blend-mode: multiply;
+  background-image: var(--washi-grain);
+  background-size: 4px 4px, 4px 4px, 5px 5px, 5px 5px;
+  background-blend-mode: soft-light;
   z-index: 15;
   pointer-events: none;
 }
@@ -272,10 +270,9 @@ body.content-page::after {
   width: 100%;
   height: 100%;
   background-color: rgba(0, 0, 0, 0.33);
-  background-image: var(--washi-texture);
-  background-size: 300px 300px;
-  background-repeat: repeat;
-  background-blend-mode: multiply;
+  background-image: var(--washi-grain);
+  background-size: 4px 4px, 4px 4px, 5px 5px, 5px 5px;
+  background-blend-mode: soft-light;
   z-index: 15;
   pointer-events: none;
 }
