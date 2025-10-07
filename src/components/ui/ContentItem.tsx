@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import AudioPodcastIndicator from './AudioPodcastIndicator';
 
 interface ContentItemProps {
   id: string;
@@ -12,6 +13,7 @@ interface ContentItemProps {
   publishedDate: string;
   author: string;
   tags: string[];
+  contentBlocks?: { blockType: string }[];
   onContentClick: (id: string) => void;
 }
 
@@ -23,8 +25,14 @@ export default function ContentItem({
   category,
   imageUrl,
   publishedDate,
+  contentBlocks,
   onContentClick
 }: ContentItemProps) {
+  const isVideoUrl = (url: string): boolean => {
+    return /\.(mp4|webm|ogg|mov)$/i.test(url) ||
+           url.includes('video/');
+  };
+
   const truncateDescription = (text: string, maxLength: number = 120): string => {
     if (text.length <= maxLength) return text;
     const truncated = text.substring(0, maxLength);
@@ -47,6 +55,10 @@ export default function ContentItem({
       'blog': 'Note'
     };
     return typeMap[type as keyof typeof typeMap] || type;
+  };
+
+  const hasAudioPodcast = (blocks?: { blockType: string }[]): boolean => {
+    return blocks?.some(block => block.blockType === 'AUDIO_EMBED') || false;
   };
 
   const handleClick = () => {
@@ -88,13 +100,24 @@ export default function ContentItem({
             style={{ backgroundColor: '#0d0d0d' }}
           >
             {imageUrl ? (
-              <Image
-                src={imageUrl}
-                alt={title}
-                fill
-                className="object-cover"
-                sizes="(max-width: 640px) 192px, (max-width: 768px) 224px, (max-width: 1024px) 256px, 288px"
-              />
+              isVideoUrl(imageUrl) ? (
+                <video
+                  src={imageUrl}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <Image
+                  src={imageUrl}
+                  alt={title}
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 640px) 192px, (max-width: 768px) 224px, (max-width: 1024px) 256px, 288px"
+                />
+              )
             ) : (
               <div className="w-full h-full bg-gradient-to-br from-gray-800 via-gray-900 to-black flex items-center justify-center">
                 <div className="michroma text-white/40 text-sm font-medium text-center">
@@ -118,21 +141,24 @@ export default function ContentItem({
           </p>
         )}
 
-        <div className="michroma text-xs md:text-sm text-white/60 flex flex-wrap items-center gap-2">
-          <span className="font-medium">{contentTypeLabel}</span>
-          <span aria-hidden="true" className="text-white/40">•</span>
-          <time
-            dateTime={publishedDate}
-            className="font-medium"
-          >
-            {formattedDate}
-          </time>
-          {category && (
-            <>
-              <span aria-hidden="true" className="text-white/40">•</span>
-              <span className="font-medium">{category}</span>
-            </>
-          )}
+        <div className="michroma text-xs md:text-sm text-white/60 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-medium">{contentTypeLabel}</span>
+            <span aria-hidden="true" className="text-white/40">•</span>
+            <time
+              dateTime={publishedDate}
+              className="font-medium"
+            >
+              {formattedDate}
+            </time>
+            {category && (
+              <>
+                <span aria-hidden="true" className="text-white/40">•</span>
+                <span className="font-medium">{category}</span>
+              </>
+            )}
+          </div>
+          {hasAudioPodcast(contentBlocks) && <AudioPodcastIndicator />}
         </div>
       </div>
     </article>

@@ -166,6 +166,11 @@ export async function getFeaturedContent(page: number = 1, limit: number = 5): P
           featuredOrder: { not: null }
         },
         orderBy: { featuredOrder: 'asc' },
+        include: {
+          contentBlocks: {
+            orderBy: { order: 'asc' }
+          }
+        }
       });
 
       const unorderedContent = await prisma.content.findMany({
@@ -174,6 +179,11 @@ export async function getFeaturedContent(page: number = 1, limit: number = 5): P
           featuredOrder: null
         },
         orderBy: { publishedDate: 'desc' },
+        include: {
+          contentBlocks: {
+            orderBy: { order: 'asc' }
+          }
+        }
       });
 
       // Combine: ordered posts first, then unordered posts
@@ -189,6 +199,11 @@ export async function getFeaturedContent(page: number = 1, limit: number = 5): P
         orderBy: { publishedDate: 'desc' },
         skip,
         take: limit,
+        include: {
+          contentBlocks: {
+            orderBy: { order: 'asc' }
+          }
+        }
       }) as Content[];
     }
 

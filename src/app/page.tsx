@@ -15,6 +15,7 @@ interface ContentItem {
   publishedDate: string;
   author: string;
   tags: string[];
+  contentBlocks?: { id: string; blockType: string; data: unknown; order: number }[];
 }
 
 export default function Home() {

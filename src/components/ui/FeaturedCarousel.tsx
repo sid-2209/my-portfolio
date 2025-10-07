@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import AudioPodcastIndicator from './AudioPodcastIndicator';
 
 interface FeaturedContent {
   id: string;
@@ -13,6 +14,7 @@ interface FeaturedContent {
   publishedDate: string;
   author: string;
   tags: string[];
+  contentBlocks?: { id: string; blockType: string; data: unknown; order: number }[];
 }
 
 interface FeaturedCarouselProps {
@@ -68,14 +70,25 @@ export default function FeaturedCarousel({ content, onContentClick }: FeaturedCa
           >
             <div className="relative w-full h-full rounded-xl overflow-hidden" style={{ backgroundColor: '#0d0d0d' }}>
               {post.imageUrl ? (
-                <Image
-                  src={post.imageUrl}
-                  alt={post.title}
-                  fill
-                  className="object-cover"
-                  priority
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 45vw"
-                />
+                isVideoUrl(post.imageUrl) ? (
+                  <video
+                    src={post.imageUrl}
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <Image
+                    src={post.imageUrl}
+                    alt={post.title}
+                    fill
+                    className="object-cover"
+                    priority
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 45vw"
+                  />
+                )
               ) : (
                 <div className="w-full h-full bg-gradient-to-br from-gray-800 via-gray-900 to-black flex items-center justify-center">
                   <div className="text-white/40 text-lg font-medium">
@@ -104,6 +117,12 @@ export default function FeaturedCarousel({ content, onContentClick }: FeaturedCa
             </time>
             <span aria-hidden="true" className="text-white/50">•</span>
             <span className="font-medium">{calculateReadingTime(post.description)}</span>
+            {hasAudioPodcast(post.contentBlocks) && (
+              <>
+                <span aria-hidden="true" className="text-white/50">•</span>
+                <AudioPodcastIndicator />
+              </>
+            )}
           </div>
         </header>
       </article>
@@ -163,15 +182,27 @@ export default function FeaturedCarousel({ content, onContentClick }: FeaturedCa
                 >
                   <div className="relative w-full h-full rounded-xl overflow-hidden" style={{ backgroundColor: '#0d0d0d' }}>
                     {activePost.imageUrl ? (
-                      <Image
-                        key={activePost.id}
-                        src={activePost.imageUrl}
-                        alt={activePost.title}
-                        fill
-                        className="object-cover transition-all duration-300 grayscale group-hover:grayscale-0"
-                        priority
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 45vw"
-                      />
+                      isVideoUrl(activePost.imageUrl) ? (
+                        <video
+                          key={activePost.id}
+                          src={activePost.imageUrl}
+                          autoPlay
+                          loop
+                          muted
+                          playsInline
+                          className="w-full h-full object-cover transition-all duration-300 grayscale group-hover:grayscale-0"
+                        />
+                      ) : (
+                        <Image
+                          key={activePost.id}
+                          src={activePost.imageUrl}
+                          alt={activePost.title}
+                          fill
+                          className="object-cover transition-all duration-300 grayscale group-hover:grayscale-0"
+                          priority
+                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 45vw"
+                        />
+                      )
                     ) : (
                       <div className="w-full h-full bg-gradient-to-br from-gray-800 via-gray-900 to-black flex items-center justify-center">
                         <div className="text-white/40 text-lg font-medium">
@@ -201,6 +232,12 @@ export default function FeaturedCarousel({ content, onContentClick }: FeaturedCa
                   </time>
                   <span aria-hidden="true" className="text-white/50">•</span>
                   <span className="font-medium">{calculateReadingTime(activePost.description)}</span>
+                  {hasAudioPodcast(activePost.contentBlocks) && (
+                    <>
+                      <span aria-hidden="true" className="text-white/50">•</span>
+                      <AudioPodcastIndicator />
+                    </>
+                  )}
                 </div>
               </div>
             </article>
@@ -228,13 +265,24 @@ export default function FeaturedCarousel({ content, onContentClick }: FeaturedCa
                       >
                         <div className="relative w-full aspect-[16/9] rounded-lg overflow-hidden" style={{ backgroundColor: '#0d0d0d' }}>
                           {post.imageUrl ? (
-                            <Image
-                              src={post.imageUrl}
-                              alt={post.title}
-                              fill
-                              className="object-cover transition-all duration-300 grayscale hover:grayscale-0"
-                              sizes="(max-width: 1024px) 240px, 256px"
-                            />
+                            isVideoUrl(post.imageUrl) ? (
+                              <video
+                                src={post.imageUrl}
+                                autoPlay
+                                loop
+                                muted
+                                playsInline
+                                className="w-full h-full object-cover transition-all duration-300 grayscale hover:grayscale-0"
+                              />
+                            ) : (
+                              <Image
+                                src={post.imageUrl}
+                                alt={post.title}
+                                fill
+                                className="object-cover transition-all duration-300 grayscale hover:grayscale-0"
+                                sizes="(max-width: 1024px) 240px, 256px"
+                              />
+                            )
                           ) : (
                             <div className="w-full h-full bg-gradient-to-br from-gray-800 via-gray-900 to-black flex items-center justify-center">
                               <div className="text-white/40 text-xs font-medium">
@@ -257,6 +305,15 @@ export default function FeaturedCarousel({ content, onContentClick }: FeaturedCa
 }
 
 // Helper functions
+function hasAudioPodcast(blocks?: { blockType: string }[]): boolean {
+  return blocks?.some(block => block.blockType === 'AUDIO_EMBED') || false;
+}
+
+function isVideoUrl(url: string): boolean {
+  return /\.(mp4|webm|ogg|mov)$/i.test(url) ||
+         url.includes('video/');
+}
+
 function truncateDescription(text: string, maxLength: number = 200): string {
   if (text.length <= maxLength) return text;
   const truncated = text.substring(0, maxLength);

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import BlockBuilder from "./BlockBuilder";
 import { BlockType } from "@prisma/client";
 import TagInput from "../forms/TagInput";
-import ImagePicker from "../media/ImagePicker";
+import MediaPicker from "../media/MediaPicker";
 
 // Block data interfaces
 interface ParagraphData { text: string; }
@@ -249,13 +249,15 @@ export default function EnhancedContentEditor({
                 />
               </div>
               <div>
-                <ImagePicker
-                  label="Featured Image"
+                <MediaPicker
+                  label="Featured Media (Image or Video)"
                   value={formData.imageUrl || ''}
                   onChange={(media) => setFormData(prev => ({ ...prev, imageUrl: media?.blobUrl || '' }))}
                   onUrlChange={(url) => setFormData(prev => ({ ...prev, imageUrl: url }))}
                   source="content"
                   contentId={formData.id}
+                  acceptImages={true}
+                  acceptVideos={true}
                   folder="content"
                   placeholder="No featured image selected"
                 />

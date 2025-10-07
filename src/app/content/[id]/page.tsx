@@ -8,6 +8,7 @@ import GlassmorphismContainer from "../../../components/ui/GlassmorphismContaine
 import BlockRenderer from "../../../components/cms/BlockRenderer";
 import ScrollProgressIndicator from "../../../components/ui/ScrollProgressIndicator";
 import { useDynamicSections } from "../../../hooks/useDynamicSections";
+import SharePost from "../../../components/ui/SharePost";
 
 interface Content {
   id: string;
@@ -78,6 +79,12 @@ export default function ContentPage() {
     );
   }
 
+  // Helper function to detect if URL is a video
+  const isVideoUrl = (url: string): boolean => {
+    return /\.(mp4|webm|ogg|mov)$/i.test(url) ||
+           url.includes('video/');
+  };
+
   return (
     <div className="relative w-full bg-black">
       {/* Scroll Progress Indicator */}
@@ -85,17 +92,28 @@ export default function ContentPage() {
 
       {/* Hero Section - Full Viewport */}
       <div id="hero" className="relative w-full h-screen overflow-hidden">
-        {/* Hero Image */}
+        {/* Hero Media (Image or Video) */}
         {content.imageUrl ? (
-          <img 
-            src={content.imageUrl} 
-            alt={content.title}
-            className="w-full h-full object-cover"
-          />
+          isVideoUrl(content.imageUrl) ? (
+            <video
+              src={content.imageUrl}
+              autoPlay
+              loop
+              muted
+              playsInline
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <img
+              src={content.imageUrl}
+              alt={content.title}
+              className="w-full h-full object-cover"
+            />
+          )
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-blue-900/50 via-purple-900/50 to-indigo-900/50" />
         )}
-        
+
         {/* Dark Overlay for Better Readability */}
         <div className="absolute inset-0 bg-black/60" />
         
@@ -122,20 +140,31 @@ export default function ContentPage() {
               {content.title}
             </h1>
 
-            {/* Date and Author */}
-            <div className="flex items-center gap-6 text-white/80 text-base">
-              <span className="flex items-center gap-2">
-                <span className="w-2 h-2 bg-white/60 rounded-full"></span>
-                {new Date(content.publishedDate).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
-                })}
-              </span>
-              <span className="flex items-center gap-2">
-                <span className="w-2 h-2 bg-white/60 rounded-full"></span>
-                By {content.author}
-              </span>
+            {/* Date, Author, and Share */}
+            <div className="flex items-center justify-between gap-6 text-white/80 text-base">
+              {/* Left: Date and Author */}
+              <div className="flex items-center gap-6">
+                <span className="flex items-center gap-2">
+                  <span className="w-2 h-2 bg-white/60 rounded-full"></span>
+                  {new Date(content.publishedDate).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  })}
+                </span>
+                <span className="flex items-center gap-2">
+                  <span className="w-2 h-2 bg-white/60 rounded-full"></span>
+                  By {content.author}
+                </span>
+              </div>
+
+              {/* Right: Share Icon */}
+              <SharePost
+                postId={content.id}
+                postTitle={content.title}
+                size={20}
+                className="text-white/80"
+              />
             </div>
           </GlassmorphismContainer>
         </div>
