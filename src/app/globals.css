@@ -14,6 +14,9 @@
   --foreground: #171717;
   --font-michroma: 'Michroma', serif;
   --homepage-bg-image: url('/images/pixeliota-nLbMbYVmeD0-unsplash (1).svg');
+
+  /* Washi paper texture - SVG noise pattern */
+  --washi-texture: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.5'/%3E%3C/svg%3E");
 }
 
 @theme inline {
@@ -64,7 +67,11 @@ body.homepage::after {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.33);
+  background-color: rgba(0, 0, 0, 0.33);
+  background-image: var(--washi-texture);
+  background-size: 300px 300px;
+  background-repeat: repeat;
+  background-blend-mode: multiply;
   z-index: 15;
   pointer-events: none;
 }
@@ -94,7 +101,11 @@ body.projects-page::after {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.33);
+  background-color: rgba(0, 0, 0, 0.33);
+  background-image: var(--washi-texture);
+  background-size: 300px 300px;
+  background-repeat: repeat;
+  background-blend-mode: multiply;
   z-index: 15;
   pointer-events: none;
 }
@@ -124,7 +135,11 @@ body.case-studies-page::after {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.33);
+  background-color: rgba(0, 0, 0, 0.33);
+  background-image: var(--washi-texture);
+  background-size: 300px 300px;
+  background-repeat: repeat;
+  background-blend-mode: multiply;
   z-index: 15;
   pointer-events: none;
 }
@@ -154,7 +169,11 @@ body.notes-page::after {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.33);
+  background-color: rgba(0, 0, 0, 0.33);
+  background-image: var(--washi-texture);
+  background-size: 300px 300px;
+  background-repeat: repeat;
+  background-blend-mode: multiply;
   z-index: 15;
   pointer-events: none;
 }
@@ -184,7 +203,11 @@ body.about-page::after {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.33);
+  background-color: rgba(0, 0, 0, 0.33);
+  background-image: var(--washi-texture);
+  background-size: 300px 300px;
+  background-repeat: repeat;
+  background-blend-mode: multiply;
   z-index: 15;
   pointer-events: none;
 }
@@ -214,7 +237,11 @@ body.collaborate-page::after {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.33);
+  background-color: rgba(0, 0, 0, 0.33);
+  background-image: var(--washi-texture);
+  background-size: 300px 300px;
+  background-repeat: repeat;
+  background-blend-mode: multiply;
   z-index: 15;
   pointer-events: none;
 }
@@ -244,7 +271,11 @@ body.content-page::after {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.33);
+  background-color: rgba(0, 0, 0, 0.33);
+  background-image: var(--washi-texture);
+  background-size: 300px 300px;
+  background-repeat: repeat;
+  background-blend-mode: multiply;
   z-index: 15;
   pointer-events: none;
 }
