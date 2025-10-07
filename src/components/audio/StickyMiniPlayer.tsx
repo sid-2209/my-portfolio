@@ -61,9 +61,10 @@ export default function StickyMiniPlayer({
     wavesurferInstance.on('timeupdate', onTimeUpdate);
     wavesurferInstance.on('ready', onReady);
 
-    // Initialize state
-    if (wavesurferInstance.isReady()) {
-      setDuration(formatTime(wavesurferInstance.getDuration()));
+    // Initialize state if already loaded
+    const duration = wavesurferInstance.getDuration();
+    if (duration > 0) {
+      setDuration(formatTime(duration));
       setIsPlaying(wavesurferInstance.isPlaying());
     }
 
