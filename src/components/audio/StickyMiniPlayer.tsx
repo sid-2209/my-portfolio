@@ -13,8 +13,8 @@ interface StickyMiniPlayerProps {
   audioType?: 'local' | 'spotify' | 'soundcloud' | 'apple-music' | 'other';
   // Platform-specific controllers
   wavesurferInstance?: WaveSurfer | null;
-  spotifyController?: any;
-  soundcloudWidget?: any;
+  spotifyController?: unknown;
+  soundcloudWidget?: unknown;
   onClose: () => void;
   onExpand: () => void;
 }
@@ -79,7 +79,7 @@ export default function StickyMiniPlayer({
   useEffect(() => {
     if (audioType !== 'spotify' || !spotifyController) return;
 
-    const handlePlaybackUpdate = (state: any) => {
+    const handlePlaybackUpdate = (state: { isPaused: boolean; duration: number; position: number }) => {
       setIsPlaying(!state.isPaused);
 
       // Duration and position are in milliseconds

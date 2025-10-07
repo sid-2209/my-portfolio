@@ -5,16 +5,16 @@ import { useEffect, useState } from 'react';
 interface EmbedAPIsState {
   spotifyReady: boolean;
   soundcloudReady: boolean;
-  spotifyAPI: any;
-  soundcloudAPI: any;
+  spotifyAPI: unknown;
+  soundcloudAPI: unknown;
 }
 
 // Declare global types for external APIs
 declare global {
   interface Window {
-    onSpotifyIframeApiReady?: (IFrameAPI: any) => void;
-    SC?: any;
-    Spotify?: any;
+    onSpotifyIframeApiReady?: (IFrameAPI: unknown) => void;
+    SC?: unknown;
+    Spotify?: unknown;
   }
 }
 

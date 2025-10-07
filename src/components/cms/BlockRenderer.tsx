@@ -13,7 +13,6 @@ import { createPortal } from 'react-dom';
 import type WaveSurfer from 'wavesurfer.js';
 import { useEmbedAPIs } from '@/hooks/useEmbedAPIs';
 import BreakoutContainer from '@/components/ui/BreakoutContainer';
-import GlassmorphismContainer from '@/components/ui/GlassmorphismContainer';
 import ChartErrorBoundary from './ChartErrorBoundary';
 import { BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
@@ -357,8 +356,8 @@ function AudioBlockRenderer({ block, audioData }: { block: ContentBlock; audioDa
   const wavesurferInstanceRef = useRef<WaveSurfer | null>(null);
   const spotifyIframeRef = useRef<HTMLIFrameElement>(null);
   const soundcloudIframeRef = useRef<HTMLIFrameElement>(null);
-  const spotifyControllerRef = useRef<any>(null);
-  const soundcloudWidgetRef = useRef<any>(null);
+  const spotifyControllerRef = useRef<unknown>(null);
+  const soundcloudWidgetRef = useRef<unknown>(null);
 
   // Track mounted state for portal
   useEffect(() => {
@@ -403,7 +402,7 @@ function AudioBlockRenderer({ block, audioData }: { block: ContentBlock; audioDa
     spotifyAPI.createController(
       spotifyIframeRef.current,
       options,
-      (EmbedController: any) => {
+      (EmbedController: unknown) => {
         console.log('[AudioBlockRenderer] Spotify controller created');
         spotifyControllerRef.current = EmbedController;
       }
