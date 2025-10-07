@@ -23,6 +23,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
   const isCaseStudiesPage = pathname === '/case-studies';
   const isNotesPage = pathname === '/notes';
   const isAboutPage = pathname === '/about';
+  const isCollaboratePage = pathname === '/collaborate';
 
   // Ensure component is mounted before rendering
   useEffect(() => {
@@ -33,7 +34,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
   useEffect(() => {
     if (mounted) {
       // Remove all page classes first
-      document.body.classList.remove('homepage', 'projects-page', 'case-studies-page', 'notes-page', 'about-page');
+      document.body.classList.remove('homepage', 'projects-page', 'case-studies-page', 'notes-page', 'about-page', 'collaborate-page', 'content-page');
 
       // Add appropriate class based on current page
       if (isHomePage) {
@@ -46,14 +47,18 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
         document.body.classList.add('notes-page');
       } else if (isAboutPage) {
         document.body.classList.add('about-page');
+      } else if (isCollaboratePage) {
+        document.body.classList.add('collaborate-page');
+      } else if (isContentPage) {
+        document.body.classList.add('content-page');
       }
     }
 
     // Cleanup on unmount
     return () => {
-      document.body.classList.remove('homepage', 'projects-page', 'case-studies-page', 'notes-page', 'about-page');
+      document.body.classList.remove('homepage', 'projects-page', 'case-studies-page', 'notes-page', 'about-page', 'collaborate-page', 'content-page');
     };
-  }, [mounted, isHomePage, isProjectsPage, isCaseStudiesPage, isNotesPage, isAboutPage]);
+  }, [mounted, isHomePage, isProjectsPage, isCaseStudiesPage, isNotesPage, isAboutPage, isCollaboratePage, isContentPage]);
 
   const handleSidebarItemClick = (type: 'project' | 'case_study' | 'blog') => {
     switch (type) {

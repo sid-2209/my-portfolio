@@ -64,7 +64,7 @@ body.homepage::after {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.80);
+  background: rgba(0, 0, 0, 0.33);
   z-index: 15;
   pointer-events: none;
 }
@@ -77,7 +77,7 @@ body.projects-page::before {
   left: 0;
   width: 100%;
   height: 100%;
-  background-image: url('/images/projects.jpeg');
+  background-image: url('/images/home.jpeg');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -94,7 +94,7 @@ body.projects-page::after {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.80);
+  background: rgba(0, 0, 0, 0.33);
   z-index: 15;
   pointer-events: none;
 }
@@ -107,7 +107,7 @@ body.case-studies-page::before {
   left: 0;
   width: 100%;
   height: 100%;
-  background-image: url('/images/case_studies.jpeg');
+  background-image: url('/images/home.jpeg');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -124,7 +124,7 @@ body.case-studies-page::after {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.80);
+  background: rgba(0, 0, 0, 0.33);
   z-index: 15;
   pointer-events: none;
 }
@@ -137,7 +137,7 @@ body.notes-page::before {
   left: 0;
   width: 100%;
   height: 100%;
-  background-image: url('/images/Notes.jpeg');
+  background-image: url('/images/home.jpeg');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -154,7 +154,7 @@ body.notes-page::after {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.80);
+  background: rgba(0, 0, 0, 0.33);
   z-index: 15;
   pointer-events: none;
 }
@@ -167,7 +167,7 @@ body.about-page::before {
   left: 0;
   width: 100%;
   height: 100%;
-  background-image: url('/images/About.jpeg');
+  background-image: url('/images/home.jpeg');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -184,7 +184,67 @@ body.about-page::after {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.80);
+  background: rgba(0, 0, 0, 0.33);
+  z-index: 15;
+  pointer-events: none;
+}
+
+/* Collaborate page background image - CSS-based approach */
+body.collaborate-page::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url('/images/home.jpeg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* Collaborate page overlay for text readability */
+body.collaborate-page::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.33);
+  z-index: 15;
+  pointer-events: none;
+}
+
+/* Content page background image - CSS-based approach (below hero section) */
+body.content-page::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url('/images/home.jpeg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* Content page overlay for text readability */
+body.content-page::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.33);
   z-index: 15;
   pointer-events: none;
 }
@@ -424,58 +484,6 @@ body.about-page::after {
 .prose-invert ul li::marker,
 .prose-invert ol li::marker {
   color: inherit !important;
-}
-
-/* Projects page text shadows for enhanced readability */
-body.projects-page .michroma {
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8), 0 1px 2px rgba(0, 0, 0, 0.9);
-}
-
-body.projects-page h1,
-body.projects-page h2,
-body.projects-page p,
-body.projects-page span,
-body.projects-page time {
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8), 0 1px 2px rgba(0, 0, 0, 0.9);
-}
-
-/* Case Studies page text shadows for enhanced readability */
-body.case-studies-page .michroma {
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8), 0 1px 2px rgba(0, 0, 0, 0.9);
-}
-
-body.case-studies-page h1,
-body.case-studies-page h2,
-body.case-studies-page p,
-body.case-studies-page span,
-body.case-studies-page time {
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8), 0 1px 2px rgba(0, 0, 0, 0.9);
-}
-
-/* Notes page text shadows for enhanced readability */
-body.notes-page .michroma {
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8), 0 1px 2px rgba(0, 0, 0, 0.9);
-}
-
-body.notes-page h1,
-body.notes-page h2,
-body.notes-page p,
-body.notes-page span,
-body.notes-page time {
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8), 0 1px 2px rgba(0, 0, 0, 0.9);
-}
-
-/* About page text shadows for enhanced readability */
-body.about-page .michroma {
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8), 0 1px 2px rgba(0, 0, 0, 0.9);
-}
-
-body.about-page h1,
-body.about-page h2,
-body.about-page p,
-body.about-page span,
-body.about-page time {
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8), 0 1px 2px rgba(0, 0, 0, 0.9);
 }
 
 /* Blink animation for audio podcast indicator */

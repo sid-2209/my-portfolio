@@ -86,7 +86,7 @@ export default function ContentPage() {
   };
 
   return (
-    <div className="relative w-full bg-black">
+    <div className="relative w-full">
       {/* Scroll Progress Indicator */}
       <ScrollProgressIndicator sections={dynamicSections} />
 
@@ -171,7 +171,7 @@ export default function ContentPage() {
       </div>
 
       {/* Content Section */}
-      <div id="content-start" className="w-full bg-black scroll-mt-20">
+      <div id="content-start" className="w-full scroll-mt-20">
         <div className="max-w-4xl mx-auto px-8 py-16 overflow-visible">
           {/* Main Content Area - CMS Blocks */}
           <div className="prose prose-invert max-w-none overflow-visible">
