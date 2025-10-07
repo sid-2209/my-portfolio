@@ -499,3 +499,19 @@ body.content-page::after {
 .animate-blink {
   animation: blink 2s ease-in-out infinite;
 }
+
+/* Mini player slide-in animation */
+@keyframes miniPlayerSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.mini-player-enter {
+  animation: miniPlayerSlideIn 0.4s ease-out forwards;
+}

@@ -3,6 +3,7 @@
 import { useRef, useEffect, useState } from 'react';
 import { useWavesurfer } from '@wavesurfer/react';
 import { Play, Pause, ExternalLink } from 'lucide-react';
+import type WaveSurfer from 'wavesurfer.js';
 
 interface WaveformPlayerProps {
   url: string;
@@ -10,6 +11,7 @@ interface WaveformPlayerProps {
   platformUrl?: string;
   autoplay?: boolean;
   loop?: boolean;
+  onWavesurferReady?: (instance: WaveSurfer) => void;
 }
 
 export default function WaveformPlayer({
@@ -18,6 +20,7 @@ export default function WaveformPlayer({
   platformUrl,
   autoplay = false,
   loop = false,
+  onWavesurferReady,
 }: WaveformPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -38,6 +41,13 @@ export default function WaveformPlayer({
     normalize: true,
     autoplay,
   });
+
+  // Expose wavesurfer instance to parent when ready
+  useEffect(() => {
+    if (wavesurfer && onWavesurferReady) {
+      onWavesurferReady(wavesurfer);
+    }
+  }, [wavesurfer, onWavesurferReady]);
 
   useEffect(() => {
     if (!wavesurfer) return;

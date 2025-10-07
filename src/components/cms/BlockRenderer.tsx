@@ -4,10 +4,14 @@ import { ContentBlock } from '@prisma/client';
 import { sanitizeRichText, sanitizeCustomHTML } from '@/lib/sanitize';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { useState, useRef, useLayoutEffect } from 'react';
+import { useState, useRef, useLayoutEffect, useEffect, useCallback } from 'react';
 import { ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
 import WaveformPlayer from '@/components/audio/WaveformPlayer';
 import InlineLanguageSwitcher from './InlineLanguageSwitcher';
+import StickyMiniPlayer from '@/components/audio/StickyMiniPlayer';
+import { createPortal } from 'react-dom';
+import type WaveSurfer from 'wavesurfer.js';
+import { useEmbedAPIs } from '@/hooks/useEmbedAPIs';
 import BreakoutContainer from '@/components/ui/BreakoutContainer';
 import ChartErrorBoundary from './ChartErrorBoundary';
 import { BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -331,7 +335,7 @@ interface BlockRendererProps {
   blocks: ContentBlock[];
 }
 
-// Audio Block Component to handle state properly
+// Audio Block Component with Intersection Observer and Multi-Platform Mini Player Support
 function AudioBlockRenderer({ block, audioData }: { block: ContentBlock; audioData: AudioEmbedData }) {
   const [selectedLanguage, setSelectedLanguage] = useState(() => {
     if (audioData.enableLanguageSwitch && audioData.languages && audioData.languages.length > 0) {
@@ -339,6 +343,32 @@ function AudioBlockRenderer({ block, audioData }: { block: ContentBlock; audioDa
     }
     return null;
   });
+
+  // Load Spotify/SoundCloud APIs
+  const { spotifyReady, soundcloudReady, spotifyAPI, soundcloudAPI } = useEmbedAPIs();
+
+  // Mini player state
+  const [showMiniPlayer, setShowMiniPlayer] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const audioContainerRef = useRef<HTMLDivElement>(null);
+
+  // Platform-specific refs
+  const wavesurferInstanceRef = useRef<WaveSurfer | null>(null);
+  const spotifyIframeRef = useRef<HTMLIFrameElement>(null);
+  const soundcloudIframeRef = useRef<HTMLIFrameElement>(null);
+  const spotifyControllerRef = useRef<any>(null);
+  const soundcloudWidgetRef = useRef<any>(null);
+
+  // Track mounted state for portal
+  useEffect(() => {
+    setMounted(true);
+    console.log('[AudioBlockRenderer] Component mounted, portal ready');
+  }, []);
+
+  // Log showMiniPlayer state changes
+  useEffect(() => {
+    console.log('[AudioBlockRenderer] showMiniPlayer state changed:', showMiniPlayer);
+  }, [showMiniPlayer]);
 
   const currentAudioUrl = audioData.enableLanguageSwitch && selectedLanguage
     ? (selectedLanguage.localAudioUrl || selectedLanguage.url)
@@ -357,6 +387,168 @@ function AudioBlockRenderer({ block, audioData }: { block: ContentBlock; audioDa
     ? { width: '100%' }
     : { width: `${audioData.width || 100}%` };
 
+  // Initialize Spotify Controller
+  useEffect(() => {
+    if (currentAudioType !== 'spotify' || !spotifyReady || !spotifyAPI || !spotifyIframeRef.current) return;
+
+    console.log('[AudioBlockRenderer] Initializing Spotify controller');
+
+    const embedUrl = currentAudioUrl.replace('open.spotify.com', 'open.spotify.com/embed');
+
+    const options = {
+      uri: embedUrl,
+    };
+
+    spotifyAPI.createController(
+      spotifyIframeRef.current,
+      options,
+      (EmbedController: any) => {
+        console.log('[AudioBlockRenderer] Spotify controller created');
+        spotifyControllerRef.current = EmbedController;
+      }
+    );
+
+    return () => {
+      if (spotifyControllerRef.current) {
+        spotifyControllerRef.current.destroy();
+        spotifyControllerRef.current = null;
+      }
+    };
+  }, [currentAudioType, spotifyReady, spotifyAPI, currentAudioUrl]);
+
+  // Initialize SoundCloud Widget
+  useEffect(() => {
+    if (currentAudioType !== 'soundcloud' || !soundcloudReady || !soundcloudAPI || !soundcloudIframeRef.current) return;
+
+    console.log('[AudioBlockRenderer] Initializing SoundCloud widget');
+
+    const widget = soundcloudAPI.Widget(soundcloudIframeRef.current);
+    soundcloudWidgetRef.current = widget;
+
+    return () => {
+      soundcloudWidgetRef.current = null;
+    };
+  }, [currentAudioType, soundcloudReady, soundcloudAPI]);
+
+  // Robust position checker - determines if mini player should be visible
+  const checkPositionAndUpdateMiniPlayer = useCallback(() => {
+    const container = audioContainerRef.current;
+    if (!container) return;
+
+    const rect = container.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+
+    // Element is above viewport (scrolled past going down)
+    const isAboveViewport = rect.bottom < 0;
+
+    // Element is in viewport (partially or fully visible)
+    const isInViewport = rect.top < viewportHeight && rect.bottom > 0;
+
+    const shouldShowMiniPlayer = isAboveViewport;
+
+    console.log('[AudioBlockRenderer] Position check:', {
+      rectTop: rect.top,
+      rectBottom: rect.bottom,
+      viewportHeight,
+      isAboveViewport,
+      isInViewport,
+      shouldShowMiniPlayer,
+      currentState: showMiniPlayer,
+    });
+
+    // Only update state if it needs to change (prevent unnecessary re-renders)
+    if (shouldShowMiniPlayer !== showMiniPlayer) {
+      console.log('[AudioBlockRenderer] Updating showMiniPlayer:', shouldShowMiniPlayer);
+      setShowMiniPlayer(shouldShowMiniPlayer);
+    }
+  }, [showMiniPlayer]);
+
+  // Initial position check on mount
+  useEffect(() => {
+    // Small delay to ensure DOM is fully rendered
+    const timer = setTimeout(() => {
+      console.log('[AudioBlockRenderer] Running initial position check');
+      checkPositionAndUpdateMiniPlayer();
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [checkPositionAndUpdateMiniPlayer]);
+
+  // Intersection Observer with multiple thresholds for reliability
+  useEffect(() => {
+    const container = audioContainerRef.current;
+    if (!container) {
+      console.log('[AudioBlockRenderer] No container ref - observer not attached');
+      return;
+    }
+
+    console.log('[AudioBlockRenderer] Attaching robust Intersection Observer');
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          console.log('[AudioBlockRenderer] Intersection callback triggered');
+          checkPositionAndUpdateMiniPlayer();
+        });
+      },
+      {
+        // Multiple thresholds for more frequent callbacks
+        threshold: [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1.0],
+        // No rootMargin - pixel-perfect triggering at viewport boundaries
+        rootMargin: '0px',
+      }
+    );
+
+    observer.observe(container);
+    console.log('[AudioBlockRenderer] Observer attached successfully');
+
+    return () => {
+      console.log('[AudioBlockRenderer] Disconnecting observer');
+      observer.disconnect();
+    };
+  }, [checkPositionAndUpdateMiniPlayer]);
+
+  // Scroll event fallback for bulletproof reliability
+  useEffect(() => {
+    const handleScroll = () => {
+      checkPositionAndUpdateMiniPlayer();
+    };
+
+    // Passive listener for performance
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    console.log('[AudioBlockRenderer] Scroll event listener attached');
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      console.log('[AudioBlockRenderer] Scroll event listener removed');
+    };
+  }, [checkPositionAndUpdateMiniPlayer]);
+
+  // Handle expand: scroll back to full player
+  const handleExpand = () => {
+    if (audioContainerRef.current) {
+      audioContainerRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setShowMiniPlayer(false);
+    }
+  };
+
+  // Handle close: stop playback and hide mini player
+  const handleClose = () => {
+    if (currentAudioType === 'local' && wavesurferInstanceRef.current) {
+      wavesurferInstanceRef.current.pause();
+    } else if (currentAudioType === 'spotify' && spotifyControllerRef.current) {
+      spotifyControllerRef.current.pause();
+    } else if (currentAudioType === 'soundcloud' && soundcloudWidgetRef.current) {
+      soundcloudWidgetRef.current.pause();
+    }
+    setShowMiniPlayer(false);
+  };
+
+  // Callback to receive wavesurfer instance from WaveformPlayer
+  const handleWavesurferReady = (instance: WaveSurfer) => {
+    wavesurferInstanceRef.current = instance;
+  };
+
   // Platform-specific iframe embeds (CORS restrictions prevent direct audio loading)
   const renderPlatformEmbed = () => {
     if (currentAudioType === 'spotify' && currentAudioUrl) {
@@ -367,6 +559,7 @@ function AudioBlockRenderer({ block, audioData }: { block: ContentBlock; audioDa
 
       return (
         <iframe
+          ref={spotifyIframeRef}
           src={`${embedUrl}${separator}${themeParam}`}
           width="100%"
           height="152"
@@ -385,6 +578,7 @@ function AudioBlockRenderer({ block, audioData }: { block: ContentBlock; audioDa
 
       return (
         <iframe
+          ref={soundcloudIframeRef}
           width="100%"
           height="166"
           scrolling="no"
@@ -419,39 +613,71 @@ function AudioBlockRenderer({ block, audioData }: { block: ContentBlock; audioDa
         platformUrl={currentAudioUrl}
         autoplay={audioData.autoplay}
         loop={audioData.loop}
+        onWavesurferReady={handleWavesurferReady}
       />
     );
   };
 
   return (
-    <div key={block.id} className="my-8">
-      {currentAudioUrl ? (
-        <div
-          className={`${audioAlignmentClass}`}
-          style={audioWidthStyle}
-        >
-          {/* Language Selector */}
-          {audioData.enableLanguageSwitch && audioData.languages && audioData.languages.length >= 1 && (
-            <div className="mb-6">
-              <InlineLanguageSwitcher
-                languages={audioData.languages}
-                currentLanguage={selectedLanguage}
-                onLanguageChange={setSelectedLanguage}
-                introText={audioData.languageSwitchIntro}
-                outroText={audioData.languageSwitchOutro}
-              />
-            </div>
-          )}
+    <>
+      <div key={block.id} ref={audioContainerRef} className="my-8">
+        {currentAudioUrl ? (
+          <div
+            className={`${audioAlignmentClass}`}
+            style={audioWidthStyle}
+          >
+            {/* Language Selector */}
+            {audioData.enableLanguageSwitch && audioData.languages && audioData.languages.length >= 1 && (
+              <div className="mb-6">
+                <InlineLanguageSwitcher
+                  languages={audioData.languages}
+                  currentLanguage={selectedLanguage}
+                  onLanguageChange={setSelectedLanguage}
+                  introText={audioData.languageSwitchIntro}
+                  outroText={audioData.languageSwitchOutro}
+                />
+              </div>
+            )}
 
-          {renderPlatformEmbed()}
-        </div>
-      ) : (
-        <div className="p-8 bg-white/10 border border-white/30 rounded-2xl text-center">
-          <div className="text-white/60 text-sm mb-2 font-medium">[Audio Placeholder]</div>
-          <div className="text-white/80 text-lg">No audio URL provided</div>
-        </div>
-      )}
-    </div>
+            {renderPlatformEmbed()}
+          </div>
+        ) : (
+          <div className="p-8 bg-white/10 border border-white/30 rounded-2xl text-center">
+            <div className="text-white/60 text-sm mb-2 font-medium">[Audio Placeholder]</div>
+            <div className="text-white/80 text-lg">No audio URL provided</div>
+          </div>
+        )}
+      </div>
+
+      {/* Mini Player Portal */}
+      {(() => {
+        const shouldRenderPortal = mounted && showMiniPlayer && typeof document !== 'undefined';
+        console.log('[AudioBlockRenderer] Portal render conditions:', {
+          mounted,
+          showMiniPlayer,
+          documentAvailable: typeof document !== 'undefined',
+          shouldRenderPortal,
+          audioType: currentAudioType,
+        });
+
+        return shouldRenderPortal && createPortal(
+          <StickyMiniPlayer
+            isVisible={showMiniPlayer}
+            audioUrl={currentAudioUrl}
+            title={audioData.title}
+            artist={audioData.artist}
+            coverArt={audioData.coverArt}
+            audioType={currentAudioType}
+            wavesurferInstance={wavesurferInstanceRef.current}
+            spotifyController={spotifyControllerRef.current}
+            soundcloudWidget={soundcloudWidgetRef.current}
+            onClose={handleClose}
+            onExpand={handleExpand}
+          />,
+          document.body
+        );
+      })()}
+    </>
   );
 }
 
