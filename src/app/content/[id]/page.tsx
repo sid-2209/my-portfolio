@@ -148,17 +148,17 @@ export default function ContentPage() {
               </div>
 
               {/* Title */}
-              <h1 className="michroma text-white text-4xl md:text-5xl xl:text-6xl font-bold mb-6 leading-tight">
+              <h1 className="michroma text-white text-3xl md:text-4xl xl:text-5xl font-bold mb-6 leading-tight">
                 {content.title}
               </h1>
 
               {/* Description/Excerpt */}
-              <p className="text-white/80 text-lg md:text-xl leading-relaxed mb-8">
+              <p className="text-white/80 text-base md:text-lg leading-relaxed mb-8">
                 {content.description}
               </p>
 
               {/* Date, Author, and Share */}
-              <div className="flex items-center justify-between gap-6 text-white/70 text-base">
+              <div className="flex items-center justify-between gap-6 text-white/70 text-sm md:text-base">
                 {/* Left: Date and Author */}
                 <div className="flex items-center gap-6">
                   <span className="flex items-center gap-2">

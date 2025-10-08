@@ -24,7 +24,7 @@ export default function Sidebar({ isCollapsed, onToggle, onItemClick, currentPat
         >
           <ChevronLeftIcon size={14} className={`transform transition-transform duration-300 ${isCollapsed ? 'rotate-180' : ''}`} />
         </GlassmorphismButton>
-        
+
         <div className="flex flex-col justify-center h-full">
           <div className="space-y-12">
             <a
@@ -38,7 +38,7 @@ export default function Sidebar({ isCollapsed, onToggle, onItemClick, currentPat
               <ProjectsIcon size={18} className={`text-white/80 group-hover/item:text-white transition-colors duration-300 flex-shrink-0 ${isActive('/projects') ? 'text-white' : ''}`} />
               <span className={`absolute left-10 font-medium transition-all duration-1200 ease-out michroma ${isCollapsed ? 'opacity-0 translate-x-4 pointer-events-none' : 'opacity-100 translate-x-0'} ${isActive('/projects') ? 'underline decoration-2 underline-offset-4' : ''}`}>Projects</span>
             </a>
-            
+
             <a
               href="/case-studies"
               className={`relative flex items-center space-x-4 text-white/90 hover:text-white transition-all duration-300 hover:scale-105 group/item ${isActive('/case-studies') ? 'text-white' : ''}`}
@@ -50,7 +50,7 @@ export default function Sidebar({ isCollapsed, onToggle, onItemClick, currentPat
               <CaseStudiesIcon size={18} className={`text-white/80 group-hover/item:text-white transition-colors duration-300 flex-shrink-0 ${isActive('/case-studies') ? 'text-white' : ''}`} />
               <span className={`absolute left-10 font-medium transition-all duration-1200 ease-out michroma ${isCollapsed ? 'opacity-0 translate-x-4 pointer-events-none' : 'opacity-100 translate-x-0'} ${isActive('/case-studies') ? 'underline decoration-2 underline-offset-4' : ''}`}>Case Studies</span>
             </a>
-            
+
             <a
               href="/notes"
               className={`relative flex items-center space-x-4 text-white/90 hover:text-white transition-all duration-300 hover:scale-105 group/item ${isActive('/notes') ? 'text-white' : ''}`}
@@ -65,6 +65,7 @@ export default function Sidebar({ isCollapsed, onToggle, onItemClick, currentPat
           </div>
         </div>
       </GlassmorphismContainer>
+
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import Footer from "../components/Footer";
+import VoidBloomToggle from "../components/VoidBloomToggle";
 
 interface ClientLayoutProps {
   children: React.ReactNode;
@@ -112,6 +113,9 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
         <div className={`${isContentPage ? 'flex-1' : 'flex-1 pt-32 px-8'} transition-all duration-500 ease-out`}>
           {children}
         </div>
+
+        {/* Void/Bloom Toggle - Bottom Right Corner */}
+        <VoidBloomToggle />
 
         {/* Footer - visible on all pages */}
         <Footer />
