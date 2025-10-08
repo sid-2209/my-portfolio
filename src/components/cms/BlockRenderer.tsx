@@ -550,9 +550,11 @@ function AudioBlockRenderer({ block, audioData }: { block: ContentBlock; audioDa
     if (currentAudioType === 'local' && wavesurferInstanceRef.current) {
       wavesurferInstanceRef.current.pause();
     } else if (currentAudioType === 'spotify' && spotifyControllerRef.current) {
-      spotifyControllerRef.current.pause();
+      const controller = spotifyControllerRef.current as { pause: () => void };
+      controller.pause();
     } else if (currentAudioType === 'soundcloud' && soundcloudWidgetRef.current) {
-      soundcloudWidgetRef.current.pause();
+      const widget = soundcloudWidgetRef.current as { pause: () => void };
+      widget.pause();
     }
     setShowMiniPlayer(false);
   };
