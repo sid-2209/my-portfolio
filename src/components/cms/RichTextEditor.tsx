@@ -2,6 +2,11 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { sanitizeRichText } from "../../lib/sanitize";
+import { useColorHistory } from "../../hooks/useColorHistory";
+import { applyTextColorToSelection, applyHighlightColorToSelection } from "../../utils/colorSelection";
+import ColorInputModal from "./ColorInputModal";
+import RecentColorButton from "./RecentColorButton";
+import HighlightDropdown from "./HighlightDropdown";
 
 interface HeadingData {
   text: string;
@@ -38,12 +43,17 @@ export default function RichTextEditor({
   const [showLinkEditor, setShowLinkEditor] = useState(false);
   const [embeddedLinkUrl, setEmbeddedLinkUrl] = useState('');
   const [embeddedLinkText, setEmbeddedLinkText] = useState('');
-  const [showTextColorPicker, setShowTextColorPicker] = useState(false);
-  const [showHighlightPicker, setShowHighlightPicker] = useState(false);
   const [showCaseMenu, setShowCaseMenu] = useState(false);
-  const [customTextHex, setCustomTextHex] = useState('');
-  const [customHighlightHex, setCustomHighlightHex] = useState('');
   const savedRangeRef = useRef<Range | null>(null);
+
+  // Color management state
+  const [showTextColorModal, setShowTextColorModal] = useState(false);
+  const [showHighlightModal, setShowHighlightModal] = useState(false);
+  const [showHighlightDropdown, setShowHighlightDropdown] = useState(false);
+
+  // Color history hooks
+  const textColorHistory = useColorHistory('text');
+  const highlightColorHistory = useColorHistory('highlight');
   const [activeFormatting, setActiveFormatting] = useState<{
     bold: boolean;
     italic: boolean;
@@ -96,9 +106,12 @@ export default function RichTextEditor({
   useEffect(() => {
     const handleEscKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        setShowTextColorPicker(false);
-        setShowHighlightPicker(false);
+        setShowTextColorModal(false);
+        setShowHighlightModal(false);
+        setShowHighlightDropdown(false);
         setShowCaseMenu(false);
+        setShowLinkEditor(false);
+        setShowAnchorInput(false);
       }
     };
 
@@ -886,46 +899,59 @@ export default function RichTextEditor({
     return plainText.length;
   };
 
-  // Hex color validation and normalization utilities
-  const isValidHex = (color: string): boolean => {
-    return /^#([0-9A-F]{3}){1,2}$/i.test(color);
+  // Color application handlers
+  const handleApplyTextColor = useCallback((color: string, shouldSave: boolean) => {
+    // Restore the saved selection before applying color
+    if (savedRangeRef.current && editorRef.current) {
+      const selection = window.getSelection();
+      if (selection) {
+        selection.removeAllRanges();
+        selection.addRange(savedRangeRef.current);
+      }
+    }
+
+    // Apply color using robust utility
+    applyTextColorToSelection(color);
+
+    // Add to history
+    textColorHistory.applyColor(color, shouldSave);
+
+    // Trigger onChange
+    handleInput();
+  }, [textColorHistory]);
+
+  const handleApplyHighlightColor = useCallback((color: string, shouldSave: boolean) => {
+    // Restore the saved selection before applying color
+    if (savedRangeRef.current && editorRef.current) {
+      const selection = window.getSelection();
+      if (selection) {
+        selection.removeAllRanges();
+        selection.addRange(savedRangeRef.current);
+      }
+    }
+
+    // Apply color using robust utility
+    applyHighlightColorToSelection(color);
+
+    // Add to history
+    highlightColorHistory.applyColor(color, shouldSave);
+
+    // Trigger onChange
+    handleInput();
+  }, [highlightColorHistory]);
+
+  // Quick apply from recent colors (text selection is already saved)
+  const handleQuickApplyTextColor = (color: string) => {
+    // Save selection first
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      savedRangeRef.current = selection.getRangeAt(0).cloneRange();
+    }
+    handleApplyTextColor(color, false);
   };
 
-  const normalizeHex = (hex: string): string => {
-    // If 3-digit hex (#RGB), expand to 6-digit (#RRGGBB)
-    if (hex.length === 4) {
-      return '#' + hex[1] + hex[1] + hex[2] + hex[2] + hex[3] + hex[3];
-    }
-    return hex;
-  };
-
-  const formatHexInput = (value: string): string => {
-    // Auto-add # prefix if missing
-    let formatted = value.trim();
-    if (formatted && !formatted.startsWith('#')) {
-      formatted = '#' + formatted;
-    }
-    // Convert to uppercase for consistency
-    return formatted.toUpperCase();
-  };
-
-  // Apply custom hex color handlers
-  const applyCustomTextColor = () => {
-    const formattedHex = formatHexInput(customTextHex);
-    if (isValidHex(formattedHex)) {
-      formatText('textColor', normalizeHex(formattedHex));
-      setShowTextColorPicker(false);
-      setCustomTextHex('');
-    }
-  };
-
-  const applyCustomHighlightColor = () => {
-    const formattedHex = formatHexInput(customHighlightHex);
-    if (isValidHex(formattedHex)) {
-      formatText('highlight', normalizeHex(formattedHex));
-      setShowHighlightPicker(false);
-      setCustomHighlightHex('');
-    }
+  const handleQuickApplyHighlightColor = (color: string) => {
+    handleApplyHighlightColor(color, false);
   };
 
 
@@ -945,8 +971,8 @@ export default function RichTextEditor({
     <div className={`border border-gray-300 rounded-lg bg-white ${className}`}>
       {/* Toolbar */}
       <div className="border-b border-gray-200 p-3 bg-gray-50 rounded-t-lg">
-        {/* Single Row Toolbar */}
-        <div className="flex items-center justify-between">
+        {/* Row 1: Standard formatting tools */}
+        <div className="flex items-center justify-between mb-3">
           <div className="flex items-center space-x-3">
             {/* Text Formatting Group */}
             <div className="flex items-center space-x-1">
@@ -1200,301 +1226,183 @@ export default function RichTextEditor({
             {/* Vertical Divider */}
             <div className="w-px h-8 bg-gray-300"></div>
 
-          {/* Text Alignment Group */}
-          <div className="flex items-center space-x-1">
-            <button
-              onClick={() => formatText('justifyLeft')}
-              className={`p-2 rounded-lg transition-colors ${
-                activeFormatting.alignLeft
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'text-gray-700 hover:text-gray-900 hover:bg-gray-200'
-              }`}
-              title="Align Left"
-              aria-label="Align Left"
-              aria-pressed={activeFormatting.alignLeft}
-            >
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M15 15H3v2h12v-2zm0-8H3v2h12V7zM3 13h18v-2H3v2zm0 8h18v-2H3v2zM3 3v2h18V3H3z"/>
-              </svg>
-            </button>
-            <button
-              onClick={() => formatText('justifyCenter')}
-              className={`p-2 rounded-lg transition-colors ${
-                activeFormatting.alignCenter
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'text-gray-700 hover:text-gray-900 hover:bg-gray-200'
-              }`}
-              title="Align Center"
-              aria-label="Align Center"
-              aria-pressed={activeFormatting.alignCenter}
-            >
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M7 15v2h10v-2H7zm-4 6h18v-2H3v2zm0-8h18v-2H3v2zm4-6v2h10V7H7zM3 3v2h18V3H3z"/>
-              </svg>
-            </button>
-            <button
-              onClick={() => formatText('justifyRight')}
-              className={`p-2 rounded-lg transition-colors ${
-                activeFormatting.alignRight
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'text-gray-700 hover:text-gray-900 hover:bg-gray-200'
-              }`}
-              title="Align Right"
-              aria-label="Align Right"
-              aria-pressed={activeFormatting.alignRight}
-            >
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M3 21h18v-2H3v2zm6-4h12v-2H9v2zm-6-4h18v-2H3v2zm6-4h12V7H9v2zM3 3v2h18V3H3z"/>
-              </svg>
-            </button>
-          </div>
-          
-          {/* Vertical Divider */}
-          <div className="w-px h-8 bg-gray-300"></div>
-
-          {/* Lists Group */}
-          <div className="flex items-center space-x-1">
-            <button
-              onClick={() => formatText('insertUnorderedList')}
-              className={`p-2 rounded-lg transition-colors ${
-                activeFormatting.unorderedList
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'text-gray-700 hover:text-gray-900 hover:bg-gray-200'
-              }`}
-              title="Bullet List"
-              aria-label="Bullet List"
-              aria-pressed={activeFormatting.unorderedList}
-            >
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M4 10.5c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zm0-6c-.83 0-1.5.67-1.5 1.5S3.17 7.5 4 7.5 5.5 6.83 5.5 6 4.83 4.5 4 4.5zm0 12c-.83 0-1.5.68-1.5 1.5s.68 1.5 1.5 1.5 1.5-.68 1.5-1.5-.67-1.5-1.5-1.5zM7 19h14v-2H7v2zm0-6h14v-2H7v2zm0-8v2h14V5H7z"/>
-              </svg>
-            </button>
-            <button
-              onClick={() => formatText('insertOrderedList')}
-              className={`p-2 rounded-lg transition-colors ${
-                activeFormatting.orderedList
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'text-gray-700 hover:text-gray-900 hover:bg-gray-200'
-              }`}
-              title="Numbered List"
-              aria-label="Numbered List"
-              aria-pressed={activeFormatting.orderedList}
-            >
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M2 17h2v.5H3v1h1v.5H2v1h3v-4H2v1zm1-9h1V4H2v1h1v3zm-1 3h1.8L2 13.1v.9h3v-1H3.2L5 10.9V10H2v1zm5-6v2h14V5H7zm0 14h14v-2H7v2zm0-6h14v-2H7v2z"/>
-              </svg>
-            </button>
-          </div>
-          
-          {/* Vertical Divider */}
-          <div className="w-px h-8 bg-gray-300"></div>
-
-          {/* Insert Elements Group */}
-          <div className="flex items-center space-x-1">
-            <button
-              onClick={insertLink}
-              className="p-2 text-gray-700 hover:text-gray-900 hover:bg-gray-200 rounded-lg transition-colors"
-              title="Insert Link (Ctrl+K)"
-              aria-label="Insert Link"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-              </svg>
-            </button>
-            <button
-              onClick={() => formatText('inlineCode')}
-              className="p-2 text-gray-700 hover:text-gray-900 hover:bg-gray-200 rounded-lg transition-colors"
-              title="Inline Code (Ctrl+E)"
-              aria-label="Inline Code"
-            >
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/>
-              </svg>
-            </button>
-            <button
-              onClick={() => formatText('blockQuote')}
-              className="p-2 text-gray-700 hover:text-gray-900 hover:bg-gray-200 rounded-lg transition-colors"
-              title="Block Quote"
-              aria-label="Block Quote"
-            >
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M6 17h3l2-4V7H5v6h3zm8 0h3l2-4V7h-6v6h3z"/>
-              </svg>
-            </button>
-          </div>
-
-          {/* Vertical Divider */}
-          <div className="w-px h-8 bg-gray-300"></div>
-
-          {/* Color Group */}
-          <div className="flex items-center space-x-1">
-            <div className="relative">
+            {/* Text Alignment Group */}
+            <div className="flex items-center space-x-1">
               <button
-                onClick={() => {
-                  setShowTextColorPicker(!showTextColorPicker);
-                  setShowHighlightPicker(false);
-                }}
-                className="p-2 text-gray-700 hover:text-gray-900 hover:bg-gray-200 rounded-lg transition-colors"
-                title="Text Color"
-                aria-label="Text Color"
+                onClick={() => formatText('justifyLeft')}
+                className={`p-2 rounded-lg transition-colors ${
+                  activeFormatting.alignLeft
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'text-gray-700 hover:text-gray-900 hover:bg-gray-200'
+                }`}
+                title="Align Left"
+                aria-label="Align Left"
+                aria-pressed={activeFormatting.alignLeft}
               >
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M9.62 12L12 5.67 14.38 12M11 3L5.5 17h2.25l1.12-3h6.25l1.12 3h2.25L13 3h-2z"/>
+                  <path d="M15 15H3v2h12v-2zm0-8H3v2h12V7zM3 13h18v-2H3v2zm0 8h18v-2H3v2zM3 3v2h18V3H3z"/>
                 </svg>
               </button>
-              {showTextColorPicker && (
-                <div className="absolute top-full left-0 mt-2 p-3 bg-white border-2 border-gray-300 rounded-xl shadow-lg z-50 min-w-[240px]">
-                  <div className="grid grid-cols-5 gap-2 mb-3">
-                    {['#000000', '#374151', '#6b7280', '#9ca3af', '#d1d5db',
-                      '#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16',
-                      '#22c55e', '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9',
-                      '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef',
-                      '#ec4899', '#f43f5e', '#ffffff'].map(color => (
-                      <button
-                        key={color}
-                        onClick={() => {
-                          formatText('textColor', color);
-                          setShowTextColorPicker(false);
-                        }}
-                        className="w-7 h-7 rounded-md border-2 border-gray-300 hover:scale-110 transition-transform"
-                        style={{ backgroundColor: color }}
-                        title={color}
-                      />
-                    ))}
-                  </div>
-
-                  {/* Custom Hex Input */}
-                  <div className="border-t border-gray-200 pt-3">
-                    <label className="text-xs font-medium text-gray-600 mb-1.5 block">Custom Hex Color</label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={customTextHex}
-                        onChange={(e) => setCustomTextHex(e.target.value)}
-                        placeholder="#000000"
-                        maxLength={7}
-                        className={`flex-1 px-2 py-1.5 text-sm border-2 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-200 ${
-                          customTextHex && isValidHex(formatHexInput(customTextHex))
-                            ? 'border-green-500'
-                            : customTextHex
-                            ? 'border-red-500'
-                            : 'border-gray-300'
-                        }`}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            applyCustomTextColor();
-                          } else if (e.key === 'Escape') {
-                            setShowTextColorPicker(false);
-                            setCustomTextHex('');
-                          }
-                        }}
-                      />
-                      <div
-                        className="w-8 h-8 rounded border-2 border-gray-300 flex-shrink-0"
-                        style={{
-                          backgroundColor: customTextHex && isValidHex(formatHexInput(customTextHex))
-                            ? normalizeHex(formatHexInput(customTextHex))
-                            : '#ffffff'
-                        }}
-                      />
-                      <button
-                        onClick={applyCustomTextColor}
-                        disabled={!customTextHex || !isValidHex(formatHexInput(customTextHex))}
-                        className="px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 transition-colors flex-shrink-0"
-                      >
-                        Apply
-                      </button>
-                    </div>
-                    <p className="text-[10px] text-gray-500 mt-1">Enter hex code (e.g., #E34234 or #fff)</p>
-                  </div>
-                </div>
-              )}
+              <button
+                onClick={() => formatText('justifyCenter')}
+                className={`p-2 rounded-lg transition-colors ${
+                  activeFormatting.alignCenter
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'text-gray-700 hover:text-gray-900 hover:bg-gray-200'
+                }`}
+                title="Align Center"
+                aria-label="Align Center"
+                aria-pressed={activeFormatting.alignCenter}
+              >
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M7 15v2h10v-2H7zm-4 6h18v-2H3v2zm0-8h18v-2H3v2zm4-6v2h10V7H7zM3 3v2h18V3H3z"/>
+                </svg>
+              </button>
+              <button
+                onClick={() => formatText('justifyRight')}
+                className={`p-2 rounded-lg transition-colors ${
+                  activeFormatting.alignRight
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'text-gray-700 hover:text-gray-900 hover:bg-gray-200'
+                }`}
+                title="Align Right"
+                aria-label="Align Right"
+                aria-pressed={activeFormatting.alignRight}
+              >
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M3 21h18v-2H3v2zm6-4h12v-2H9v2zm-6-4h18v-2H3v2zm6-4h12V7H9v2zM3 3v2h18V3H3z"/>
+                </svg>
+              </button>
             </div>
-            <div className="relative">
+
+            {/* Vertical Divider */}
+            <div className="w-px h-8 bg-gray-300"></div>
+
+            {/* Lists Group */}
+            <div className="flex items-center space-x-1">
               <button
-                onClick={() => {
-                  setShowHighlightPicker(!showHighlightPicker);
-                  setShowTextColorPicker(false);
-                }}
-                className="p-2 text-gray-700 hover:text-gray-900 hover:bg-gray-200 rounded-lg transition-colors"
-                title="Highlight Color"
-                aria-label="Highlight Color"
+                onClick={() => formatText('insertUnorderedList')}
+                className={`p-2 rounded-lg transition-colors ${
+                  activeFormatting.unorderedList
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'text-gray-700 hover:text-gray-900 hover:bg-gray-200'
+                }`}
+                title="Bullet List"
+                aria-label="Bullet List"
+                aria-pressed={activeFormatting.unorderedList}
               >
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M16.56 8.94L7.62 0 6.21 1.41l2.38 2.38-5.15 5.15c-.59.59-.59 1.54 0 2.12l5.5 5.5c.29.29.68.44 1.06.44s.77-.15 1.06-.44l5.5-5.5c.59-.58.59-1.53 0-2.12zM5.21 10L10 5.21 14.79 10H5.21zM19 11.5s-2 2.17-2 3.5c0 1.1.9 2 2 2s2-.9 2-2c0-1.33-2-3.5-2-3.5z"/>
+                  <path d="M4 10.5c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zm0-6c-.83 0-1.5.67-1.5 1.5S3.17 7.5 4 7.5 5.5 6.83 5.5 6 4.83 4.5 4 4.5zm0 12c-.83 0-1.5.68-1.5 1.5s.68 1.5 1.5 1.5 1.5-.68 1.5-1.5-.67-1.5-1.5-1.5zM7 19h14v-2H7v2zm0-6h14v-2H7v2zm0-8v2h14V5H7z"/>
                 </svg>
               </button>
-              {showHighlightPicker && (
-                <div className="absolute top-full left-0 mt-2 p-3 bg-white border-2 border-gray-300 rounded-xl shadow-lg z-50 min-w-[240px]">
-                  <div className="grid grid-cols-5 gap-2 mb-3">
-                    {['#fef3c7', '#fde68a', '#fcd34d', '#fbbf24', '#f59e0b',
-                      '#fed7aa', '#fdba74', '#fb923c', '#f97316', '#ea580c',
-                      '#fecaca', '#fca5a5', '#f87171', '#ef4444', '#dc2626',
-                      '#bbf7d0', '#86efac', '#4ade80', '#22c55e', '#16a34a',
-                      '#bfdbfe', '#93c5fd', '#60a5fa', '#3b82f6', '#2563eb',
-                      '#ddd6fe', '#c4b5fd', '#a78bfa', '#8b5cf6', '#7c3aed'].map(color => (
-                      <button
-                        key={color}
-                        onClick={() => {
-                          formatText('highlight', color);
-                          setShowHighlightPicker(false);
-                        }}
-                        className="w-7 h-7 rounded-md border-2 border-gray-300 hover:scale-110 transition-transform"
-                        style={{ backgroundColor: color }}
-                        title={color}
-                      />
-                    ))}
-                  </div>
+              <button
+                onClick={() => formatText('insertOrderedList')}
+                className={`p-2 rounded-lg transition-colors ${
+                  activeFormatting.orderedList
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'text-gray-700 hover:text-gray-900 hover:bg-gray-200'
+                }`}
+                title="Numbered List"
+                aria-label="Numbered List"
+                aria-pressed={activeFormatting.orderedList}
+              >
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M2 17h2v.5H3v1h1v.5H2v1h3v-4H2v1zm1-9h1V4H2v1h1v3zm-1 3h1.8L2 13.1v.9h3v-1H3.2L5 10.9V10H2v1zm5-6v2h14V5H7zm0 14h14v-2H7v2zm0-6h14v-2H7v2z"/>
+                </svg>
+              </button>
+            </div>
 
-                  {/* Custom Hex Input */}
-                  <div className="border-t border-gray-200 pt-3">
-                    <label className="text-xs font-medium text-gray-600 mb-1.5 block">Custom Hex Color</label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={customHighlightHex}
-                        onChange={(e) => setCustomHighlightHex(e.target.value)}
-                        placeholder="#FFEB3B"
-                        maxLength={7}
-                        className={`flex-1 px-2 py-1.5 text-sm border-2 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-200 ${
-                          customHighlightHex && isValidHex(formatHexInput(customHighlightHex))
-                            ? 'border-green-500'
-                            : customHighlightHex
-                            ? 'border-red-500'
-                            : 'border-gray-300'
-                        }`}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            applyCustomHighlightColor();
-                          } else if (e.key === 'Escape') {
-                            setShowHighlightPicker(false);
-                            setCustomHighlightHex('');
-                          }
-                        }}
-                      />
-                      <div
-                        className="w-8 h-8 rounded border-2 border-gray-300 flex-shrink-0"
-                        style={{
-                          backgroundColor: customHighlightHex && isValidHex(formatHexInput(customHighlightHex))
-                            ? normalizeHex(formatHexInput(customHighlightHex))
-                            : '#ffffff'
-                        }}
-                      />
-                      <button
-                        onClick={applyCustomHighlightColor}
-                        disabled={!customHighlightHex || !isValidHex(formatHexInput(customHighlightHex))}
-                        className="px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 transition-colors flex-shrink-0"
-                      >
-                        Apply
-                      </button>
-                    </div>
-                    <p className="text-[10px] text-gray-500 mt-1">Enter hex code (e.g., #FFEB3B or #ff0)</p>
-                  </div>
-                </div>
-              )}
+            {/* Vertical Divider */}
+            <div className="w-px h-8 bg-gray-300"></div>
+
+            {/* Insert Elements Group */}
+            <div className="flex items-center space-x-1">
+              <button
+                onClick={insertLink}
+                className="p-2 text-gray-700 hover:text-gray-900 hover:bg-gray-200 rounded-lg transition-colors"
+                title="Insert Link (Ctrl+K)"
+                aria-label="Insert Link"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                </svg>
+              </button>
+              <button
+                onClick={() => formatText('inlineCode')}
+                className="p-2 text-gray-700 hover:text-gray-900 hover:bg-gray-200 rounded-lg transition-colors"
+                title="Inline Code (Ctrl+E)"
+                aria-label="Inline Code"
+              >
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/>
+                </svg>
+              </button>
+              <button
+                onClick={() => formatText('blockQuote')}
+                className="p-2 text-gray-700 hover:text-gray-900 hover:bg-gray-200 rounded-lg transition-colors"
+                title="Block Quote"
+                aria-label="Block Quote"
+              >
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M6 17h3l2-4V7H5v6h3zm8 0h3l2-4V7h-6v6h3z"/>
+                </svg>
+              </button>
             </div>
           </div>
         </div>
+
+        {/* Row 2: Color management */}
+        <div className="flex items-center space-x-3">
+          {/* Text Color Button */}
+          <button
+            onClick={() => {
+              const selection = window.getSelection();
+              if (selection && selection.rangeCount > 0) {
+                savedRangeRef.current = selection.getRangeAt(0).cloneRange();
+              }
+              setShowTextColorModal(true);
+            }}
+            className="p-2 text-gray-700 hover:text-gray-900 hover:bg-gray-200 rounded-lg transition-colors"
+            title="Text Color"
+          >
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M9.62 12L12 5.67 14.38 12M11 3L5.5 17h2.25l1.12-3h6.25l1.12 3h2.25L13 3h-2z"/>
+            </svg>
+          </button>
+
+          {/* 4 Recent Text Color Buttons */}
+          {[0, 1, 2, 3].map(index => (
+            <RecentColorButton
+              key={index}
+              color={textColorHistory.recentColors[index]}
+              onClick={() => {
+                if (textColorHistory.recentColors[index]) {
+                  handleQuickApplyTextColor(textColorHistory.recentColors[index]);
+                }
+              }}
+              empty={!textColorHistory.recentColors[index]}
+            />
+          ))}
+
+          {/* Vertical Divider */}
+          <div className="w-px h-8 bg-gray-300"></div>
+
+          {/* Highlight Dropdown */}
+          <HighlightDropdown
+            recentColors={highlightColorHistory.recentColors}
+            savedColors={highlightColorHistory.savedColors}
+            onColorClick={(color) => handleQuickApplyHighlightColor(color)}
+            onCustomClick={() => {
+              const selection = window.getSelection();
+              if (selection && selection.rangeCount > 0) {
+                savedRangeRef.current = selection.getRangeAt(0).cloneRange();
+              }
+              setShowHighlightModal(true);
+              setShowHighlightDropdown(false);
+            }}
+            isOpen={showHighlightDropdown}
+            onToggle={() => setShowHighlightDropdown(!showHighlightDropdown)}
+          />
         </div>
       </div>
 
@@ -1691,6 +1599,31 @@ export default function RichTextEditor({
           )}
         </div>
       </div>
+
+      {/* Color Input Modals */}
+      <ColorInputModal
+        type="text"
+        isOpen={showTextColorModal}
+        onClose={() => setShowTextColorModal(false)}
+        onApply={(color, shouldSave) => {
+          handleApplyTextColor(color, shouldSave);
+          setShowTextColorModal(false);
+        }}
+        savedColors={textColorHistory.savedColors}
+        onRemoveColor={textColorHistory.removeColor}
+      />
+
+      <ColorInputModal
+        type="highlight"
+        isOpen={showHighlightModal}
+        onClose={() => setShowHighlightModal(false)}
+        onApply={(color, shouldSave) => {
+          handleApplyHighlightColor(color, shouldSave);
+          setShowHighlightModal(false);
+        }}
+        savedColors={highlightColorHistory.savedColors}
+        onRemoveColor={highlightColorHistory.removeColor}
+      />
     </div>
   );
 }
