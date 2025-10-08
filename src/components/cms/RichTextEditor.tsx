@@ -41,6 +41,8 @@ export default function RichTextEditor({
   const [showTextColorPicker, setShowTextColorPicker] = useState(false);
   const [showHighlightPicker, setShowHighlightPicker] = useState(false);
   const [showCaseMenu, setShowCaseMenu] = useState(false);
+  const [customTextHex, setCustomTextHex] = useState('');
+  const [customHighlightHex, setCustomHighlightHex] = useState('');
   const savedRangeRef = useRef<Range | null>(null);
   const [activeFormatting, setActiveFormatting] = useState<{
     bold: boolean;
@@ -884,6 +886,48 @@ export default function RichTextEditor({
     return plainText.length;
   };
 
+  // Hex color validation and normalization utilities
+  const isValidHex = (color: string): boolean => {
+    return /^#([0-9A-F]{3}){1,2}$/i.test(color);
+  };
+
+  const normalizeHex = (hex: string): string => {
+    // If 3-digit hex (#RGB), expand to 6-digit (#RRGGBB)
+    if (hex.length === 4) {
+      return '#' + hex[1] + hex[1] + hex[2] + hex[2] + hex[3] + hex[3];
+    }
+    return hex;
+  };
+
+  const formatHexInput = (value: string): string => {
+    // Auto-add # prefix if missing
+    let formatted = value.trim();
+    if (formatted && !formatted.startsWith('#')) {
+      formatted = '#' + formatted;
+    }
+    // Convert to uppercase for consistency
+    return formatted.toUpperCase();
+  };
+
+  // Apply custom hex color handlers
+  const applyCustomTextColor = () => {
+    const formattedHex = formatHexInput(customTextHex);
+    if (isValidHex(formattedHex)) {
+      formatText('textColor', normalizeHex(formattedHex));
+      setShowTextColorPicker(false);
+      setCustomTextHex('');
+    }
+  };
+
+  const applyCustomHighlightColor = () => {
+    const formattedHex = formatHexInput(customHighlightHex);
+    if (isValidHex(formattedHex)) {
+      formatText('highlight', normalizeHex(formattedHex));
+      setShowHighlightPicker(false);
+      setCustomHighlightHex('');
+    }
+  };
+
 
 
   if (!mounted) {
@@ -1299,8 +1343,8 @@ export default function RichTextEditor({
                 </svg>
               </button>
               {showTextColorPicker && (
-                <div className="absolute top-full left-0 mt-2 p-3 bg-white border-2 border-gray-300 rounded-xl shadow-lg z-50">
-                  <div className="grid grid-cols-5 gap-2">
+                <div className="absolute top-full left-0 mt-2 p-3 bg-white border-2 border-gray-300 rounded-xl shadow-lg z-50 min-w-[240px]">
+                  <div className="grid grid-cols-5 gap-2 mb-3">
                     {['#000000', '#374151', '#6b7280', '#9ca3af', '#d1d5db',
                       '#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16',
                       '#22c55e', '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9',
@@ -1317,6 +1361,51 @@ export default function RichTextEditor({
                         title={color}
                       />
                     ))}
+                  </div>
+
+                  {/* Custom Hex Input */}
+                  <div className="border-t border-gray-200 pt-3">
+                    <label className="text-xs font-medium text-gray-600 mb-1.5 block">Custom Hex Color</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={customTextHex}
+                        onChange={(e) => setCustomTextHex(e.target.value)}
+                        placeholder="#000000"
+                        maxLength={7}
+                        className={`flex-1 px-2 py-1.5 text-sm border-2 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-200 ${
+                          customTextHex && isValidHex(formatHexInput(customTextHex))
+                            ? 'border-green-500'
+                            : customTextHex
+                            ? 'border-red-500'
+                            : 'border-gray-300'
+                        }`}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            applyCustomTextColor();
+                          } else if (e.key === 'Escape') {
+                            setShowTextColorPicker(false);
+                            setCustomTextHex('');
+                          }
+                        }}
+                      />
+                      <div
+                        className="w-8 h-8 rounded border-2 border-gray-300 flex-shrink-0"
+                        style={{
+                          backgroundColor: customTextHex && isValidHex(formatHexInput(customTextHex))
+                            ? normalizeHex(formatHexInput(customTextHex))
+                            : '#ffffff'
+                        }}
+                      />
+                      <button
+                        onClick={applyCustomTextColor}
+                        disabled={!customTextHex || !isValidHex(formatHexInput(customTextHex))}
+                        className="px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 transition-colors flex-shrink-0"
+                      >
+                        Apply
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-gray-500 mt-1">Enter hex code (e.g., #E34234 or #fff)</p>
                   </div>
                 </div>
               )}
@@ -1336,8 +1425,8 @@ export default function RichTextEditor({
                 </svg>
               </button>
               {showHighlightPicker && (
-                <div className="absolute top-full left-0 mt-2 p-3 bg-white border-2 border-gray-300 rounded-xl shadow-lg z-50">
-                  <div className="grid grid-cols-5 gap-2">
+                <div className="absolute top-full left-0 mt-2 p-3 bg-white border-2 border-gray-300 rounded-xl shadow-lg z-50 min-w-[240px]">
+                  <div className="grid grid-cols-5 gap-2 mb-3">
                     {['#fef3c7', '#fde68a', '#fcd34d', '#fbbf24', '#f59e0b',
                       '#fed7aa', '#fdba74', '#fb923c', '#f97316', '#ea580c',
                       '#fecaca', '#fca5a5', '#f87171', '#ef4444', '#dc2626',
@@ -1355,6 +1444,51 @@ export default function RichTextEditor({
                         title={color}
                       />
                     ))}
+                  </div>
+
+                  {/* Custom Hex Input */}
+                  <div className="border-t border-gray-200 pt-3">
+                    <label className="text-xs font-medium text-gray-600 mb-1.5 block">Custom Hex Color</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={customHighlightHex}
+                        onChange={(e) => setCustomHighlightHex(e.target.value)}
+                        placeholder="#FFEB3B"
+                        maxLength={7}
+                        className={`flex-1 px-2 py-1.5 text-sm border-2 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-200 ${
+                          customHighlightHex && isValidHex(formatHexInput(customHighlightHex))
+                            ? 'border-green-500'
+                            : customHighlightHex
+                            ? 'border-red-500'
+                            : 'border-gray-300'
+                        }`}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            applyCustomHighlightColor();
+                          } else if (e.key === 'Escape') {
+                            setShowHighlightPicker(false);
+                            setCustomHighlightHex('');
+                          }
+                        }}
+                      />
+                      <div
+                        className="w-8 h-8 rounded border-2 border-gray-300 flex-shrink-0"
+                        style={{
+                          backgroundColor: customHighlightHex && isValidHex(formatHexInput(customHighlightHex))
+                            ? normalizeHex(formatHexInput(customHighlightHex))
+                            : '#ffffff'
+                        }}
+                      />
+                      <button
+                        onClick={applyCustomHighlightColor}
+                        disabled={!customHighlightHex || !isValidHex(formatHexInput(customHighlightHex))}
+                        className="px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 transition-colors flex-shrink-0"
+                      >
+                        Apply
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-gray-500 mt-1">Enter hex code (e.g., #FFEB3B or #ff0)</p>
                   </div>
                 </div>
               )}

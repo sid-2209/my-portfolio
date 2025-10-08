@@ -878,51 +878,87 @@ export default function AdminPage() {
     });
   };
 
+  // PHASE 3: Retry logic with exponential backoff
   const handleContentBlocksChange = async (blocks: { id: string; blockType: string; data: unknown; order: number }[]) => {
     if (!selectedContentId) {
       console.error('No content selected for block update');
       return;
     }
 
-    try {
-      console.log('Updating content blocks for:', selectedContentId, 'with', blocks.length, 'blocks');
+    const maxRetries = 3;
+    const baseDelay = 1000; // 1 second
 
-      const response = await fetch(`/api/content/${selectedContentId}/blocks`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ blocks }),
-      });
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`Updating content blocks (attempt ${attempt + 1}/${maxRetries + 1}) for:`, selectedContentId, 'with', blocks.length, 'blocks');
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to update content blocks (${response.status})`);
+        const response = await fetch(`/api/content/${selectedContentId}/blocks`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ blocks }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+
+          // Check if error is retryable
+          const isRetryable = errorData.retryable === true ||
+                             response.status === 408 || // Timeout
+                             response.status === 409 || // Conflict
+                             response.status === 500;   // Server error
+
+          if (isRetryable && attempt < maxRetries) {
+            // Calculate exponential backoff delay
+            const delay = baseDelay * Math.pow(2, attempt);
+            console.warn(`Retryable error encountered. Retrying in ${delay}ms...`, errorData.error);
+
+            // Show user feedback during retry
+            if (attempt === 0) {
+              console.log('Saving encountered a temporary issue, retrying...');
+            }
+
+            // Wait before retrying
+            await new Promise(resolve => setTimeout(resolve, delay));
+            continue; // Retry the request
+          }
+
+          // Non-retryable error or max retries exceeded
+          throw new Error(errorData.error || `Failed to update content blocks (${response.status})`);
+        }
+
+        const updatedBlocks = await response.json();
+        console.log('Successfully updated blocks:', updatedBlocks.length, 'blocks saved', attempt > 0 ? `(after ${attempt} ${attempt === 1 ? 'retry' : 'retries'})` : '');
+
+        setContent(prev => prev.map(item =>
+          item.id === selectedContentId
+            ? { ...item, contentBlocks: updatedBlocks }
+            : item
+        ));
+
+        // Update live preview with the new blocks
+        const previewBlocks = updatedBlocks.map((block: { id: string; blockType: string; data: unknown; order: number }) => ({
+          id: block.id,
+          blockType: block.blockType,
+          data: block.data,
+          order: block.order
+        }));
+        updatePreviewBlocks(previewBlocks);
+
+        // Create auto-revision for content block changes
+        await createAutoRevision(selectedContentId);
+
+        // Success - exit retry loop
+        return;
+      } catch (error) {
+        // If this was the last attempt, show error to user
+        if (attempt === maxRetries) {
+          console.error('Error updating content blocks after', maxRetries, 'retries:', error);
+          alert(`Error saving blocks: ${error instanceof Error ? error.message : 'Unknown error'}\n\nPlease try again or refresh the page.`);
+        }
+        // Otherwise, loop continues to next attempt
       }
-
-      const updatedBlocks = await response.json();
-      console.log('Successfully updated blocks:', updatedBlocks.length, 'blocks saved');
-
-      setContent(prev => prev.map(item =>
-        item.id === selectedContentId
-          ? { ...item, contentBlocks: updatedBlocks }
-          : item
-      ));
-
-      // Update live preview with the new blocks
-      const previewBlocks = updatedBlocks.map((block: { id: string; blockType: string; data: unknown; order: number }) => ({
-        id: block.id,
-        blockType: block.blockType,
-        data: block.data,
-        order: block.order
-      }));
-      updatePreviewBlocks(previewBlocks);
-
-      // Create auto-revision for content block changes
-      await createAutoRevision(selectedContentId);
-    } catch (error) {
-      console.error('Error updating content blocks:', error);
-      alert(`Error saving blocks: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
