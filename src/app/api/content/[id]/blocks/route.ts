@@ -195,7 +195,7 @@ export async function PUT(
 
     // Validate each block structure
     for (let i = 0; i < blocks.length; i++) {
-      const block = blocks[i];
+      const block = blocks[i] as { blockType?: string; data?: unknown };
       if (!block.blockType || block.data === undefined) {
         return NextResponse.json(
           { error: `Block at index ${i} is missing required fields: blockType or data` },

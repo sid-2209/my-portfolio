@@ -5,13 +5,13 @@ import { useEffect, useRef, ReactNode } from 'react';
 interface ScrollFadeContainerProps {
   children: ReactNode;
   fadeStart?: number; // Distance from top where fade starts (default: 120px)
-  fadeDistance?: number; // Distance over which fade occurs (default: 80px)
+  fadeDistance?: number; // Distance over which fade occurs (default: 200px for ultra-smooth fade)
 }
 
 export default function ScrollFadeContainer({
   children,
   fadeStart = 120,
-  fadeDistance = 80
+  fadeDistance = 200
 }: ScrollFadeContainerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -38,14 +38,23 @@ export default function ScrollFadeContainer({
           // Calculate how deep into fade zone (how much has crossed threshold)
           const fadeDepth = fadeStart - blockTop;
 
-          // Apply gradient mask that reveals content progressively
-          // Content from 0 to fadeDepth is transparent (faded out)
-          // Content from fadeDepth to fadeDepth+fadeDistance gradually appears
-          // Content beyond fadeDepth+fadeDistance is fully visible
+          // Create multi-stop gradient for smooth, natural ease-out curve
+          // Simulates ease-out easing for more natural fade
+          const preFade = Math.max(0, fadeDepth - 30); // Pre-fade buffer for softer start
+          const stop1 = Math.max(0, fadeDepth); // Start of fade zone
+          const stop2 = Math.max(0, fadeDepth + fadeDistance * 0.25); // 25% - slow start
+          const stop3 = Math.max(0, fadeDepth + fadeDistance * 0.5); // 50% - accelerate
+          const stop4 = Math.max(0, fadeDepth + fadeDistance * 0.75); // 75% - continue
+          const stop5 = Math.max(0, fadeDepth + fadeDistance); // 100% - decelerate to full
+
           const maskGradient = `linear-gradient(to bottom,
             transparent 0px,
-            transparent ${Math.max(0, fadeDepth)}px,
-            black ${Math.max(0, fadeDepth + fadeDistance)}px,
+            rgba(0, 0, 0, 0.05) ${preFade}px,
+            rgba(0, 0, 0, 0.15) ${stop1}px,
+            rgba(0, 0, 0, 0.4) ${stop2}px,
+            rgba(0, 0, 0, 0.7) ${stop3}px,
+            rgba(0, 0, 0, 0.9) ${stop4}px,
+            black ${stop5}px,
             black 100%
           )`;
 

@@ -195,7 +195,7 @@ export default function ContentPage() {
           <div className="prose prose-invert max-w-none overflow-visible">
             {/* CMS Content Blocks */}
             {content.contentBlocks && content.contentBlocks.length > 0 ? (
-              <ScrollFadeContainer fadeStart={120} fadeDistance={80}>
+              <ScrollFadeContainer fadeStart={120} fadeDistance={200}>
                 <BlockRenderer blocks={content.contentBlocks.map(block => ({
                   ...block,
                   contentId: content.id,
