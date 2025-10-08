@@ -282,32 +282,36 @@ export async function PUT(
     console.log(`[Blocks API] All ${cleanBlocks.length} blocks cleaned successfully, starting transaction...`);
 
     // ATOMIC TRANSACTION: Delete and recreate all blocks
-    // This ensures either all operations succeed or all fail
+    // Using createMany for better performance with Prisma Accelerate's 15s timeout limit
     const updatedBlocks = await prisma.$transaction(async (tx) => {
       // Step 1: Delete all existing blocks for this content
+      console.log(`[Blocks API] Deleting existing blocks for content: ${id}`);
       await tx.contentBlock.deleteMany({
         where: { contentId: id }
       });
 
-      // Step 2: Create all new blocks sequentially to avoid unique constraint conflicts
-      const newBlocks = [];
-      for (let index = 0; index < cleanBlocks.length; index++) {
-        const block = cleanBlocks[index];
-        const createdBlock = await tx.contentBlock.create({
-          data: {
-            contentId: id,
-            blockType: block.blockType as BlockType,
-            order: index, // Use index to ensure unique, sequential order
-            data: block.data as Prisma.InputJsonValue
-          }
-        });
-        newBlocks.push(createdBlock);
-      }
+      // Step 2: Create all new blocks in a single batch operation
+      console.log(`[Blocks API] Creating ${cleanBlocks.length} blocks in batch...`);
+      await tx.contentBlock.createMany({
+        data: cleanBlocks.map((block, index) => ({
+          contentId: id,
+          blockType: block.blockType as BlockType,
+          order: index, // Use index to ensure unique, sequential order
+          data: block.data as Prisma.InputJsonValue
+        }))
+      });
+
+      // Step 3: Fetch and return the newly created blocks
+      console.log(`[Blocks API] Fetching newly created blocks...`);
+      const newBlocks = await tx.contentBlock.findMany({
+        where: { contentId: id },
+        orderBy: { order: 'asc' }
+      });
 
       return newBlocks;
     }, {
-      timeout: 30000, // 30 second timeout for the transaction (increased for large block counts)
-      maxWait: 10000,  // Maximum time to wait for a transaction slot
+      timeout: 15000, // 15 second timeout (Prisma Accelerate max limit)
+      maxWait: 5000,  // Maximum time to wait for a transaction slot
     });
 
     return NextResponse.json(updatedBlocks);
@@ -403,6 +407,16 @@ export async function PUT(
               details: process.env.NODE_ENV === 'development' ? { code: prismaError.code, meta: prismaError.meta } : undefined
             },
             { status: 400 }
+          );
+        case 'P5000': // Prisma Accelerate error
+        case 'P6005': // Prisma Accelerate configuration error
+          return NextResponse.json(
+            {
+              error: 'Database service error. Please try again.',
+              retryable: true,
+              details: process.env.NODE_ENV === 'development' ? { code: prismaError.code, message: prismaError.message } : undefined
+            },
+            { status: 500 }
           );
         default:
           console.error('Unhandled Prisma error code:', prismaError.code);
