@@ -81,16 +81,17 @@ export default function StickyMiniPlayer({
     if (audioType !== 'spotify' || !spotifyController) return;
 
     const controller = spotifyController as {
-      addListener: (event: string, callback: (state?: unknown) => void) => void;
-      removeListener: (event: string, callback: (state?: unknown) => void) => void;
+      addListener: (event: string, callback: (state: unknown) => void) => void;
+      removeListener: (event: string, callback: (state: unknown) => void) => void;
     };
 
-    const handlePlaybackUpdate = (state: { isPaused: boolean; duration: number; position: number }) => {
-      setIsPlaying(!state.isPaused);
+    const handlePlaybackUpdate = (state: unknown) => {
+      const playbackState = state as { isPaused: boolean; duration: number; position: number };
+      setIsPlaying(!playbackState.isPaused);
 
       // Duration and position are in milliseconds
-      const durationSec = state.duration / 1000;
-      const positionSec = state.position / 1000;
+      const durationSec = playbackState.duration / 1000;
+      const positionSec = playbackState.position / 1000;
 
       setDuration(formatTime(durationSec));
       setCurrentTime(formatTime(positionSec));
