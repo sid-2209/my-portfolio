@@ -270,7 +270,7 @@ export default function StickyMiniPlayer({
         backdrop-blur-[12px]
         bg-gradient-to-r from-white/[0.12] via-white/[0.06] to-white/[0.12]
         border border-white/[0.15]
-        rounded-full
+        rounded-2xl
         shadow-[0_8px_32px_rgba(0,0,0,0.6),0_2px_8px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.2),inset_0_-1px_0_rgba(0,0,0,0.4)]
         transition-all duration-400 ease-out
         mini-player-enter
