@@ -80,6 +80,11 @@ export default function StickyMiniPlayer({
   useEffect(() => {
     if (audioType !== 'spotify' || !spotifyController) return;
 
+    const controller = spotifyController as {
+      addListener: (event: string, callback: (state?: unknown) => void) => void;
+      removeListener: (event: string, callback: (state?: unknown) => void) => void;
+    };
+
     const handlePlaybackUpdate = (state: { isPaused: boolean; duration: number; position: number }) => {
       setIsPlaying(!state.isPaused);
 
@@ -95,15 +100,15 @@ export default function StickyMiniPlayer({
       }
     };
 
-    spotifyController.addListener('playback_update', handlePlaybackUpdate);
+    controller.addListener('playback_update', handlePlaybackUpdate);
 
     // Get initial state
-    spotifyController.addListener('ready', () => {
+    controller.addListener('ready', () => {
       console.log('[StickyMiniPlayer] Spotify controller ready');
     });
 
     return () => {
-      spotifyController.removeListener('playback_update', handlePlaybackUpdate);
+      controller.removeListener('playback_update', handlePlaybackUpdate);
     };
   }, [audioType, spotifyController]);
 
@@ -111,11 +116,19 @@ export default function StickyMiniPlayer({
   useEffect(() => {
     if (audioType !== 'soundcloud' || !soundcloudWidget) return;
 
+    const widget = soundcloudWidget as {
+      getPosition: (callback: (position: number) => void) => void;
+      getDuration: (callback: (duration: number) => void) => void;
+      bind: (event: string, callback: () => void) => void;
+      unbind: (event: string) => void;
+      isPaused: (callback: (isPaused: boolean) => void) => void;
+    };
+
     const updateProgress = () => {
-      soundcloudWidget.getPosition((position: number) => {
+      widget.getPosition((position: number) => {
         setCurrentTime(formatTime(position / 1000)); // Convert ms to seconds
 
-        soundcloudWidget.getDuration((duration: number) => {
+        widget.getDuration((duration: number) => {
           setDuration(formatTime(duration / 1000));
 
           if (duration > 0) {
@@ -153,18 +166,18 @@ export default function StickyMiniPlayer({
     const onReady = () => {
       console.log('[StickyMiniPlayer] SoundCloud widget ready');
       // Get initial duration
-      soundcloudWidget.getDuration((duration: number) => {
+      widget.getDuration((duration: number) => {
         setDuration(formatTime(duration / 1000));
       });
     };
 
-    soundcloudWidget.bind('play', onPlay);
-    soundcloudWidget.bind('pause', onPause);
-    soundcloudWidget.bind('finish', onFinish);
-    soundcloudWidget.bind('ready', onReady);
+    widget.bind('play', onPlay);
+    widget.bind('pause', onPause);
+    widget.bind('finish', onFinish);
+    widget.bind('ready', onReady);
 
     // Check if already playing
-    soundcloudWidget.isPaused((isPaused: boolean) => {
+    widget.isPaused((isPaused: boolean) => {
       setIsPlaying(!isPaused);
       if (!isPaused) {
         onPlay();
@@ -172,10 +185,10 @@ export default function StickyMiniPlayer({
     });
 
     return () => {
-      soundcloudWidget.unbind('play');
-      soundcloudWidget.unbind('pause');
-      soundcloudWidget.unbind('finish');
-      soundcloudWidget.unbind('ready');
+      widget.unbind('play');
+      widget.unbind('pause');
+      widget.unbind('finish');
+      widget.unbind('ready');
       if (progressIntervalRef.current) {
         clearInterval(progressIntervalRef.current);
       }
@@ -193,13 +206,15 @@ export default function StickyMiniPlayer({
     if (audioType === 'local' && wavesurferInstance) {
       wavesurferInstance.playPause();
     } else if (audioType === 'spotify' && spotifyController) {
+      const controller = spotifyController as { pause: () => void; resume: () => void };
       if (isPlaying) {
-        spotifyController.pause();
+        controller.pause();
       } else {
-        spotifyController.resume();
+        controller.resume();
       }
     } else if (audioType === 'soundcloud' && soundcloudWidget) {
-      soundcloudWidget.toggle();
+      const widget = soundcloudWidget as { toggle: () => void };
+      widget.toggle();
     }
   };
 
@@ -211,16 +226,21 @@ export default function StickyMiniPlayer({
     if (audioType === 'local' && wavesurferInstance) {
       wavesurferInstance.seekTo(percentage);
     } else if (audioType === 'spotify' && spotifyController) {
+      const controller = spotifyController as { seek: (seconds: number) => void };
       // Spotify seek expects seconds
       // We need to calculate seconds from percentage and duration
       const durationMs = parseFloat(duration.split(':')[0]) * 60000 + parseFloat(duration.split(':')[1]) * 1000;
       const positionMs = durationMs * percentage;
-      spotifyController.seek(positionMs / 1000);
+      controller.seek(positionMs / 1000);
     } else if (audioType === 'soundcloud' && soundcloudWidget) {
+      const widget = soundcloudWidget as {
+        getDuration: (callback: (duration: number) => void) => void;
+        seekTo: (position: number) => void;
+      };
       // SoundCloud seek expects milliseconds
-      soundcloudWidget.getDuration((durationMs: number) => {
+      widget.getDuration((durationMs: number) => {
         const positionMs = durationMs * percentage;
-        soundcloudWidget.seekTo(positionMs);
+        widget.seekTo(positionMs);
       });
     }
   };
@@ -230,9 +250,11 @@ export default function StickyMiniPlayer({
     if (audioType === 'local' && wavesurferInstance) {
       wavesurferInstance.pause();
     } else if (audioType === 'spotify' && spotifyController) {
-      spotifyController.pause();
+      const controller = spotifyController as { pause: () => void };
+      controller.pause();
     } else if (audioType === 'soundcloud' && soundcloudWidget) {
-      soundcloudWidget.pause();
+      const widget = soundcloudWidget as { pause: () => void };
+      widget.pause();
     }
     onClose();
   };

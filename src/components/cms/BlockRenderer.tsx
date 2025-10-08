@@ -410,7 +410,8 @@ function AudioBlockRenderer({ block, audioData }: { block: ContentBlock; audioDa
 
     return () => {
       if (spotifyControllerRef.current) {
-        spotifyControllerRef.current.destroy();
+        const controller = spotifyControllerRef.current as { destroy: () => void };
+        controller.destroy();
         spotifyControllerRef.current = null;
       }
     };
