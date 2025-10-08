@@ -399,7 +399,15 @@ function AudioBlockRenderer({ block, audioData }: { block: ContentBlock; audioDa
       uri: embedUrl,
     };
 
-    spotifyAPI.createController(
+    const api = spotifyAPI as {
+      createController: (
+        iframe: HTMLIFrameElement,
+        options: { uri: string },
+        callback: (controller: unknown) => void
+      ) => void;
+    };
+
+    api.createController(
       spotifyIframeRef.current,
       options,
       (EmbedController: unknown) => {
@@ -423,7 +431,11 @@ function AudioBlockRenderer({ block, audioData }: { block: ContentBlock; audioDa
 
     console.log('[AudioBlockRenderer] Initializing SoundCloud widget');
 
-    const widget = soundcloudAPI.Widget(soundcloudIframeRef.current);
+    const api = soundcloudAPI as {
+      Widget: (iframe: HTMLIFrameElement) => unknown;
+    };
+
+    const widget = api.Widget(soundcloudIframeRef.current);
     soundcloudWidgetRef.current = widget;
 
     return () => {
