@@ -219,7 +219,7 @@ export async function PUT(
 
     // PHASE 2: Clean and validate block data
     console.log(`[Blocks API] Starting to clean ${blocks.length} blocks for content: ${id}`);
-    const cleanBlocks = [];
+    const cleanBlocks: Array<{ blockType: BlockType; order: number; data: unknown }> = [];
 
     for (let i = 0; i < blocks.length; i++) {
       const block = blocks[i];
