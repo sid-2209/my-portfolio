@@ -60,9 +60,16 @@ export default function InlineLanguageSwitcher({
               onClick={() => onLanguageChange(language)}
               className={`underline decoration-2 underline-offset-4 transition-all duration-200 ${
                 current.id === language.id
-                  ? 'text-blue-400 decoration-blue-400 font-semibold'
+                  ? 'font-semibold'
                   : 'text-white/80 decoration-white/40 hover:text-white hover:decoration-white/60'
               }`}
+              style={current.id === language.id ? {
+                background: 'linear-gradient(0.25turn, #f1a7b1, #f3c6b4, #f5e7c2, #b7e1b7, #87c4e3)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+                textDecorationColor: '#f1a7b1'
+              } : {}}
             >
               {getDisplayLabel(language, index)}
             </button>
