@@ -1,14 +1,15 @@
 'use client';
 
-import ToiletPaperToggle from './ui/ToiletPaperToggle';
+import FadeToggle from './ui/FadeToggle';
+import OpacitySlider from './ui/OpacitySlider';
 
 export default function VoidBloomToggle() {
   return (
     <>
       {/* Bottom Right Corner Container */}
-      <div className="fixed bottom-8 right-8 z-40 flex flex-col items-center gap-6">
-        {/* Toilet Paper Toggle - Fade Control */}
-        <ToiletPaperToggle />
+      <div className="fixed bottom-8 right-8 z-40 flex flex-col items-end gap-3">
+        {/* Fade Toggle - Modern iOS-style */}
+        <FadeToggle />
 
         {/* Void / Bloom Options */}
         <div className="flex items-center gap-2 text-sm michroma">
@@ -37,6 +38,11 @@ export default function VoidBloomToggle() {
               bloom
             </span>
           </button>
+        </div>
+
+        {/* Background Opacity Slider */}
+        <div className="w-full">
+          <OpacitySlider />
         </div>
       </div>
 

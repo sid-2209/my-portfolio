@@ -15,6 +15,9 @@
   --font-michroma: 'Michroma', serif;
   --homepage-bg-image: url('/images/pixeliota-nLbMbYVmeD0-unsplash (1).svg');
 
+  /* Background overlay opacity - dynamically controlled by user */
+  --bg-overlay-opacity: 0.33; /* Default: 33% - will be overridden by JS */
+
   /* Visible washi paper grain texture - simplified approach with higher opacity */
   --washi-grain:
     repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255, 255, 255, 0.03) 2px, rgba(255, 255, 255, 0.03) 3px),
@@ -71,10 +74,11 @@ body.homepage::after {
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.33);
+  background-color: rgba(0, 0, 0, var(--bg-overlay-opacity));
   background-image: var(--washi-grain);
   background-size: 4px 4px, 4px 4px, 5px 5px, 5px 5px;
   background-blend-mode: soft-light;
+  transition: background-color 150ms ease-out;
   z-index: 15;
   pointer-events: none;
 }
@@ -104,10 +108,11 @@ body.projects-page::after {
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.33);
+  background-color: rgba(0, 0, 0, var(--bg-overlay-opacity));
   background-image: var(--washi-grain);
   background-size: 4px 4px, 4px 4px, 5px 5px, 5px 5px;
   background-blend-mode: soft-light;
+  transition: background-color 150ms ease-out;
   z-index: 15;
   pointer-events: none;
 }
@@ -137,10 +142,11 @@ body.case-studies-page::after {
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.33);
+  background-color: rgba(0, 0, 0, var(--bg-overlay-opacity));
   background-image: var(--washi-grain);
   background-size: 4px 4px, 4px 4px, 5px 5px, 5px 5px;
   background-blend-mode: soft-light;
+  transition: background-color 150ms ease-out;
   z-index: 15;
   pointer-events: none;
 }
@@ -170,10 +176,11 @@ body.notes-page::after {
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.33);
+  background-color: rgba(0, 0, 0, var(--bg-overlay-opacity));
   background-image: var(--washi-grain);
   background-size: 4px 4px, 4px 4px, 5px 5px, 5px 5px;
   background-blend-mode: soft-light;
+  transition: background-color 150ms ease-out;
   z-index: 15;
   pointer-events: none;
 }
@@ -203,10 +210,11 @@ body.about-page::after {
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.33);
+  background-color: rgba(0, 0, 0, var(--bg-overlay-opacity));
   background-image: var(--washi-grain);
   background-size: 4px 4px, 4px 4px, 5px 5px, 5px 5px;
   background-blend-mode: soft-light;
+  transition: background-color 150ms ease-out;
   z-index: 15;
   pointer-events: none;
 }
@@ -236,10 +244,11 @@ body.collaborate-page::after {
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.33);
+  background-color: rgba(0, 0, 0, var(--bg-overlay-opacity));
   background-image: var(--washi-grain);
   background-size: 4px 4px, 4px 4px, 5px 5px, 5px 5px;
   background-blend-mode: soft-light;
+  transition: background-color 150ms ease-out;
   z-index: 15;
   pointer-events: none;
 }
@@ -269,10 +278,11 @@ body.content-page::after {
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.33);
+  background-color: rgba(0, 0, 0, var(--bg-overlay-opacity));
   background-image: var(--washi-grain);
   background-size: 4px 4px, 4px 4px, 5px 5px, 5px 5px;
   background-blend-mode: soft-light;
+  transition: background-color 150ms ease-out;
   z-index: 15;
   pointer-events: none;
 }

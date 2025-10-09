@@ -6,7 +6,7 @@ import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import Footer from "../components/Footer";
 import VoidBloomToggle from "../components/VoidBloomToggle";
-import { ThemeProvider } from "../contexts/ThemeContext";
+import { ThemeProvider, useTheme } from "../contexts/ThemeContext";
 
 interface ClientLayoutProps {
   children: React.ReactNode;
@@ -100,29 +100,76 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
 
   return (
     <ThemeProvider>
-      <div className="min-h-screen relative flex flex-col">
-        {/* All content positioned above CSS background/overlay */}
-        <div className="relative z-20 flex flex-col min-h-screen">
-          <Navbar />
-
-          <Sidebar
-            isCollapsed={isSidebarCollapsed}
-            onToggle={handleSidebarToggle}
-            onItemClick={handleSidebarItemClick}
-            currentPath={pathname}
-          />
-
-          <div className={`${isContentPage ? 'flex-1' : 'flex-1 pt-32 px-8'} transition-all duration-500 ease-out`}>
-            {children}
-          </div>
-
-          {/* Void/Bloom Toggle - Bottom Right Corner */}
-          <VoidBloomToggle />
-
-          {/* Footer - visible on all pages */}
-          <Footer />
-        </div>
-      </div>
+      <LayoutContent
+        isSidebarCollapsed={isSidebarCollapsed}
+        handleSidebarToggle={handleSidebarToggle}
+        handleSidebarItemClick={handleSidebarItemClick}
+        pathname={pathname}
+        isContentPage={isContentPage}
+      >
+        {children}
+      </LayoutContent>
     </ThemeProvider>
+  );
+}
+
+// Inner component that can access ThemeContext
+function LayoutContent({
+  children,
+  isSidebarCollapsed,
+  handleSidebarToggle,
+  handleSidebarItemClick,
+  pathname,
+  isContentPage,
+}: {
+  children: React.ReactNode;
+  isSidebarCollapsed: boolean;
+  handleSidebarToggle: () => void;
+  handleSidebarItemClick: (type: 'project' | 'case_study' | 'blog') => void;
+  pathname: string | null;
+  isContentPage: boolean;
+}) {
+  const { backgroundOpacity } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Inject CSS variable for background opacity
+  useEffect(() => {
+    if (mounted) {
+      // Calculate actual opacity value (0.33 to 1.0)
+      const opacityValue = 0.33 + (backgroundOpacity * 0.134);
+
+      // Inject CSS variable into document root
+      document.body.style.setProperty('--bg-overlay-opacity', opacityValue.toString());
+    }
+  }, [backgroundOpacity, mounted]);
+
+  return (
+    <div className="min-h-screen relative flex flex-col">
+      {/* All content positioned above CSS background/overlay */}
+      <div className="relative z-20 flex flex-col min-h-screen">
+        <Navbar />
+
+        <Sidebar
+          isCollapsed={isSidebarCollapsed}
+          onToggle={handleSidebarToggle}
+          onItemClick={handleSidebarItemClick}
+          currentPath={pathname}
+        />
+
+        <div className={`${isContentPage ? 'flex-1' : 'flex-1 pt-32 px-8'} transition-all duration-500 ease-out`}>
+          {children}
+        </div>
+
+        {/* Void/Bloom Toggle - Bottom Right Corner */}
+        <VoidBloomToggle />
+
+        {/* Footer - visible on all pages */}
+        <Footer />
+      </div>
+    </div>
   );
 }
