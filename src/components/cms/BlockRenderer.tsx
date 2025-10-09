@@ -542,7 +542,7 @@ function AudioBlockRenderer({ block, audioData }: { block: ContentBlock; audioDa
           controller.getCurrentState((state: unknown) => {
             if (!state) return;
             const playbackState = state as { paused: boolean };
-            if (playbackState.paused) {
+            if (playbackState.paused && controller.play) {
               console.log('[BlockRenderer] Attempting Spotify playback');
               controller.play();
             }
