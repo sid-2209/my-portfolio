@@ -560,7 +560,7 @@ function AudioBlockRenderer({ block, audioData }: { block: ContentBlock; audioDa
 
         if (widget.isPaused && widget.play) {
           widget.isPaused((isPaused: boolean) => {
-            if (isPaused) {
+            if (isPaused && widget.play) {
               console.log('[BlockRenderer] Attempting SoundCloud playback');
               widget.play();
             }
