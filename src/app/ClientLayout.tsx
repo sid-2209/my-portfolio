@@ -157,7 +157,7 @@ function LayoutContent({
           isCollapsed={isSidebarCollapsed}
           onToggle={handleSidebarToggle}
           onItemClick={handleSidebarItemClick}
-          currentPath={pathname}
+          currentPath={pathname ?? undefined}
         />
 
         <div className={`${isContentPage ? 'flex-1' : 'flex-1 pt-32 px-8'} transition-all duration-500 ease-out`}>
