@@ -222,7 +222,7 @@ export async function PUT(
     const cleanBlocks: Array<{ blockType: BlockType; order: number; data: unknown }> = [];
 
     for (let i = 0; i < blocks.length; i++) {
-      const block = blocks[i];
+      const block = blocks[i] as { blockType: BlockType; order: number; data: unknown };
 
       try {
         console.log(`[Blocks API] Cleaning block ${i + 1}/${blocks.length}: ${block.blockType}`);
