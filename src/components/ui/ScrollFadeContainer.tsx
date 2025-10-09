@@ -6,12 +6,14 @@ interface ScrollFadeContainerProps {
   children: ReactNode;
   fadeStart?: number; // Distance from top where fade starts (default: 120px)
   fadeDistance?: number; // Distance over which fade occurs (default: 200px for ultra-smooth fade)
+  enabled?: boolean; // Whether fade effect is enabled (default: true)
 }
 
 export default function ScrollFadeContainer({
   children,
   fadeStart = 120,
-  fadeDistance = 200
+  fadeDistance = 200,
+  enabled = true
 }: ScrollFadeContainerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -30,6 +32,13 @@ export default function ScrollFadeContainer({
 
       // For each content block, apply gradient mask based on position
       contentBlocks.forEach((block) => {
+        // If fade is disabled, remove all masks
+        if (!enabled) {
+          block.style.webkitMaskImage = 'none';
+          block.style.maskImage = 'none';
+          return;
+        }
+
         const rect = block.getBoundingClientRect();
         const blockTop = rect.top;
 
@@ -88,7 +97,7 @@ export default function ScrollFadeContainer({
     return () => {
       window.removeEventListener('scroll', scrollHandler);
     };
-  }, [fadeStart, fadeDistance]);
+  }, [fadeStart, fadeDistance, enabled]);
 
   return (
     <div ref={containerRef}>

@@ -6,6 +6,7 @@ import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import Footer from "../components/Footer";
 import VoidBloomToggle from "../components/VoidBloomToggle";
+import { ThemeProvider } from "../contexts/ThemeContext";
 
 interface ClientLayoutProps {
   children: React.ReactNode;
@@ -98,28 +99,30 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
   }
 
   return (
-    <div className="min-h-screen relative flex flex-col">
-      {/* All content positioned above CSS background/overlay */}
-      <div className="relative z-20 flex flex-col min-h-screen">
-        <Navbar />
+    <ThemeProvider>
+      <div className="min-h-screen relative flex flex-col">
+        {/* All content positioned above CSS background/overlay */}
+        <div className="relative z-20 flex flex-col min-h-screen">
+          <Navbar />
 
-        <Sidebar
-          isCollapsed={isSidebarCollapsed}
-          onToggle={handleSidebarToggle}
-          onItemClick={handleSidebarItemClick}
-          currentPath={pathname}
-        />
+          <Sidebar
+            isCollapsed={isSidebarCollapsed}
+            onToggle={handleSidebarToggle}
+            onItemClick={handleSidebarItemClick}
+            currentPath={pathname}
+          />
 
-        <div className={`${isContentPage ? 'flex-1' : 'flex-1 pt-32 px-8'} transition-all duration-500 ease-out`}>
-          {children}
+          <div className={`${isContentPage ? 'flex-1' : 'flex-1 pt-32 px-8'} transition-all duration-500 ease-out`}>
+            {children}
+          </div>
+
+          {/* Void/Bloom Toggle - Bottom Right Corner */}
+          <VoidBloomToggle />
+
+          {/* Footer - visible on all pages */}
+          <Footer />
         </div>
-
-        {/* Void/Bloom Toggle - Bottom Right Corner */}
-        <VoidBloomToggle />
-
-        {/* Footer - visible on all pages */}
-        <Footer />
       </div>
-    </div>
+    </ThemeProvider>
   );
 }

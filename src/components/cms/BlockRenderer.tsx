@@ -344,6 +344,28 @@ function AudioBlockRenderer({ block, audioData }: { block: ContentBlock; audioDa
     return null;
   });
 
+  // Convert AudioLanguage array to Track array for mini player
+  const tracks = audioData.enableLanguageSwitch && audioData.languages && audioData.languages.length > 0
+    ? audioData.languages.map((lang, index) => ({
+        id: lang.id,
+        title: audioData.title || lang.label || `Track ${index + 1}`,
+        artist: audioData.artist,
+        album: undefined,
+        year: undefined,
+        url: lang.url,
+        type: (lang.type || 'local') as 'local' | 'spotify' | 'soundcloud' | 'apple-music' | 'other',
+        coverArt: audioData.coverArt,
+        language: lang.label,
+        duration: undefined,
+        localAudioUrl: lang.localAudioUrl,
+        mediaId: lang.mediaId,
+      }))
+    : [];
+
+  const currentTrackIndex = selectedLanguage
+    ? tracks.findIndex(t => t.id === selectedLanguage.id)
+    : 0;
+
   // Load Spotify/SoundCloud APIs
   const { spotifyReady, soundcloudReady, spotifyAPI, soundcloudAPI } = useEmbedAPIs();
 
@@ -358,6 +380,18 @@ function AudioBlockRenderer({ block, audioData }: { block: ContentBlock; audioDa
   const soundcloudIframeRef = useRef<HTMLIFrameElement>(null);
   const spotifyControllerRef = useRef<unknown>(null);
   const soundcloudWidgetRef = useRef<unknown>(null);
+
+  // Autoplay intent ref - used to auto-play after track change
+  const shouldAutoPlayRef = useRef<boolean>(false);
+
+  // Transition tracking - prevents sync race conditions during track changes
+  const isTransitioningRef = useRef<boolean>(false);
+
+  // Playback intent - what user WANTS (play/pause), not what IS
+  const playbackIntentRef = useRef<'play' | 'pause'>('pause');
+
+  // Loading state for track changes
+  const [isLoadingTrack, setIsLoadingTrack] = useState(false);
 
   // Track mounted state for portal
   useEffect(() => {
@@ -413,6 +447,13 @@ function AudioBlockRenderer({ block, audioData }: { block: ContentBlock; audioDa
       (EmbedController: unknown) => {
         console.log('[AudioBlockRenderer] Spotify controller created');
         spotifyControllerRef.current = EmbedController;
+
+        // Auto-play if track was changed with autoplay intent
+        if (shouldAutoPlayRef.current) {
+          const controller = EmbedController as { play: () => void };
+          controller.play();
+          shouldAutoPlayRef.current = false;
+        }
       }
     );
 
@@ -438,10 +479,116 @@ function AudioBlockRenderer({ block, audioData }: { block: ContentBlock; audioDa
     const widget = api.Widget(soundcloudIframeRef.current);
     soundcloudWidgetRef.current = widget;
 
+    // Auto-play if track was changed with autoplay intent
+    if (shouldAutoPlayRef.current) {
+      const widgetController = widget as {
+        bind: (event: string, callback: () => void) => void;
+        play: () => void;
+      };
+      // Wait for widget to be ready before playing
+      widgetController.bind('ready', () => {
+        widgetController.play();
+        shouldAutoPlayRef.current = false;
+      });
+    }
+
     return () => {
       soundcloudWidgetRef.current = null;
     };
   }, [currentAudioType, soundcloudReady, soundcloudAPI]);
+
+  // Unified Intent Recovery: Enforce playback intent with retry mechanism
+  useEffect(() => {
+    // Only attempt playback if intent is 'play'
+    if (playbackIntentRef.current !== 'play') return;
+
+    console.log('[BlockRenderer] Starting unified intent recovery for:', currentAudioType);
+
+    // Attempt playback with retry mechanism
+    const attemptPlayback = () => {
+      if (playbackIntentRef.current !== 'play') {
+        console.log('[BlockRenderer] Intent changed to pause, stopping retry');
+        return false; // Stop retrying if intent changed
+      }
+
+      // Try WaveSurfer (local audio)
+      if (currentAudioType === 'local' && wavesurferInstanceRef.current) {
+        const instance = wavesurferInstanceRef.current;
+        if (!instance.isPlaying()) {
+          console.log('[BlockRenderer] Attempting WaveSurfer playback');
+          instance.play().then(() => {
+            console.log('[BlockRenderer] WaveSurfer playback successful');
+            return true;
+          }).catch((err) => {
+            console.warn('[BlockRenderer] WaveSurfer autoplay failed:', err);
+            playbackIntentRef.current = 'pause';
+            return false;
+          });
+          return true;
+        } else {
+          console.log('[BlockRenderer] WaveSurfer already playing');
+          return true;
+        }
+      }
+
+      // Try Spotify
+      if (currentAudioType === 'spotify' && spotifyControllerRef.current) {
+        const controller = spotifyControllerRef.current as {
+          getCurrentState?: (callback: (state: unknown) => void) => void;
+          play?: () => void;
+        };
+
+        if (controller.getCurrentState && controller.play) {
+          controller.getCurrentState((state: unknown) => {
+            if (!state) return;
+            const playbackState = state as { paused: boolean };
+            if (playbackState.paused) {
+              console.log('[BlockRenderer] Attempting Spotify playback');
+              controller.play();
+            }
+          });
+          return true;
+        }
+      }
+
+      // Try SoundCloud
+      if (currentAudioType === 'soundcloud' && soundcloudWidgetRef.current) {
+        const widget = soundcloudWidgetRef.current as {
+          isPaused?: (callback: (isPaused: boolean) => void) => void;
+          play?: () => void;
+        };
+
+        if (widget.isPaused && widget.play) {
+          widget.isPaused((isPaused: boolean) => {
+            if (isPaused) {
+              console.log('[BlockRenderer] Attempting SoundCloud playback');
+              widget.play();
+            }
+          });
+          return true;
+        }
+      }
+
+      return false; // Instance not ready yet
+    };
+
+    // Retry schedule: 200ms, 400ms, 600ms, 800ms, 1000ms, 1200ms, 1400ms
+    // This ensures we keep trying throughout the 1500ms transition lock period
+    const retryDelays = [200, 400, 600, 800, 1000, 1200, 1400];
+    const timers = retryDelays.map(delay =>
+      setTimeout(() => {
+        const success = attemptPlayback();
+        if (success) {
+          console.log(`[BlockRenderer] Intent recovery successful at ${delay}ms`);
+        }
+      }, delay)
+    );
+
+    return () => {
+      // Clean up all timers on unmount
+      timers.forEach(timer => clearTimeout(timer));
+    };
+  }, [currentAudioType, selectedLanguage]);
 
   // Robust position checker - determines if mini player should be visible
   const checkPositionAndUpdateMiniPlayer = useCallback(() => {
@@ -545,7 +692,7 @@ function AudioBlockRenderer({ block, audioData }: { block: ContentBlock; audioDa
     }
   };
 
-  // Handle close: stop playback and hide mini player
+  // Handle close: stop playback and hide mini player, scroll to embed
   const handleClose = () => {
     if (currentAudioType === 'local' && wavesurferInstanceRef.current) {
       wavesurferInstanceRef.current.pause();
@@ -557,11 +704,68 @@ function AudioBlockRenderer({ block, audioData }: { block: ContentBlock; audioDa
       widget.pause();
     }
     setShowMiniPlayer(false);
+    // Scroll to audio embed
+    if (audioContainerRef.current) {
+      audioContainerRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
+
+  // Handle track change from mini player
+  const handleTrackChange = (trackIndex: number, autoplay?: boolean) => {
+    if (!audioData.languages || trackIndex < 0 || trackIndex >= audioData.languages.length) return;
+
+    console.log('[BlockRenderer] Track change requested:', { trackIndex, autoplay });
+
+    // Lock transitions to prevent sync race conditions
+    isTransitioningRef.current = true;
+    setIsLoadingTrack(true);
+
+    // Store user's playback intent
+    if (autoplay !== undefined) {
+      playbackIntentRef.current = autoplay ? 'play' : 'pause';
+      console.log('[BlockRenderer] Playback intent set to:', playbackIntentRef.current);
+    }
+
+    // Store autoplay intent before resetting instances
+    shouldAutoPlayRef.current = autoplay || false;
+
+    // Pause current playback before switching tracks
+    // Don't nullify instances - let new instances replace them naturally
+    if (wavesurferInstanceRef.current) {
+      console.log('[BlockRenderer] Pausing WaveSurfer before track change');
+      wavesurferInstanceRef.current.pause();
+    }
+    if (spotifyControllerRef.current) {
+      const controller = spotifyControllerRef.current as { pause: () => void };
+      console.log('[BlockRenderer] Pausing Spotify before track change');
+      controller.pause();
+    }
+    if (soundcloudWidgetRef.current) {
+      const widget = soundcloudWidgetRef.current as { pause: () => void };
+      console.log('[BlockRenderer] Pausing SoundCloud before track change');
+      widget.pause();
+    }
+
+    const newLanguage = audioData.languages[trackIndex];
+    setSelectedLanguage(newLanguage);
+
+    // Unlock transition after longer delay to allow new instance to initialize properly
+    setTimeout(() => {
+      isTransitioningRef.current = false;
+      setIsLoadingTrack(false);
+      console.log('[BlockRenderer] Transition unlocked');
+    }, 1500); // Increased from 1000ms to 1500ms
   };
 
   // Callback to receive wavesurfer instance from WaveformPlayer
   const handleWavesurferReady = (instance: WaveSurfer) => {
     wavesurferInstanceRef.current = instance;
+
+    // Auto-play if track was changed with autoplay intent
+    if (shouldAutoPlayRef.current) {
+      instance.play();
+      shouldAutoPlayRef.current = false;
+    }
   };
 
   // Platform-specific iframe embeds (CORS restrictions prevent direct audio loading)
@@ -681,13 +885,19 @@ function AudioBlockRenderer({ block, audioData }: { block: ContentBlock; audioDa
             audioUrl={currentAudioUrl}
             title={audioData.title}
             artist={audioData.artist}
+            album={undefined}
+            year={undefined}
             coverArt={audioData.coverArt}
             audioType={currentAudioType}
+            tracks={tracks}
+            currentTrackIndex={Math.max(0, currentTrackIndex)}
             wavesurferInstance={wavesurferInstanceRef.current}
             spotifyController={spotifyControllerRef.current}
             soundcloudWidget={soundcloudWidgetRef.current}
+            isTransitioningRef={isTransitioningRef}
+            isLoadingTrack={isLoadingTrack}
             onClose={handleClose}
-            onExpand={handleExpand}
+            onTrackChange={handleTrackChange}
           />,
           document.body
         );

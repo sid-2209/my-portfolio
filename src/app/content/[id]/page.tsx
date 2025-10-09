@@ -10,6 +10,7 @@ import ScrollProgressIndicator from "../../../components/ui/ScrollProgressIndica
 import { useDynamicSections } from "../../../hooks/useDynamicSections";
 import SharePost from "../../../components/ui/SharePost";
 import ScrollFadeContainer from "../../../components/ui/ScrollFadeContainer";
+import { useTheme } from "../../../contexts/ThemeContext";
 
 interface Content {
   id: string;
@@ -33,6 +34,7 @@ interface Content {
 
 export default function ContentPage() {
   const params = useParams();
+  const { fadeEnabled } = useTheme();
   const [content, setContent] = useState<Content | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -195,7 +197,7 @@ export default function ContentPage() {
           <div className="prose prose-invert max-w-none overflow-visible">
             {/* CMS Content Blocks */}
             {content.contentBlocks && content.contentBlocks.length > 0 ? (
-              <ScrollFadeContainer fadeStart={120} fadeDistance={200}>
+              <ScrollFadeContainer fadeStart={120} fadeDistance={200} enabled={fadeEnabled}>
                 <BlockRenderer blocks={content.contentBlocks.map(block => ({
                   ...block,
                   contentId: content.id,
