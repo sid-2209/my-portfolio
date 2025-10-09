@@ -166,7 +166,7 @@ export function removeColorFromSelection(type: 'text' | 'highlight'): void {
   if (!root) return;
 
   // Find all spans with the color style
-  const spans = root.querySelectorAll('span');
+  const spans = (root as Element).querySelectorAll('span');
   spans.forEach(span => {
     const htmlSpan = span as HTMLElement;
     if (type === 'text') {
