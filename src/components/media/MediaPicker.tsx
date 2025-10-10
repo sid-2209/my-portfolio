@@ -108,7 +108,11 @@ export default function MediaPicker({
       }
 
       const result = await response.json();
-      const uploadedMedia = result.success[0];
+      const uploadedMedia = result.uploaded?.[0];
+
+      if (!uploadedMedia) {
+        throw new Error('No media returned from upload');
+      }
 
       onChange(uploadedMedia);
       if (onUrlChange) onUrlChange(uploadedMedia.blobUrl);

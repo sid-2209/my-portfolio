@@ -138,7 +138,7 @@ interface ChartData {
   javascript?: string; // Interactive behavior
 
   isInteractive?: boolean;
-  containerWidth?: 'text' | 'media' | 'full'; // Breakout container width
+  containerWidth?: number | 'text' | 'media' | 'full'; // number = percentage (15-100), Breakout container width
 
   // Legacy visual editor fields (backwards compatible)
   chartType?: 'bar' | 'line' | 'area' | 'pie' | 'radar';
@@ -1746,8 +1746,8 @@ function ChartBlock({ chartData }: { chartData: ChartData }) {
   // Determine which framework to use
   const framework = chartData.framework || (chartData.code ? 'custom' : 'recharts');
 
-  // Get container width (default to 'media' for charts)
-  const containerWidth = chartData.containerWidth || 'media';
+  // Get container width (default to 70% for charts, matching old 'media' width)
+  const containerWidth = chartData.containerWidth || 70;
 
   // Check for multi-part chart (HTML + CSS + JavaScript)
   const isMultiPart = framework === 'multipart' || !!(chartData.html || chartData.css || chartData.javascript);

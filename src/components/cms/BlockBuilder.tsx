@@ -127,7 +127,7 @@ interface ChartData {
   javascript?: string;
 
   isInteractive?: boolean;
-  containerWidth?: 'text' | 'media' | 'full';
+  containerWidth?: number | 'text' | 'media' | 'full'; // number = percentage (15-100)
 
   // Legacy visual editor fields (backwards compatible)
   chartType?: 'bar' | 'line' | 'area' | 'pie' | 'radar';

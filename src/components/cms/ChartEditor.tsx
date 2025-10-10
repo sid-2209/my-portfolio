@@ -29,7 +29,7 @@ interface ChartEditorProps {
   css?: string;
   javascript?: string;
 
-  containerWidth?: 'text' | 'media' | 'full';
+  containerWidth?: number | 'text' | 'media' | 'full'; // number = percentage (15-100)
 
   // Legacy visual editor fields (backwards compatible)
   chartType?: 'bar' | 'line' | 'area' | 'pie' | 'radar';
@@ -42,7 +42,7 @@ interface ChartEditorProps {
     chartType?: 'bar' | 'line' | 'area' | 'pie' | 'radar',
     data?: ChartDataPoint[],
     config?: ChartConfig,
-    containerWidth?: 'text' | 'media' | 'full',
+    containerWidth?: number | 'text' | 'media' | 'full', // number = percentage (15-100)
     html?: string,
     css?: string,
     javascript?: string
@@ -100,7 +100,7 @@ export default function ChartEditor({
   // Code editor state
   const [code, setCode] = useState(propCode || '');
   const [framework, setFramework] = useState(propFramework || 'recharts');
-  const [containerWidth, setContainerWidth] = useState<'text' | 'media' | 'full'>(propContainerWidth || 'media');
+  const [containerWidth, setContainerWidth] = useState<number | 'text' | 'media' | 'full'>(propContainerWidth || 70); // Default to 70% (matching old 'media' width)
   const [detectedFramework, setDetectedFramework] = useState<string | null>(null);
   const [isTyping, setIsTyping] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -1262,13 +1262,25 @@ updateGauge(65);`
                   <label className="text-sm font-semibold text-gray-950">Width:</label>
                   <select
                     value={containerWidth}
-                    onChange={(e) => setContainerWidth(e.target.value as 'text' | 'media' | 'full')}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      // Convert numeric strings to numbers, keep legacy string values as-is
+                      setContainerWidth(isNaN(Number(value)) ? value as 'text' | 'media' | 'full' : Number(value));
+                    }}
                     className="px-3 py-1.5 text-sm text-gray-900 font-medium border-2 border-gray-400 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     title="Chart container width on the page"
                   >
-                    <option value="text">Text Width (45%)</option>
-                    <option value="media">Media Width (70%)</option>
-                    <option value="full">Full Width (100%)</option>
+                    <option value={15}>15%</option>
+                    <option value={20}>20%</option>
+                    <option value={25}>25%</option>
+                    <option value={30}>30%</option>
+                    <option value={35}>35%</option>
+                    <option value={40}>40%</option>
+                    <option value={45}>45%</option>
+                    <option value={50}>50%</option>
+                    <option value={60}>60%</option>
+                    <option value={70}>70%</option>
+                    <option value={100}>100%</option>
                   </select>
                 </div>
               </div>
@@ -1523,13 +1535,25 @@ updateGauge(65);`
                 <label className="text-sm font-semibold text-gray-950">Width:</label>
                 <select
                   value={containerWidth}
-                  onChange={(e) => setContainerWidth(e.target.value as 'text' | 'media' | 'full')}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    // Convert numeric strings to numbers, keep legacy string values as-is
+                    setContainerWidth(isNaN(Number(value)) ? value as 'text' | 'media' | 'full' : Number(value));
+                  }}
                   className="px-3 py-1.5 text-sm text-gray-900 font-medium border-2 border-gray-400 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   title="Chart container width on the page"
                 >
-                  <option value="text">Text Width (45%)</option>
-                  <option value="media">Media Width (70%)</option>
-                  <option value="full">Full Width (100%)</option>
+                  <option value={15}>15%</option>
+                  <option value={20}>20%</option>
+                  <option value={25}>25%</option>
+                  <option value={30}>30%</option>
+                  <option value={35}>35%</option>
+                  <option value={40}>40%</option>
+                  <option value={45}>45%</option>
+                  <option value={50}>50%</option>
+                  <option value={60}>60%</option>
+                  <option value={70}>70%</option>
+                  <option value={100}>100%</option>
                 </select>
               </div>
             </div>

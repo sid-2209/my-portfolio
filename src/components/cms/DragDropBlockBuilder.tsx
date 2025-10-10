@@ -159,7 +159,7 @@ interface ChartData {
   javascript?: string;
 
   isInteractive?: boolean;
-  containerWidth?: 'text' | 'media' | 'full';
+  containerWidth?: number | 'text' | 'media' | 'full'; // number = percentage (15-100)
 
   // Legacy visual editor fields (backwards compatible)
   chartType?: 'bar' | 'line' | 'area' | 'pie' | 'radar';
@@ -388,6 +388,7 @@ const blockTypes = [
 export default function DragDropBlockBuilder({ contentId, initialBlocks, onBlocksChange, onLivePreviewUpdate }: DragDropBlockBuilderProps) {
   const [blocks, setBlocks] = useState<Block[]>(initialBlocks);
   const [isAddingBlock, setIsAddingBlock] = useState(false);
+  const [insertPosition, setInsertPosition] = useState<number | null>(null); // Position to insert new block
   const [mounted, setMounted] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [draggedBlock, setDraggedBlock] = useState<Block | null>(null);
@@ -408,21 +409,37 @@ export default function DragDropBlockBuilder({ contentId, initialBlocks, onBlock
     setBlocks(initialBlocks);
   }, [initialBlocks]);
 
-  const addBlock = (blockType: BlockType) => {
+  const addBlockAtPosition = (blockType: BlockType, position: number) => {
     const newBlock: Block = {
       id: `temp-${Date.now()}`,
       contentId,
       blockType,
-      order: blocks.length,
+      order: position,
       data: getDefaultData(blockType),
       createdAt: new Date(),
       updatedAt: new Date()
     };
 
-    const newBlocks = [...blocks, newBlock];
+    // Insert block at specific position
+    const newBlocks = [
+      ...blocks.slice(0, position),
+      newBlock,
+      ...blocks.slice(position)
+    ].map((block, index) => ({
+      ...block,
+      order: index
+    }));
+
     setBlocks(newBlocks);
     onBlocksChange(newBlocks);
     setIsAddingBlock(false);
+    setInsertPosition(null); // Reset insert position
+  };
+
+  const addBlock = (blockType: BlockType) => {
+    // Use insertPosition if set, otherwise append to end
+    const position = insertPosition !== null ? insertPosition : blocks.length;
+    addBlockAtPosition(blockType, position);
   };
 
   const updateBlock = (blockId: string, updatedData: BlockData) => {
@@ -616,7 +633,10 @@ export default function DragDropBlockBuilder({ contentId, initialBlocks, onBlock
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold text-gray-900">Add New Block</h3>
               <button
-                onClick={() => setIsAddingBlock(false)}
+                onClick={() => {
+                  setIsAddingBlock(false);
+                  setInsertPosition(null); // Reset insert position when closing modal
+                }}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -674,16 +694,33 @@ export default function DragDropBlockBuilder({ contentId, initialBlocks, onBlock
             <SortableContext items={blocks.map(block => block.id)} strategy={verticalListSortingStrategy}>
               <div className="space-y-6">
                 {blocks.map((block, index) => (
-                  <SortableBlockItem
-                    key={block.id}
-                    block={block}
-                    index={index}
-                    onUpdate={(data) => updateBlock(block.id, data)}
-                    onDelete={() => deleteBlock(block.id)}
-                    onDuplicate={() => duplicateBlock(block.id)}
-                    isDragging={block.id === activeId}
-                    onLiveUpdate={onLivePreviewUpdate}
-                  />
+                  <div key={block.id}>
+                    <SortableBlockItem
+                      block={block}
+                      index={index}
+                      onUpdate={(data) => updateBlock(block.id, data)}
+                      onDelete={() => deleteBlock(block.id)}
+                      onDuplicate={() => duplicateBlock(block.id)}
+                      isDragging={block.id === activeId}
+                      onLiveUpdate={onLivePreviewUpdate}
+                    />
+
+                    {/* Add Block Below Button */}
+                    <div className="flex justify-end mt-3">
+                      <button
+                        onClick={() => {
+                          setInsertPosition(index + 1);
+                          setIsAddingBlock(true);
+                        }}
+                        className="w-10 h-10 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center group opacity-60 hover:opacity-100"
+                        title="Add block below"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
                 ))}
               </div>
             </SortableContext>

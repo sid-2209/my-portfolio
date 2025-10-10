@@ -4,7 +4,7 @@ import { ReactNode } from 'react';
 
 interface BreakoutContainerProps {
   children: ReactNode;
-  width?: 'text' | 'media' | 'full';
+  width?: number | 'text' | 'media' | 'full'; // number = percentage (15-100)
   className?: string;
 }
 
@@ -13,34 +13,44 @@ interface BreakoutContainerProps {
  * Used for media blocks (images, videos, charts) to take more visual space
  *
  * Width modes:
- * - text: 45% viewport (max-w-4xl) - matches text content, no breakout
- * - media: 70% viewport (max-w-6xl) - wider for media, breaks out of parent
- * - full: 100% viewport - full width, breaks out of parent
+ * - number: Specific percentage width (15%, 20%, 25%, 30%, 35%, 40%, 45%, 50%, 60%, 70%, 100%)
+ * - text: 45% viewport (backwards compatibility)
+ * - media: 70% viewport (backwards compatibility)
+ * - full: 100% viewport (backwards compatibility)
  *
  * Uses negative margin technique to break out of parent max-w-4xl constraint
  */
 export default function BreakoutContainer({
   children,
-  width = 'media',
+  width = 70, // Default to 70% (matching old 'media' width)
   className = ''
 }: BreakoutContainerProps) {
-  // Width class mapping for inner content
-  const widthClasses = {
-    text: 'max-w-4xl',       // ~45% viewport - matches text content
-    media: 'max-w-6xl',      // ~70% viewport - wider for media
-    full: 'max-w-none'       // 100% viewport - full width
+  // Convert legacy string widths to percentages for backwards compatibility
+  const getWidthPercentage = (w: number | 'text' | 'media' | 'full'): number => {
+    if (typeof w === 'number') return w;
+    switch (w) {
+      case 'text': return 45;
+      case 'media': return 70;
+      case 'full': return 100;
+      default: return 70;
+    }
   };
 
-  // For 'text' width, no breakout needed - stays within parent container
-  if (width === 'text') {
+  const widthPercent = getWidthPercentage(width);
+
+  // For small widths (≤45%), no breakout needed - stays within parent container
+  if (widthPercent <= 45) {
     return (
-      <div className={`${widthClasses[width]} mx-auto transition-all duration-300 ${className}`}>
+      <div
+        className={`mx-auto transition-all duration-300 ${className}`}
+        style={{ maxWidth: `${widthPercent}%` }}
+      >
         {children}
       </div>
     );
   }
 
-  // For 'media' and 'full' widths, use full-width breakout with negative margins
+  // For larger widths (>45%), use full-width breakout with negative margins
   // This allows the content to break out of the parent max-w-4xl container
   return (
     <div
@@ -60,7 +70,6 @@ export default function BreakoutContainer({
     >
       <div
         className={`
-          ${widthClasses[width]}
           mx-auto
           px-4
           sm:px-6
@@ -68,6 +77,10 @@ export default function BreakoutContainer({
           transition-all
           duration-300
         `}
+        style={{
+          // Use percentage-based max-width for precise control
+          maxWidth: widthPercent === 100 ? 'none' : `${widthPercent}%`
+        }}
       >
         {children}
       </div>

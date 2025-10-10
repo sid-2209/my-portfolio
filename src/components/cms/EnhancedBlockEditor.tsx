@@ -154,7 +154,7 @@ interface ChartData {
   javascript?: string;
 
   isInteractive?: boolean;
-  containerWidth?: 'text' | 'media' | 'full'; // Breakout container width
+  containerWidth?: number | 'text' | 'media' | 'full'; // number = percentage (15-100), Breakout container width
 
   // Legacy visual editor fields (backwards compatible)
   chartType?: 'bar' | 'line' | 'area' | 'pie' | 'radar';
