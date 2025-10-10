@@ -16,6 +16,7 @@ import BreakoutContainer from '@/components/ui/BreakoutContainer';
 import ChartErrorBoundary from './ChartErrorBoundary';
 import { BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { scopeChartCSS, generateScopeClass } from '@/utils/scopeChartCSS';
+import { scopeChartIDs } from '@/utils/scopeChartIDs';
 
 // Import the same interfaces used in BlockEditor for consistency
 interface ParagraphData {
@@ -1074,6 +1075,10 @@ function MultiPartRenderer({
         }
 
         // STEP 1: Sanitize and inject HTML into wrapper
+        // Also scope IDs to prevent collisions between multiple charts
+        let processedHTML = html;
+        let processedJS = javascript;
+
         if (html) {
           const DOMPurify = (await import('dompurify')).default;
           const cleanHTML = DOMPurify.sanitize(html, {
@@ -1094,7 +1099,16 @@ function MultiPartRenderer({
             FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur', 'onchange']
           });
 
-          wrapper.innerHTML = cleanHTML;
+          // Scope IDs to prevent collisions (e.g., multiple charts with id="chart")
+          const scoped = scopeChartIDs(cleanHTML, javascript || '', scopeClassRef.current);
+          processedHTML = scoped.html;
+          processedJS = scoped.javascript;
+
+          wrapper.innerHTML = processedHTML;
+        } else if (javascript) {
+          // If no HTML but have JavaScript, still scope any ID references in JS
+          const scoped = scopeChartIDs('', javascript, scopeClassRef.current);
+          processedJS = scoped.javascript;
         }
 
         // STEP 2: Inject CSS as scoped style element into wrapper
@@ -1161,6 +1175,7 @@ function MultiPartRenderer({
 
             // Create enhanced execution context with loaded libraries
             // Pass wrapper as container parameter so user code can access it
+            // Use processedJS which has scoped IDs to prevent collisions
             const scriptFunc = new Function(
               'container',
               'document',
@@ -1168,7 +1183,7 @@ function MultiPartRenderer({
               'Chart',
               'd3',
               'mermaid',
-              javascript
+              processedJS
             );
 
             scriptFunc(wrapper, document, window, ChartWrapper || OriginalChart, d3, mermaid);
