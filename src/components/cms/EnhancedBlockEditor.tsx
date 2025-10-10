@@ -145,8 +145,14 @@ interface ChartDataPoint {
 
 interface ChartData {
   // New universal chart fields
-  framework?: 'chartjs' | 'recharts' | 'd3' | 'svg' | 'mermaid' | 'custom';
+  framework?: 'chartjs' | 'recharts' | 'd3' | 'svg' | 'mermaid' | 'custom' | 'multipart';
   code?: string;
+
+  // Multi-part fields
+  html?: string;
+  css?: string;
+  javascript?: string;
+
   isInteractive?: boolean;
   containerWidth?: 'text' | 'media' | 'full'; // Breakout container width
 
@@ -518,11 +524,14 @@ export default function EnhancedBlockEditor({
             <ChartEditor
               framework={chartData.framework}
               code={chartData.code}
+              html={chartData.html}
+              css={chartData.css}
+              javascript={chartData.javascript}
               chartType={chartData.chartType}
               data={chartData.data}
               config={chartData.config}
               containerWidth={chartData.containerWidth}
-              onChange={(framework, code, chartType, data, config, containerWidth) => {
+              onChange={(framework, code, chartType, data, config, containerWidth, html, css, javascript) => {
                 // Build new data object, only including defined values
                 const newData: ChartData = {};
 
@@ -532,7 +541,16 @@ export default function EnhancedBlockEditor({
                 if (code !== null && code !== undefined) {
                   newData.code = code;
                 }
-                if (framework === 'd3' || framework === 'chartjs') {
+                if (html !== null && html !== undefined) {
+                  newData.html = html;
+                }
+                if (css !== null && css !== undefined) {
+                  newData.css = css;
+                }
+                if (javascript !== null && javascript !== undefined) {
+                  newData.javascript = javascript;
+                }
+                if (framework === 'd3' || framework === 'chartjs' || framework === 'multipart') {
                   newData.isInteractive = true;
                 }
                 if (chartType !== null && chartType !== undefined) {

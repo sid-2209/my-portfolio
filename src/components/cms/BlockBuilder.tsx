@@ -118,9 +118,16 @@ interface ChartDataPoint {
 
 interface ChartData {
   // New universal chart fields
-  framework?: 'chartjs' | 'recharts' | 'd3' | 'svg' | 'mermaid' | 'custom';
+  framework?: 'chartjs' | 'recharts' | 'd3' | 'svg' | 'mermaid' | 'custom' | 'multipart';
   code?: string;
+
+  // Multi-part fields
+  html?: string;
+  css?: string;
+  javascript?: string;
+
   isInteractive?: boolean;
+  containerWidth?: 'text' | 'media' | 'full';
 
   // Legacy visual editor fields (backwards compatible)
   chartType?: 'bar' | 'line' | 'area' | 'pie' | 'radar';

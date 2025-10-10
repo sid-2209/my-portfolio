@@ -15,6 +15,7 @@ import { useEmbedAPIs } from '@/hooks/useEmbedAPIs';
 import BreakoutContainer from '@/components/ui/BreakoutContainer';
 import ChartErrorBoundary from './ChartErrorBoundary';
 import { BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { scopeChartCSS, generateScopeClass } from '@/utils/scopeChartCSS';
 
 // Import the same interfaces used in BlockEditor for consistency
 interface ParagraphData {
@@ -127,8 +128,14 @@ interface ChartDataPoint {
 
 interface ChartData {
   // New universal chart fields
-  framework?: 'chartjs' | 'recharts' | 'd3' | 'svg' | 'mermaid' | 'custom';
-  code?: string;
+  framework?: 'chartjs' | 'recharts' | 'd3' | 'svg' | 'mermaid' | 'custom' | 'multipart';
+  code?: string; // Legacy single-code field (backwards compatible)
+
+  // NEW: Multi-part code fields for HTML + CSS + JavaScript
+  html?: string;      // HTML structure
+  css?: string;       // Styles
+  javascript?: string; // Interactive behavior
+
   isInteractive?: boolean;
   containerWidth?: 'text' | 'media' | 'full'; // Breakout container width
 
@@ -906,15 +913,361 @@ function AudioBlockRenderer({ block, audioData }: { block: ContentBlock; audioDa
   );
 }
 
-// Mermaid Chart Renderer Component
+// SVG Renderer Component with XSS Protection
+function SVGRenderer({ code }: { code: string }) {
+  const [sanitizedSVG, setSanitizedSVG] = useState<string>('');
+  const [error, setError] = useState<string | null>(null);
+
+  useLayoutEffect(() => {
+    const sanitizeSVG = async () => {
+      try {
+        const DOMPurify = (await import('dompurify')).default;
+
+        // Configure DOMPurify for SVG with strict settings
+        const cleanSVG = DOMPurify.sanitize(code, {
+          USE_PROFILES: { svg: true, svgFilters: true },
+          ADD_TAGS: ['use', 'defs', 'pattern', 'mask', 'clipPath', 'linearGradient', 'radialGradient', 'stop'],
+          ADD_ATTR: ['xmlns', 'xmlns:xlink', 'xlink:href', 'viewBox', 'preserveAspectRatio', 'transform', 'fill', 'stroke', 'stroke-width', 'd', 'cx', 'cy', 'r', 'x', 'y', 'width', 'height'],
+          FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'link'],
+          FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur'],
+        });
+
+        if (cleanSVG) {
+          setSanitizedSVG(cleanSVG);
+          setError(null);
+        } else {
+          setError('SVG sanitization resulted in empty output. The SVG may contain malicious content.');
+        }
+      } catch (err) {
+        console.error('[SVGRenderer] Sanitization error:', err);
+        setError(err instanceof Error ? err.message : 'Failed to sanitize SVG');
+      }
+    };
+
+    sanitizeSVG();
+  }, [code]);
+
+  if (error) {
+    return (
+      <div className="backdrop-blur-[12px] bg-gradient-to-b from-white/[0.12] via-white/[0.06] via-white/[0.03] via-white/[0.06] to-white/[0.12] border border-white/[0.15] rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.6),0_2px_8px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.2),inset_0_-1px_0_rgba(0,0,0,0.4),0_0_25px_rgba(255,255,255,0.02),0_0_50px_rgba(255,255,255,0.01)] p-6">
+        <div className="text-red-400 text-center py-4">
+          <p className="mb-2 font-semibold">Error rendering SVG</p>
+          <p className="text-sm text-red-300">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="backdrop-blur-[12px] bg-gradient-to-b from-white/[0.12] via-white/[0.06] via-white/[0.03] via-white/[0.06] to-white/[0.12] border border-white/[0.15] rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.6),0_2px_8px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.2),inset_0_-1px_0_rgba(0,0,0,0.4),0_0_25px_rgba(255,255,255,0.02),0_0_50px_rgba(255,255,255,0.01)] p-6">
+      <div className="flex justify-center items-center">
+        <div dangerouslySetInnerHTML={{ __html: sanitizedSVG }} />
+      </div>
+    </div>
+  );
+}
+
+// Multi-Part Renderer Component (HTML + CSS + JavaScript)
+// NOW SUPPORTS: Chart.js, D3.js, Mermaid, and vanilla JavaScript
+function MultiPartRenderer({
+  html,
+  css,
+  javascript
+}: {
+  html: string;
+  css: string;
+  javascript: string;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingLibraries, setLoadingLibraries] = useState<string[]>([]);
+  const isRenderingRef = useRef(false);
+  const chartInstancesRef = useRef<Array<unknown>>([]);
+  const scopeClassRef = useRef<string>(generateScopeClass()); // Unique CSS scope for this chart
+
+  useLayoutEffect(() => {
+    if (!containerRef.current || isRenderingRef.current) return;
+    if (!html && !css && !javascript) return;
+
+    isRenderingRef.current = true;
+    setError(null);
+
+    const renderMultiPart = async () => {
+      try {
+        const container = containerRef.current;
+        if (!container) {
+          // This is normal during cleanup/unmount
+          isRenderingRef.current = false;
+          return;
+        }
+
+        // Cleanup previous Chart instances before rendering
+        chartInstancesRef.current.forEach(chart => {
+          try {
+            if (chart && typeof chart === 'object' && 'destroy' in chart && typeof chart.destroy === 'function') {
+              chart.destroy();
+            }
+          } catch (e) {
+            console.warn('[MultiPartRenderer] Error destroying chart:', e);
+          }
+        });
+        chartInstancesRef.current = [];
+
+        // Create a wrapper div that we fully control (isolates from React's reconciliation)
+        // This prevents race conditions with React Strict Mode double-rendering
+        // Also add unique scope class for CSS isolation
+        let wrapper = container.querySelector<HTMLDivElement>('.multipart-content-wrapper');
+        if (!wrapper) {
+          wrapper = document.createElement('div');
+          wrapper.className = `multipart-content-wrapper ${scopeClassRef.current}`;
+          container.appendChild(wrapper);
+        } else {
+          // Clear existing wrapper content
+          wrapper.innerHTML = '';
+          // Ensure scope class is present
+          if (!wrapper.classList.contains(scopeClassRef.current)) {
+            wrapper.classList.add(scopeClassRef.current);
+          }
+        }
+
+        // Set wrapper to shrink-wrap its content (defensive height configuration)
+        // Use !important to override any user CSS that might set viewport-based heights
+        wrapper.style.setProperty('height', 'fit-content', 'important');
+        wrapper.style.minHeight = '0';
+        wrapper.style.maxHeight = 'none';
+
+        // Also ensure container doesn't expand beyond its content
+        container.style.height = 'fit-content';
+        container.style.minHeight = '0';
+
+        // STEP 0: Detect required libraries from JavaScript code
+        const { detectLibrariesInCode } = await import('@/lib/chartLibraryDetector');
+        const { loadLibraries, getLibraryGlobal, LIBRARY_REGISTRY } = await import('@/lib/chartLibraryLoader');
+
+        const detectedLibraries = detectLibrariesInCode(html, css, javascript);
+        const librariesToLoad = detectedLibraries.map(d => d.library);
+
+        // Load libraries if needed
+        if (librariesToLoad.length > 0) {
+          setIsLoading(true);
+          setLoadingLibraries(detectedLibraries.map(d => LIBRARY_REGISTRY[d.library].name));
+
+          try {
+            await loadLibraries(librariesToLoad);
+            console.log('[MultiPartRenderer] Loaded libraries:', librariesToLoad);
+          } catch (loadError) {
+            const errorMsg = loadError instanceof Error ? loadError.message : 'Unknown error';
+            throw new Error(`Failed to load required libraries: ${errorMsg}`);
+          } finally {
+            setIsLoading(false);
+            setLoadingLibraries([]);
+          }
+        }
+
+        // Verify container still exists after async operations
+        // Use isConnected to allow React re-renders while detecting unmounts
+        if (!container.isConnected) {
+          console.log('[MultiPartRenderer] Container was unmounted, aborting stale render');
+          isRenderingRef.current = false;
+          return;
+        }
+
+        // STEP 1: Sanitize and inject HTML into wrapper
+        if (html) {
+          const DOMPurify = (await import('dompurify')).default;
+          const cleanHTML = DOMPurify.sanitize(html, {
+            ALLOWED_TAGS: [
+              'div', 'span', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+              'canvas', 'svg', 'path', 'rect', 'circle', 'line', 'polyline', 'polygon', 'text', 'g', 'defs',
+              'button', 'input', 'label', 'select', 'option', 'textarea',
+              'ul', 'ol', 'li', 'table', 'tr', 'td', 'th', 'thead', 'tbody',
+              'a', 'strong', 'em', 'code', 'pre'
+            ],
+            ALLOWED_ATTR: [
+              'class', 'id', 'style', 'data-*',
+              'width', 'height', 'viewBox', 'xmlns', 'fill', 'stroke', 'stroke-width', 'd', 'cx', 'cy', 'r', 'x', 'y',
+              'type', 'value', 'placeholder', 'disabled', 'readonly',
+              'href', 'target', 'rel'
+            ],
+            FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'link'],
+            FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur', 'onchange']
+          });
+
+          wrapper.innerHTML = cleanHTML;
+        }
+
+        // STEP 2: Inject CSS as scoped style element into wrapper
+        if (css) {
+          // Apply CSS scoping to prevent styles from leaking to the entire page
+          const scopedCSS = scopeChartCSS(css, scopeClassRef.current);
+
+          const styleEl = document.createElement('style');
+          styleEl.setAttribute('data-multipart-chart', 'true');
+          styleEl.setAttribute('data-scope', scopeClassRef.current);
+          styleEl.textContent = scopedCSS;
+          wrapper.appendChild(styleEl);
+
+          console.log('[MultiPartRenderer] Applied CSS scoping with class:', scopeClassRef.current);
+        }
+
+        // STEP 3: Execute JavaScript with library support
+        if (javascript) {
+          // Wait for DOM to be ready - use double RAF to ensure layout is complete
+          await new Promise(resolve => requestAnimationFrame(resolve));
+          await new Promise(resolve => requestAnimationFrame(resolve));
+
+          // Verify container is still in the DOM
+          if (!container.isConnected) {
+            // Component was unmounted during async operations - skip execution
+            return;
+          }
+
+          try {
+            // Get loaded library globals
+            const OriginalChart = getLibraryGlobal('chartjs');
+            const d3 = getLibraryGlobal('d3');
+            const mermaid = getLibraryGlobal('mermaid');
+
+            // Wrap Chart.js constructor to track instances for cleanup
+            let ChartWrapper: unknown;
+            if (OriginalChart && typeof OriginalChart === 'function') {
+              // Destroy any existing Chart instances on canvases in the wrapper
+              const canvases = wrapper.querySelectorAll('canvas');
+              canvases.forEach(canvas => {
+                try {
+                  // Try to get and destroy existing chart on this canvas
+                  const getChart = (OriginalChart as { getChart?: (canvas: HTMLCanvasElement) => { destroy: () => void } }).getChart;
+                  if (typeof getChart === 'function') {
+                    const existingChart = getChart(canvas as HTMLCanvasElement);
+                    if (existingChart && typeof existingChart.destroy === 'function') {
+                      existingChart.destroy();
+                    }
+                  }
+                } catch (e) {
+                  // Ignore errors from destroying non-existent charts
+                }
+              });
+
+              // Create wrapper that tracks instances
+              ChartWrapper = new Proxy(OriginalChart as new (...args: unknown[]) => object, {
+                construct(target, args) {
+                  const instance = new target(...args);
+                  chartInstancesRef.current.push(instance);
+                  return instance as object;
+                }
+              });
+            }
+
+            // Create enhanced execution context with loaded libraries
+            // Pass wrapper as container parameter so user code can access it
+            const scriptFunc = new Function(
+              'container',
+              'document',
+              'window',
+              'Chart',
+              'd3',
+              'mermaid',
+              javascript
+            );
+
+            scriptFunc(wrapper, document, window, ChartWrapper || OriginalChart, d3, mermaid);
+
+            console.log('[MultiPartRenderer] JavaScript executed successfully');
+          } catch (jsError) {
+            console.error('[MultiPartRenderer] JavaScript execution error:', jsError);
+
+            // Provide helpful error messages
+            const errorMessage = jsError instanceof Error ? jsError.message : 'Unknown error';
+
+            if (errorMessage.includes('Chart is not defined')) {
+              throw new Error(`Chart.js error: ${errorMessage}\n\nThe library may not have loaded properly. Try refreshing the page.`);
+            } else if (errorMessage.includes('d3 is not defined')) {
+              throw new Error(`D3.js error: ${errorMessage}\n\nThe library may not have loaded properly. Try refreshing the page.`);
+            } else if (errorMessage.includes('mermaid is not defined')) {
+              throw new Error(`Mermaid error: ${errorMessage}\n\nThe library may not have loaded properly. Try refreshing the page.`);
+            } else if (errorMessage.includes('Canvas is already in use')) {
+              throw new Error(`Chart.js error: ${errorMessage}\n\nThis usually happens during development. Try refreshing the page.`);
+            } else if (errorMessage.includes('Cannot read properties of null')) {
+              throw new Error(`JavaScript error: ${errorMessage}\n\nThis usually means an element wasn't found in the DOM. Check that your HTML element IDs match what your JavaScript is trying to access.\n\nTip: Make sure your canvas/div has the correct ID attribute.`);
+            } else {
+              throw new Error(`JavaScript execution error: ${errorMessage}`);
+            }
+          }
+        }
+
+        isRenderingRef.current = false;
+      } catch (err) {
+        console.error('[MultiPartRenderer] Rendering error:', err);
+        setError(err instanceof Error ? err.message : 'Failed to render multi-part chart');
+        isRenderingRef.current = false;
+      }
+    };
+
+    renderMultiPart().catch(err => {
+      console.error('[MultiPartRenderer] Async render error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to render chart');
+      isRenderingRef.current = false;
+    });
+
+    // Cleanup function - runs when component unmounts or before next render
+    return () => {
+      isRenderingRef.current = false;
+
+      // Note: Chart cleanup is handled at the start of renderMultiPart
+      // to avoid race conditions and "node not found" errors
+    };
+  }, [html, css, javascript]);
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="backdrop-blur-[12px] bg-gradient-to-b from-white/[0.12] via-white/[0.06] via-white/[0.03] via-white/[0.06] to-white/[0.12] border border-white/[0.15] rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.6),0_2px_8px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.2),inset_0_-1px_0_rgba(0,0,0,0.4),0_0_25px_rgba(255,255,255,0.02),0_0_50px_rgba(255,255,255,0.01)] p-4 inline-flex flex-col max-w-full">
+        <div className="text-center py-8">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400 mb-4"></div>
+          <p className="text-blue-300 font-medium">Loading chart libraries...</p>
+          {loadingLibraries.length > 0 && (
+            <p className="text-blue-200 text-sm mt-2">
+              {loadingLibraries.join(', ')}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="backdrop-blur-[12px] bg-gradient-to-b from-white/[0.12] via-white/[0.06] via-white/[0.03] via-white/[0.06] to-white/[0.12] border border-white/[0.15] rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.6),0_2px_8px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.2),inset_0_-1px_0_rgba(0,0,0,0.4),0_0_25px_rgba(255,255,255,0.02),0_0_50px_rgba(255,255,255,0.01)] p-4 inline-flex flex-col max-w-full">
+        <div className="text-red-400 text-center py-4">
+          <p className="mb-2 font-semibold">Error rendering multi-part chart</p>
+          <p className="text-sm text-red-300 whitespace-pre-wrap">{error}</p>
+          <p className="text-xs text-red-300 mt-2">Check your HTML, CSS, or JavaScript code</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Success state - merged containerRef with outer div to reduce nesting
+  return (
+    <div
+      ref={containerRef}
+      className="backdrop-blur-[12px] bg-gradient-to-b from-white/[0.12] via-white/[0.06] via-white/[0.03] via-white/[0.06] to-white/[0.12] border border-white/[0.15] rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.6),0_2px_8px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.2),inset_0_-1px_0_rgba(0,0,0,0.4),0_0_25px_rgba(255,255,255,0.02),0_0_50px_rgba(255,255,255,0.01)] p-4"
+      style={{ height: 'fit-content' }}
+    />
+  );
+}
+
+// Mermaid Chart Renderer Component (v10+ API)
 function MermaidRenderer({ code }: { code: string }) {
-  const mermaidRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const isRenderingRef = useRef(false);
 
   useLayoutEffect(() => {
-    if (!code || !mermaidRef.current || isRenderingRef.current) return;
+    if (!code || !containerRef.current || isRenderingRef.current) return;
 
     isRenderingRef.current = true;
     setIsLoading(true);
@@ -923,8 +1276,10 @@ function MermaidRenderer({ code }: { code: string }) {
     const renderMermaidDiagram = async () => {
       try {
         const mermaid = (await import('mermaid')).default;
+
+        // Initialize with v10+ recommended settings
         mermaid.initialize({
-          startOnLoad: false,
+          startOnLoad: false, // Recommended for manual rendering with run()
           theme: 'dark',
           themeVariables: {
             primaryColor: '#3b82f6',
@@ -934,33 +1289,43 @@ function MermaidRenderer({ code }: { code: string }) {
             secondaryColor: '#1e293b',
             tertiaryColor: '#0f172a',
           },
-          securityLevel: 'loose', // Allow more flexibility in diagrams
+          securityLevel: 'strict', // Strict security by default
         });
 
-        // Generate unique ID for this render
-        const id = 'mermaid-' + Math.random().toString(36).substr(2, 9);
-
-        const { svg } = await mermaid.render(id, code);
-
-        if (mermaidRef.current) {
-          mermaidRef.current.innerHTML = svg;
-          setIsLoading(false);
+        if (!containerRef.current) {
+          isRenderingRef.current = false;
+          return;
         }
+
+        // Create a temporary container for the diagram
+        const tempDiv = document.createElement('div');
+        tempDiv.className = 'mermaid';
+        tempDiv.textContent = code;
+        containerRef.current.appendChild(tempDiv);
+
+        // Use mermaid.run() - the v10+ preferred method
+        await mermaid.run({
+          nodes: [tempDiv],
+          suppressErrors: false,
+        });
+
+        setIsLoading(false);
+        isRenderingRef.current = false;
       } catch (error) {
         console.error('[MermaidRenderer] Rendering error:', error);
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         setError(errorMessage);
         setIsLoading(false);
 
-        if (mermaidRef.current) {
-          mermaidRef.current.innerHTML = `
+        if (containerRef.current) {
+          containerRef.current.innerHTML = `
             <div class="text-red-400 text-center py-4">
-              <p class="mb-2">Error rendering Mermaid diagram</p>
+              <p class="mb-2 font-semibold">Error rendering Mermaid diagram</p>
               <p class="text-sm text-red-300">${errorMessage}</p>
+              <p class="text-xs text-red-300 mt-2">Check diagram syntax or try a different diagram type</p>
             </div>
           `;
         }
-      } finally {
         isRenderingRef.current = false;
       }
     };
@@ -969,6 +1334,10 @@ function MermaidRenderer({ code }: { code: string }) {
 
     return () => {
       isRenderingRef.current = false;
+      // Clean up container
+      if (containerRef.current) {
+        containerRef.current.innerHTML = '';
+      }
     };
   }, [code]);
 
@@ -976,12 +1345,12 @@ function MermaidRenderer({ code }: { code: string }) {
     <div className="backdrop-blur-[12px] bg-gradient-to-b from-white/[0.12] via-white/[0.06] via-white/[0.03] via-white/[0.06] to-white/[0.12] border border-white/[0.15] rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.6),0_2px_8px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.2),inset_0_-1px_0_rgba(0,0,0,0.4),0_0_25px_rgba(255,255,255,0.02),0_0_50px_rgba(255,255,255,0.01)] p-6">
       {isLoading && !error && (
         <div className="flex justify-center items-center min-h-[300px]">
-          <div className="text-white/60 text-sm">Rendering diagram...</div>
+          <div className="text-white/60 text-sm animate-pulse">Rendering diagram...</div>
         </div>
       )}
       <div
-        ref={mermaidRef}
-        className={`flex justify-center items-center min-h-[300px] ${isLoading ? 'hidden' : ''}`}
+        ref={containerRef}
+        className={`flex justify-center items-center min-h-[300px] ${isLoading && !error ? 'hidden' : ''}`}
       />
     </div>
   );
@@ -1261,38 +1630,78 @@ function ChartJSRenderer({ code }: { code: string }) {
           await new Promise(resolve => requestAnimationFrame(resolve));
         }
 
-        const ctx = canvasRef.current?.getContext('2d');
-        if (!ctx) {
+        const canvas = canvasRef.current;
+        const ctx = canvas?.getContext('2d');
+        if (!ctx || !canvas) {
           isRenderingRef.current = false;
           return;
         }
 
+        // Validate code format - detect common mistakes
+        const trimmedCode = code.trim();
+        if (trimmedCode.startsWith('<')) {
+          throw new Error('HTML code detected. Please use Custom HTML Block instead of Chart Block for HTML content.');
+        }
+        if (trimmedCode.startsWith('<!DOCTYPE') || trimmedCode.toLowerCase().includes('<html')) {
+          throw new Error('Full HTML document detected. Please use Custom HTML Block or paste only the Chart.js JavaScript code.');
+        }
+
+        // Chart.js accepts BOTH canvas element AND 2d context
+        // Provide both as arguments to support all code patterns
+        // Use IIFE to avoid variable name conflicts with user code
         const codeWithContext = `
-          const ctx = arguments[0];
-          const Chart = arguments[1];
-          ${code}
+          (function(canvas, ctx, Chart) {
+            ${code}
+          })(arguments[0], arguments[1], arguments[2])
         `;
 
         const chartFunction = new Function(codeWithContext);
-        const chartInstance = chartFunction(ctx, ChartJS);
+        const chartInstance = chartFunction(canvas, ctx, ChartJS);
 
-        if (chartInstance) {
+        // Store chart instance if returned (for proper cleanup)
+        if (chartInstance && typeof chartInstance === 'object' && 'destroy' in chartInstance) {
           chartInstanceRef.current = chartInstance;
+        } else {
+          // If no instance returned, try to find it using Chart.getChart()
+          const foundChart = ChartJS.getChart(canvas);
+          if (foundChart) {
+            chartInstanceRef.current = foundChart;
+          }
         }
 
         isRenderingRef.current = false;
       } catch (error) {
         console.error('[ChartJSRenderer] Execution error:', error);
+        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
         isRenderingRef.current = false;
 
-        // Show error message on canvas
+        // Show detailed error message on canvas
         const ctx = canvasRef.current?.getContext('2d');
         if (ctx && canvasRef.current) {
           ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
           ctx.fillStyle = '#f87171';
-          ctx.font = '14px Arial';
+          ctx.font = 'bold 16px Arial';
           ctx.textAlign = 'center';
-          ctx.fillText('Error rendering Chart.js chart', canvasRef.current.width / 2, canvasRef.current.height / 2);
+          ctx.fillText('Error rendering Chart.js chart', canvasRef.current.width / 2, canvasRef.current.height / 2 - 20);
+
+          ctx.font = '12px Arial';
+          ctx.fillStyle = '#fca5a5';
+          const words = errorMsg.split(' ');
+          let line = '';
+          let y = canvasRef.current.height / 2 + 10;
+
+          for (const word of words) {
+            const testLine = line + word + ' ';
+            const metrics = ctx.measureText(testLine);
+            if (metrics.width > canvasRef.current.width - 40 && line.length > 0) {
+              ctx.fillText(line, canvasRef.current.width / 2, y);
+              line = word + ' ';
+              y += 16;
+            } else {
+              line = testLine;
+            }
+          }
+          ctx.fillText(line, canvasRef.current.width / 2, y);
         }
       }
     };
@@ -1311,7 +1720,7 @@ function ChartJSRenderer({ code }: { code: string }) {
   return (
     <div className="backdrop-blur-[12px] bg-gradient-to-b from-white/[0.12] via-white/[0.06] via-white/[0.03] via-white/[0.06] to-white/[0.12] border border-white/[0.15] rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.6),0_2px_8px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.2),inset_0_-1px_0_rgba(0,0,0,0.4),0_0_25px_rgba(255,255,255,0.02),0_0_50px_rgba(255,255,255,0.01)] p-6">
       <div className="flex justify-center items-center">
-        <canvas ref={canvasRef} style={{ maxWidth: '100%', maxHeight: '400px' }} />
+        <canvas ref={canvasRef} width={600} height={400} style={{ maxWidth: '100%', height: 'auto' }} />
       </div>
     </div>
   );
@@ -1321,6 +1730,28 @@ function ChartJSRenderer({ code }: { code: string }) {
 function ChartBlock({ chartData }: { chartData: ChartData }) {
   // Determine which framework to use
   const framework = chartData.framework || (chartData.code ? 'custom' : 'recharts');
+
+  // Get container width (default to 'media' for charts)
+  const containerWidth = chartData.containerWidth || 'media';
+
+  // Check for multi-part chart (HTML + CSS + JavaScript)
+  const isMultiPart = framework === 'multipart' || !!(chartData.html || chartData.css || chartData.javascript);
+
+  if (isMultiPart) {
+    return (
+      <div className="my-8">
+        <BreakoutContainer width={containerWidth}>
+          <ChartErrorBoundary framework="Multi-Part">
+            <MultiPartRenderer
+              html={chartData.html || ''}
+              css={chartData.css || ''}
+              javascript={chartData.javascript || ''}
+            />
+          </ChartErrorBoundary>
+        </BreakoutContainer>
+      </div>
+    );
+  }
 
   // Recharts Visual Editor Renderer
   const renderRechartsVisual = () => {
@@ -1415,18 +1846,13 @@ function ChartBlock({ chartData }: { chartData: ChartData }) {
     );
   };
 
-  // Get container width (default to 'media' for charts)
-  const containerWidth = chartData.containerWidth || 'media';
-
   // Main renderer - detect framework and render accordingly
   if (framework === 'svg' && chartData.code) {
     return (
       <div className="my-8">
         <BreakoutContainer width={containerWidth}>
           <ChartErrorBoundary framework="SVG">
-            <div className="backdrop-blur-[12px] bg-gradient-to-b from-white/[0.12] via-white/[0.06] via-white/[0.03] via-white/[0.06] to-white/[0.12] border border-white/[0.15] rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.6),0_2px_8px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.2),inset_0_-1px_0_rgba(0,0,0,0.4),0_0_25px_rgba(255,255,255,0.02),0_0_50px_rgba(255,255,255,0.01)] p-6">
-              <div dangerouslySetInnerHTML={{ __html: chartData.code }} />
-            </div>
+            <SVGRenderer code={chartData.code} />
           </ChartErrorBoundary>
         </BreakoutContainer>
       </div>
