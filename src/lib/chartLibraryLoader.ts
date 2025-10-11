@@ -4,7 +4,7 @@
  * Provides promise-based loading with caching and error handling
  */
 
-export type SupportedLibrary = 'chartjs' | 'd3' | 'mermaid';
+export type SupportedLibrary = 'chartjs' | 'd3' | 'mermaid' | 'topojson';
 
 export interface LibraryConfig {
   name: string;
@@ -27,6 +27,12 @@ export const LIBRARY_REGISTRY: Record<SupportedLibrary, LibraryConfig> = {
     globalName: 'd3',
     version: '7.8.5',
     cdnUrl: 'https://cdn.jsdelivr.net/npm/d3@7.8.5/dist/d3.min.js'
+  },
+  topojson: {
+    name: 'TopoJSON',
+    globalName: 'topojson',
+    version: '3.0.2',
+    cdnUrl: 'https://cdn.jsdelivr.net/npm/topojson@3.0.2/dist/topojson.min.js'
   },
   mermaid: {
     name: 'Mermaid',

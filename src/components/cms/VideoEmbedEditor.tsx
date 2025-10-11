@@ -10,7 +10,7 @@ interface VideoEmbedData {
   controls?: boolean;
   aspectRatio?: '16:9' | '4:3' | '1:1' | '21:9';
   alignment?: 'left' | 'center' | 'right' | 'full';
-  width?: number;
+  width?: number; // percentage (15-200), >100% desktop only
   borderRadius?: number;
   shadow?: boolean;
   localVideoUrl?: string; // For uploaded videos
@@ -315,17 +315,29 @@ export default function VideoEmbedEditor({
         {/* Width Control */}
         <div>
           <label className="block text-gray-700 text-sm font-medium mb-2">
-            Width: {currentData.width || 100}%
+            Width
           </label>
-          <input
-            type="range"
-            min="20"
-            max="100"
-            step="5"
+          <select
             value={currentData.width || 100}
             onChange={(e) => handleChange('width', parseInt(e.target.value))}
-            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-          />
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+          >
+            <option value={15}>15%</option>
+            <option value={20}>20%</option>
+            <option value={25}>25%</option>
+            <option value={30}>30%</option>
+            <option value={35}>35%</option>
+            <option value={40}>40%</option>
+            <option value={45}>45%</option>
+            <option value={50}>50%</option>
+            <option value={60}>60%</option>
+            <option value={70}>70%</option>
+            <option value={100}>100%</option>
+            <option value={125}>125% (Desktop only)</option>
+            <option value={150}>150% (Desktop only)</option>
+            <option value={175}>175% (Desktop only)</option>
+            <option value={200}>200% (Desktop only)</option>
+          </select>
         </div>
 
         {/* Styling Options */}

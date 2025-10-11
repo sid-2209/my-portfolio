@@ -29,7 +29,7 @@ interface ChartEditorProps {
   css?: string;
   javascript?: string;
 
-  containerWidth?: number | 'text' | 'media' | 'full'; // number = percentage (15-100)
+  containerWidth?: number | 'text' | 'media' | 'full'; // number = percentage (15-200)
 
   // Legacy visual editor fields (backwards compatible)
   chartType?: 'bar' | 'line' | 'area' | 'pie' | 'radar';
@@ -42,7 +42,7 @@ interface ChartEditorProps {
     chartType?: 'bar' | 'line' | 'area' | 'pie' | 'radar',
     data?: ChartDataPoint[],
     config?: ChartConfig,
-    containerWidth?: number | 'text' | 'media' | 'full', // number = percentage (15-100)
+    containerWidth?: number | 'text' | 'media' | 'full', // number = percentage (15-200)
     html?: string,
     css?: string,
     javascript?: string
@@ -1281,6 +1281,10 @@ updateGauge(65);`
                     <option value={60}>60%</option>
                     <option value={70}>70%</option>
                     <option value={100}>100%</option>
+                    <option value={125}>125% (Desktop only)</option>
+                    <option value={150}>150% (Desktop only)</option>
+                    <option value={175}>175% (Desktop only)</option>
+                    <option value={200}>200% (Desktop only)</option>
                   </select>
                 </div>
               </div>
@@ -1554,6 +1558,10 @@ updateGauge(65);`
                   <option value={60}>60%</option>
                   <option value={70}>70%</option>
                   <option value={100}>100%</option>
+                  <option value={125}>125% (Desktop only)</option>
+                  <option value={150}>150% (Desktop only)</option>
+                  <option value={175}>175% (Desktop only)</option>
+                  <option value={200}>200% (Desktop only)</option>
                 </select>
               </div>
             </div>

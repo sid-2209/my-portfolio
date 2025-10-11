@@ -4,7 +4,7 @@ import { ContentBlock } from '@prisma/client';
 import { sanitizeRichText, sanitizeCustomHTML } from '@/lib/sanitize';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { useState, useRef, useLayoutEffect, useEffect, useCallback } from 'react';
+import { useState, useRef, useLayoutEffect, useEffect, useCallback, useMemo } from 'react';
 import { ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
 import WaveformPlayer from '@/components/audio/WaveformPlayer';
 import InlineLanguageSwitcher from './InlineLanguageSwitcher';
@@ -970,14 +970,17 @@ function SVGRenderer({ code }: { code: string }) {
 
 // Multi-Part Renderer Component (HTML + CSS + JavaScript)
 // NOW SUPPORTS: Chart.js, D3.js, Mermaid, and vanilla JavaScript
+// WITH INTERACTIVE FEATURES: Pan, Zoom, Touch support
 function MultiPartRenderer({
   html,
   css,
-  javascript
+  javascript,
+  enableInteractive
 }: {
   html: string;
   css: string;
   javascript: string;
+  enableInteractive?: boolean; // undefined = auto-detect, true = force enable, false = force disable
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -986,10 +989,58 @@ function MultiPartRenderer({
   const isRenderingRef = useRef(false);
   const chartInstancesRef = useRef<Array<unknown>>([]);
   const scopeClassRef = useRef<string>(generateScopeClass()); // Unique CSS scope for this chart
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // 🎯 PHASE 5: Smart content detection - detect if content is a visualization
+  const isVisualization = useMemo(() => {
+    // If explicitly set, respect the prop
+    if (enableInteractive !== undefined) return enableInteractive;
+
+    // Auto-detect: Check for visualization indicators
+    const combinedCode = `${html} ${css} ${javascript}`.toLowerCase();
+
+    // Check for canvas elements (Chart.js, custom visualizations)
+    const hasCanvas = /<canvas/i.test(html);
+
+    // Check for SVG elements (D3, custom SVG visualizations)
+    const hasSVG = /<svg/i.test(html);
+
+    // Check for chart library usage
+    const hasChartLibrary = /chart\.js|d3|mermaid|recharts|plotly|highcharts/i.test(combinedCode);
+
+    // Check for getContext (canvas API)
+    const hasCanvasAPI = /getcontext\s*\(\s*['"]2d['"]\s*\)/i.test(javascript);
+
+    // Check for D3 API usage
+    const hasD3API = /d3\.(select|scale|svg|axis|geo)/i.test(javascript);
+
+    return hasCanvas || hasSVG || hasChartLibrary || hasCanvasAPI || hasD3API;
+  }, [html, css, javascript, enableInteractive]);
+
+  // 🎯 INTERACTIVE FEATURES - Transform State (only if visualization)
+  const [scale, setScale] = useState(1);
+  const [translateX, setTranslateX] = useState(0);
+  const [translateY, setTranslateY] = useState(0);
+  const [showControls, setShowControls] = useState(false);
+
+  // Interaction tracking refs (avoid re-renders during drag/zoom)
+  const isDraggingRef = useRef(false);
+  const lastMouseRef = useRef<{ x: number; y: number } | null>(null);
+  const touchStartDistanceRef = useRef<number | null>(null);
+  const touchStartScaleRef = useRef<number>(1);
+  const animationFrameRef = useRef<number | null>(null);
 
   useLayoutEffect(() => {
     if (!containerRef.current || isRenderingRef.current) return;
     if (!html && !css && !javascript) return;
+
+    // Abort any previous render in progress (handles React Strict Mode double-render)
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
 
     isRenderingRef.current = true;
     setError(null);
@@ -1032,19 +1083,45 @@ function MultiPartRenderer({
           }
         }
 
-        // Set wrapper to shrink-wrap its content (defensive height configuration)
-        // Use !important to override any user CSS that might set viewport-based heights
-        wrapper.style.setProperty('height', 'fit-content', 'important');
-        wrapper.style.minHeight = '0';
-        wrapper.style.maxHeight = 'none';
+        // 🎯 PHASE 3: Proper wrapper containment - fills 100% of container
+        wrapper.style.position = 'absolute'; // Position absolute to fill container
+        wrapper.style.inset = '0'; // Fill all edges (top, right, bottom, left = 0)
+        wrapper.style.display = 'flex';
+        wrapper.style.alignItems = 'flex-start'; // Anchor to top (no vertical centering gap)
+        wrapper.style.justifyContent = 'center';
+        wrapper.style.width = '100%';
+        wrapper.style.height = '100%';
+        wrapper.style.overflow = 'visible'; // Content can be larger, parent clips it
 
-        // Also ensure container doesn't expand beyond its content
-        container.style.height = 'fit-content';
-        container.style.minHeight = '0';
+        // Transform properties (will be set dynamically by useEffect)
+        wrapper.style.transformOrigin = 'center center';
+        wrapper.style.willChange = 'transform';
+
+        // 🎯 PHASE 7: Smooth entrance animation (opacity only, not transform)
+        wrapper.style.opacity = '0';
+        wrapper.style.transition = 'opacity 0.4s ease-out';
+
+        // Trigger animation after a brief delay
+        setTimeout(() => {
+          if (wrapper) {
+            wrapper.style.opacity = '1';
+          }
+        }, 50);
+
+        // Container should have fixed minimum height
+        container.style.position = 'relative'; // Needed for absolute children
+        container.style.minHeight = '400px';
 
         // STEP 0: Detect required libraries from JavaScript code
         const { detectLibrariesInCode } = await import('@/lib/chartLibraryDetector');
         const { loadLibraries, getLibraryGlobal, LIBRARY_REGISTRY } = await import('@/lib/chartLibraryLoader');
+
+        // Check if aborted after async import
+        if (abortController.signal.aborted) {
+          console.log('[MultiPartRenderer] Render aborted after import');
+          isRenderingRef.current = false;
+          return;
+        }
 
         const detectedLibraries = detectLibrariesInCode(html, css, javascript);
         const librariesToLoad = detectedLibraries.map(d => d.library);
@@ -1066,6 +1143,13 @@ function MultiPartRenderer({
           }
         }
 
+        // Check if aborted after library loading
+        if (abortController.signal.aborted) {
+          console.log('[MultiPartRenderer] Render aborted after library loading');
+          isRenderingRef.current = false;
+          return;
+        }
+
         // Verify container still exists after async operations
         // Use isConnected to allow React re-renders while detecting unmounts
         if (!container.isConnected) {
@@ -1078,10 +1162,168 @@ function MultiPartRenderer({
         // Also scope IDs to prevent collisions between multiple charts
         let processedHTML = html;
         let processedJS = javascript;
+        let processedCSS = css;
 
+        // 🎯 PHASE 6: Comprehensive debug logging
+        console.log('═══════ MultiPartRenderer Debug Info ═══════');
+        console.log('[DEBUG] Input HTML length:', html?.length || 0);
+        console.log('[DEBUG] Input CSS length:', css?.length || 0);
+        console.log('[DEBUG] Input JavaScript length:', javascript?.length || 0);
+
+        // Check if HTML contains CSS patterns (might be raw CSS not in <style> tags)
         if (html) {
+          const hasStyleTags = /<style[^>]*>/i.test(html);
+          const hasCSSPatterns = /\{[^}]*[\w-]+\s*:/i.test(html);
+          const hasScopeClass = /multipart-chart-scope/i.test(html);
+
+          console.log('[DEBUG] HTML has <style> tags:', hasStyleTags);
+          console.log('[DEBUG] HTML has CSS patterns (potential raw CSS):', hasCSSPatterns);
+          console.log('[DEBUG] HTML has scope class (from previous render?):', hasScopeClass);
+
+          if (hasCSSPatterns && !hasStyleTags) {
+            console.warn('[WARNING] HTML contains CSS patterns but NO <style> tags!');
+            console.warn('[WARNING] This suggests raw CSS text in HTML field.');
+            console.log('[WARNING] First 500 chars of HTML:', html.substring(0, 500));
+          }
+        }
+
+        // 🎯 PHASE 1: Define cleanup function (used in multiple stages)
+        // Removes stray text nodes containing CSS/JS code
+        const removeCodeTextNodes = (element: Element, stage: string = 'initial') => {
+          const iterator = document.createNodeIterator(
+            element,
+            NodeFilter.SHOW_TEXT,
+            null
+          );
+          const nodesToRemove: Text[] = [];
+          let textNode: Node | null;
+
+          while ((textNode = iterator.nextNode())) {
+            const text = (textNode.textContent || '').trim();
+            if (!text) continue;
+
+            // 🎯 ENHANCED: More comprehensive CSS/JS detection patterns
+            const cssPatterns = [
+              /[.#][\w-]+\s*\{/,                    // .class{ or #id{
+              /[\w-]+\s*:\s*[\w-]+\s*[;}]/,        // property: value; or value}
+              /@(keyframes|media|supports|font-face|import)/, // @-rules
+              /\{[^}]*[\w-]+\s*:/,                 // Any block with property:value
+              /rgba?\([\d,\s]+\)/,                 // Color functions rgb/rgba
+              /--[\w-]+\s*:/,                      // CSS custom properties --var:
+              /#[0-9a-f]{3,6}\b/i,                 // Hex colors
+              /\d+px|\d+%|\d+em|\d+rem/,           // CSS units
+              /multipart-chart-scope/,             // Our scope class
+              /background[\s-]|margin[\s-]|padding[\s-]/, // Common CSS properties
+              /function\s*\(|=>\s*\{|const\s+\w+/  // JavaScript patterns
+            ];
+
+            const isCode = cssPatterns.some(pattern => pattern.test(text));
+
+            // 🎯 LOWERED THRESHOLD: from 20 to 10 characters
+            if (isCode && text.length > 10) {
+              console.log(`[MultiPartRenderer] [${stage}] Removing stray code text node:`, text.substring(0, 100));
+              nodesToRemove.push(textNode as Text);
+            }
+          }
+
+          nodesToRemove.forEach(node => node.remove());
+
+          if (nodesToRemove.length > 0) {
+            console.log(`[MultiPartRenderer] [${stage}] Cleaned up ${nodesToRemove.length} stray code text node(s)`);
+          }
+
+          return nodesToRemove.length;
+        };
+
+        // 🎯 PHASE 2: Extract <style> and <script> tags from HTML before sanitization
+        // Uses DUAL approach: regex + DOM parser fallback for maximum reliability
+        if (html) {
+          const extractedStyles: string[] = [];
+          const extractedScripts: string[] = [];
+
+          // METHOD 1: Regex extraction (fast, handles most cases)
+          const styleTagRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
+          const scriptTagRegex = /<script[^>]*>([\s\S]*?)<\/script>/gi;
+
+          let match;
+          while ((match = styleTagRegex.exec(html)) !== null) {
+            extractedStyles.push(match[1]);
+          }
+
+          while ((match = scriptTagRegex.exec(html)) !== null) {
+            extractedScripts.push(match[1]);
+          }
+
+          // Create fresh regex instances for replacement
+          const freshStyleRegex = /<style[^>]*>[\s\S]*?<\/style>/gi;
+          const freshScriptRegex = /<script[^>]*>[\s\S]*?<\/script>/gi;
+
+          processedHTML = html.replace(freshStyleRegex, '').replace(freshScriptRegex, '');
+
+          // METHOD 2: DOM parser fallback (catches edge cases regex might miss)
+          // This handles malformed tags, comments, CDATA, etc.
+          const tempDiv = document.createElement('div');
+          try {
+            tempDiv.innerHTML = processedHTML;
+
+            // Extract any remaining style tags
+            const styleTags = tempDiv.querySelectorAll('style');
+            if (styleTags.length > 0) {
+              console.log(`[MultiPartRenderer] DOM parser found ${styleTags.length} additional style tag(s)`);
+              styleTags.forEach(tag => {
+                const content = tag.textContent || '';
+                if (content.trim()) {
+                  extractedStyles.push(content);
+                }
+                tag.remove();
+              });
+            }
+
+            // Extract any remaining script tags
+            const scriptTags = tempDiv.querySelectorAll('script');
+            if (scriptTags.length > 0) {
+              console.log(`[MultiPartRenderer] DOM parser found ${scriptTags.length} additional script tag(s)`);
+              scriptTags.forEach(tag => {
+                const content = tag.textContent || '';
+                if (content.trim()) {
+                  extractedScripts.push(content);
+                }
+                tag.remove();
+              });
+            }
+
+            // Use cleaned HTML from DOM parser
+            processedHTML = tempDiv.innerHTML;
+          } catch (domError) {
+            console.warn('[MultiPartRenderer] DOM parser fallback failed:', domError);
+            // Continue with regex-processed HTML
+          }
+
+          // 🎯 DEBUG: Log extraction results
+          if (extractedStyles.length > 0 || extractedScripts.length > 0) {
+            console.log(`[MultiPartRenderer] Extracted ${extractedStyles.length} style tag(s), ${extractedScripts.length} script tag(s)`);
+            console.log('[MultiPartRenderer] HTML length before extraction:', html.length);
+            console.log('[MultiPartRenderer] HTML length after extraction:', processedHTML.length);
+          }
+
+          // Merge extracted styles with existing CSS
+          if (extractedStyles.length > 0) {
+            const inlineCSS = extractedStyles.join('\n\n');
+            processedCSS = processedCSS ? `${processedCSS}\n\n${inlineCSS}` : inlineCSS;
+            console.log('[MultiPartRenderer] Extracted and merged inline styles from HTML');
+          }
+
+          // Merge extracted scripts with existing JavaScript
+          if (extractedScripts.length > 0) {
+            const inlineJS = extractedScripts.join('\n\n');
+            processedJS = processedJS ? `${processedJS}\n\n${inlineJS}` : inlineJS;
+            console.log('[MultiPartRenderer] Extracted and merged inline scripts from HTML');
+          }
+        }
+
+        if (processedHTML) {
           const DOMPurify = (await import('dompurify')).default;
-          const cleanHTML = DOMPurify.sanitize(html, {
+          const cleanHTML = DOMPurify.sanitize(processedHTML, {
             ALLOWED_TAGS: [
               'div', 'span', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
               'canvas', 'svg', 'path', 'rect', 'circle', 'line', 'polyline', 'polygon', 'text', 'g', 'defs',
@@ -1105,6 +1347,9 @@ function MultiPartRenderer({
           processedJS = scoped.javascript;
 
           wrapper.innerHTML = processedHTML;
+
+          // 🎯 STAGE 1: Initial cleanup after HTML injection
+          removeCodeTextNodes(wrapper, 'stage1-post-html');
         } else if (javascript) {
           // If no HTML but have JavaScript, still scope any ID references in JS
           const scoped = scopeChartIDs('', javascript, scopeClassRef.current);
@@ -1112,17 +1357,68 @@ function MultiPartRenderer({
         }
 
         // STEP 2: Inject CSS as scoped style element into wrapper
-        if (css) {
+        if (processedCSS) {
           // Apply CSS scoping to prevent styles from leaking to the entire page
-          const scopedCSS = scopeChartCSS(css, scopeClassRef.current);
+          const scopedCSS = scopeChartCSS(processedCSS, scopeClassRef.current);
 
-          const styleEl = document.createElement('style');
-          styleEl.setAttribute('data-multipart-chart', 'true');
-          styleEl.setAttribute('data-scope', scopeClassRef.current);
-          styleEl.textContent = scopedCSS;
-          wrapper.appendChild(styleEl);
+          try {
+            // 🎯 PHASE 5: Style element validation with error handling
+            const styleEl = document.createElement('style');
 
-          console.log('[MultiPartRenderer] Applied CSS scoping with class:', scopeClassRef.current);
+            if (!styleEl) {
+              throw new Error('Failed to create style element');
+            }
+
+            styleEl.setAttribute('data-multipart-chart', 'true');
+            styleEl.setAttribute('data-scope', scopeClassRef.current);
+
+            // Set CSS content
+            try {
+              styleEl.textContent = scopedCSS;
+            } catch (textError) {
+              // Fallback: use innerHTML if textContent fails
+              console.warn('[MultiPartRenderer] textContent failed, using innerHTML:', textError);
+              styleEl.innerHTML = scopedCSS;
+            }
+
+            // Append to wrapper
+            wrapper.appendChild(styleEl);
+
+            // 🎯 VERIFICATION: Confirm style element was actually added
+            if (!wrapper.contains(styleEl)) {
+              throw new Error('Style element failed to append to wrapper');
+            }
+
+            // 🎯 VERIFICATION: Confirm style element has content
+            if (!styleEl.textContent && !styleEl.innerHTML) {
+              console.error('[MultiPartRenderer] Style element has no content!');
+            }
+
+            console.log('[MultiPartRenderer] Applied CSS scoping with class:', scopeClassRef.current);
+            console.log('[MultiPartRenderer] Style element verified in DOM');
+          } catch (styleError) {
+            console.error('[MultiPartRenderer] Critical error creating/appending style element:', styleError);
+            console.error('[MultiPartRenderer] scopedCSS length:', scopedCSS.length);
+            console.error('[MultiPartRenderer] wrapper:', wrapper);
+
+            // Try alternative method: create style tag via innerHTML
+            try {
+              console.log('[MultiPartRenderer] Attempting fallback: innerHTML injection');
+              const fallbackStyle = document.createElement('div');
+              fallbackStyle.innerHTML = `<style data-multipart-chart="true" data-scope="${scopeClassRef.current}">${scopedCSS}</style>`;
+              const styleFromFallback = fallbackStyle.querySelector('style');
+
+              if (styleFromFallback) {
+                wrapper.appendChild(styleFromFallback);
+                console.log('[MultiPartRenderer] Fallback style injection succeeded');
+              } else {
+                throw new Error('Fallback style extraction failed');
+              }
+            } catch (fallbackError) {
+              console.error('[MultiPartRenderer] ALL style injection methods failed:', fallbackError);
+              // CSS won't be applied, but rendering continues
+            }
+          }
         }
 
         // STEP 3: Execute JavaScript with library support
@@ -1130,6 +1426,13 @@ function MultiPartRenderer({
           // Wait for DOM to be ready - use double RAF to ensure layout is complete
           await new Promise(resolve => requestAnimationFrame(resolve));
           await new Promise(resolve => requestAnimationFrame(resolve));
+
+          // Check if aborted after DOM ready
+          if (abortController.signal.aborted) {
+            console.log('[MultiPartRenderer] Render aborted after DOM ready');
+            isRenderingRef.current = false;
+            return;
+          }
 
           // Verify container is still in the DOM
           if (!container.isConnected) {
@@ -1140,8 +1443,82 @@ function MultiPartRenderer({
           try {
             // Get loaded library globals
             const OriginalChart = getLibraryGlobal('chartjs');
-            const d3 = getLibraryGlobal('d3');
+            let d3 = getLibraryGlobal('d3');
+            const topojson = getLibraryGlobal('topojson');
             const mermaid = getLibraryGlobal('mermaid');
+
+            // Add D3 v3/v4 compatibility shim for D3 v7+
+            // Maps old namespaced API (d3.geo.orthographic) to new flat API (d3.geoOrthographic)
+            if (d3 && typeof d3 === 'object') {
+              const d3Original = d3 as Record<string, unknown>;
+
+              // Create compatibility namespaces if they don't exist
+              if (!d3Original.geo && typeof d3Original.geoPath === 'function') {
+                // Map d3.geo.* to d3.geo* for D3 v7+
+                const geoMethods = [
+                  'geoAlbers', 'geoAlbersUsa', 'geoArea', 'geoAzimuthalEqualArea', 'geoAzimuthalEquidistant',
+                  'geoBounds', 'geoCentroid', 'geoCircle', 'geoClipAntimeridian', 'geoClipCircle',
+                  'geoClipExtent', 'geoClipRectangle', 'geoConicConformal', 'geoConicEqualArea', 'geoConicEquidistant',
+                  'geoContains', 'geoDistance', 'geoEquirectangular', 'geoGnomonic', 'geoGraticule',
+                  'geoGraticule10', 'geoIdentity', 'geoInterpolate', 'geoLength', 'geoMercator',
+                  'geoNaturalEarth1', 'geoOrthographic', 'geoPath', 'geoProjection', 'geoProjectionMutator',
+                  'geoRotation', 'geoStereographic', 'geoStream', 'geoTransform', 'geoTransverseMercator'
+                ];
+
+                const geoNamespace: Record<string, unknown> = {};
+                geoMethods.forEach(method => {
+                  const shortName = method.replace(/^geo/, '').charAt(0).toLowerCase() + method.slice(4);
+                  if (typeof d3Original[method] === 'function') {
+                    geoNamespace[shortName] = d3Original[method];
+                  }
+                });
+                d3Original.geo = geoNamespace;
+              }
+
+              // Map d3.scale.* to d3.scale* for D3 v7+
+              if (!d3Original.scale && typeof d3Original.scaleLinear === 'function') {
+                const scaleMethods = [
+                  'scaleBand', 'scaleIdentity', 'scaleLinear', 'scaleLog', 'scaleOrdinal',
+                  'scalePoint', 'scalePow', 'scaleQuantile', 'scaleQuantize', 'scaleRadial',
+                  'scaleSqrt', 'scaleThreshold', 'scaleTime', 'scaleUtc', 'scaleSequential',
+                  'scaleSequentialLog', 'scaleSequentialPow', 'scaleSequentialSqrt', 'scaleSequentialSymlog',
+                  'scaleSequentialQuantile', 'scaleDiverging', 'scaleDivergingLog', 'scaleDivergingPow',
+                  'scaleDivergingSqrt', 'scaleDivergingSymlog'
+                ];
+
+                const scaleNamespace: Record<string, unknown> = {};
+                scaleMethods.forEach(method => {
+                  const shortName = method.replace(/^scale/, '').charAt(0).toLowerCase() + method.slice(6);
+                  if (typeof d3Original[method] === 'function') {
+                    scaleNamespace[shortName] = d3Original[method];
+                  }
+                });
+                d3Original.scale = scaleNamespace;
+              }
+
+              // Map d3.time.* to d3.time* for D3 v7+
+              if (!d3Original.time && typeof d3Original.timeFormat === 'function') {
+                const timeMethods = [
+                  'timeDay', 'timeDays', 'timeFormat', 'timeFormatDefaultLocale', 'timeFormatLocale',
+                  'timeFriday', 'timeFridays', 'timeHour', 'timeHours', 'timeInterval', 'timeMillisecond',
+                  'timeMilliseconds', 'timeMinute', 'timeMinutes', 'timeMonday', 'timeMondays', 'timeMonth',
+                  'timeMonths', 'timeParse', 'timeSaturday', 'timeSaturdays', 'timeSecond', 'timeSeconds',
+                  'timeSunday', 'timeSundays', 'timeThursday', 'timeThursdays', 'timeTuesday', 'timeTuesdays',
+                  'timeWednesday', 'timeWednesdays', 'timeWeek', 'timeWeeks', 'timeYear', 'timeYears'
+                ];
+
+                const timeNamespace: Record<string, unknown> = {};
+                timeMethods.forEach(method => {
+                  const shortName = method.replace(/^time/, '').charAt(0).toLowerCase() + method.slice(5);
+                  if (typeof d3Original[method] === 'function') {
+                    timeNamespace[shortName] = d3Original[method];
+                  }
+                });
+                d3Original.time = timeNamespace;
+              }
+
+              d3 = d3Original;
+            }
 
             // Wrap Chart.js constructor to track instances for cleanup
             let ChartWrapper: unknown;
@@ -1182,13 +1559,50 @@ function MultiPartRenderer({
               'window',
               'Chart',
               'd3',
+              'topojson',
               'mermaid',
               processedJS
             );
 
-            scriptFunc(wrapper, document, window, ChartWrapper || OriginalChart, d3, mermaid);
+            scriptFunc(wrapper, document, window, ChartWrapper || OriginalChart, d3, topojson, mermaid);
 
             console.log('[MultiPartRenderer] JavaScript executed successfully');
+
+            // 🎯 FIX: Ensure content fills container with zero padding
+            // Remove any default margins/padding from all direct children
+            Array.from(wrapper.children).forEach((child) => {
+              if (child instanceof HTMLElement) {
+                child.style.margin = '0';
+                child.style.padding = '0';
+                child.style.display = 'block';
+                child.style.verticalAlign = 'top';
+              }
+            });
+
+            // Ensure canvas/SVG elements fill properly
+            const canvasElements = wrapper.querySelectorAll('canvas');
+            const svgElements = wrapper.querySelectorAll('svg');
+
+            [...canvasElements, ...svgElements].forEach((el) => {
+              if (el instanceof HTMLElement) {
+                el.style.margin = '0';
+                el.style.padding = '0';
+                el.style.display = 'block';
+                el.style.verticalAlign = 'top';
+              }
+            });
+
+            // 🎯 STAGE 2: Cleanup after JavaScript execution
+            // JavaScript may have dynamically added content with CSS text
+            removeCodeTextNodes(wrapper, 'stage2-post-js');
+
+            // 🎯 STAGE 3: Final cleanup on next animation frame
+            // Catches any async-rendered content
+            requestAnimationFrame(() => {
+              if (wrapper && wrapper.isConnected) {
+                removeCodeTextNodes(wrapper, 'stage3-animation-frame');
+              }
+            });
           } catch (jsError) {
             console.error('[MultiPartRenderer] JavaScript execution error:', jsError);
 
@@ -1199,6 +1613,8 @@ function MultiPartRenderer({
               throw new Error(`Chart.js error: ${errorMessage}\n\nThe library may not have loaded properly. Try refreshing the page.`);
             } else if (errorMessage.includes('d3 is not defined')) {
               throw new Error(`D3.js error: ${errorMessage}\n\nThe library may not have loaded properly. Try refreshing the page.`);
+            } else if (errorMessage.includes('topojson is not defined')) {
+              throw new Error(`TopoJSON error: ${errorMessage}\n\nThe library may not have loaded properly. Try refreshing the page.`);
             } else if (errorMessage.includes('mermaid is not defined')) {
               throw new Error(`Mermaid error: ${errorMessage}\n\nThe library may not have loaded properly. Try refreshing the page.`);
             } else if (errorMessage.includes('Canvas is already in use')) {
@@ -1227,12 +1643,305 @@ function MultiPartRenderer({
 
     // Cleanup function - runs when component unmounts or before next render
     return () => {
+      // Abort the current render if it's still in progress
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+
       isRenderingRef.current = false;
 
       // Note: Chart cleanup is handled at the start of renderMultiPart
       // to avoid race conditions and "node not found" errors
     };
   }, [html, css, javascript]);
+
+  // 🎯 PHASE 1: Apply transforms to wrapper div
+  useEffect(() => {
+    if (!isVisualization) return; // Only apply transforms for visualizations
+    const container = containerRef.current;
+    if (!container) return;
+
+    const wrapper = container.querySelector<HTMLDivElement>('.multipart-content-wrapper');
+    if (!wrapper) return;
+
+    // Apply CSS transform with GPU acceleration
+    wrapper.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+    wrapper.style.transformOrigin = 'center center';
+    wrapper.style.willChange = 'transform'; // GPU acceleration hint
+    wrapper.style.transition = isDraggingRef.current ? 'none' : 'transform 0.2s ease-out';
+
+  }, [scale, translateX, translateY, isVisualization]);
+
+  // 🎯 PHASE 2: Calculate dynamic pan limits based on zoom level
+  const calculatePanLimits = useCallback((currentScale: number) => {
+    const container = containerRef.current;
+    if (!container) return { maxPanX: 500, maxPanY: 500 }; // Fallback
+
+    const { width, height } = container.getBoundingClientRect();
+
+    // When zoomed in, content is larger, so allow more panning
+    // When at 1.0x, minimal panning needed (content should fit)
+    const contentExpandedWidth = width * currentScale;
+    const contentExpandedHeight = height * currentScale;
+
+    // Maximum pan = (expanded size - visible size) / 2
+    // This ensures content edges can reach container center but not go beyond
+    const maxPanX = Math.max(0, (contentExpandedWidth - width) / 2);
+    const maxPanY = Math.max(0, (contentExpandedHeight - height) / 2);
+
+    return { maxPanX, maxPanY };
+  }, []);
+
+  // 🎯 Helper function to update transform with DYNAMIC bounds checking
+  const updateTransform = useCallback((newScale: number, newTranslateX: number, newTranslateY: number) => {
+    // 🎯 PHASE 2: Clamp scale between 1.0x (natural size) and 3x (prevent zoom out beyond base)
+    const clampedScale = Math.max(1.0, Math.min(3, newScale));
+
+    // 🎯 PHASE 2: Apply DYNAMIC pan limits based on zoom level
+    const { maxPanX, maxPanY } = calculatePanLimits(clampedScale);
+    const clampedX = Math.max(-maxPanX, Math.min(maxPanX, newTranslateX));
+    const clampedY = Math.max(-maxPanY, Math.min(maxPanY, newTranslateY));
+
+    setScale(clampedScale);
+    setTranslateX(clampedX);
+    setTranslateY(clampedY);
+  }, [calculatePanLimits]);
+
+  // 🎯 PHASE 2: Mouse wheel zoom handler
+  useEffect(() => {
+    if (!isVisualization) return; // Only enable for visualizations
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+
+      const delta = -e.deltaY * 0.001; // Smaller multiplier for smoother zoom
+      const newScale = scale * (1 + delta);
+
+      updateTransform(newScale, translateX, translateY);
+    };
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => container.removeEventListener('wheel', handleWheel);
+  }, [scale, translateX, translateY, updateTransform]);
+
+  // 🎯 PHASE 2: Mouse drag pan handler
+  useEffect(() => {
+    if (!isVisualization) return; // Only enable for visualizations
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleMouseDown = (e: MouseEvent) => {
+      // Only pan with left mouse button
+      if (e.button !== 0) return;
+
+      isDraggingRef.current = true;
+      lastMouseRef.current = { x: e.clientX, y: e.clientY };
+      container.style.cursor = 'grabbing';
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDraggingRef.current || !lastMouseRef.current) return;
+
+      const deltaX = e.clientX - lastMouseRef.current.x;
+      const deltaY = e.clientY - lastMouseRef.current.y;
+
+      lastMouseRef.current = { x: e.clientX, y: e.clientY };
+
+      // Use requestAnimationFrame for smooth updates
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+
+      animationFrameRef.current = requestAnimationFrame(() => {
+        updateTransform(scale, translateX + deltaX, translateY + deltaY);
+      });
+    };
+
+    const handleMouseUp = () => {
+      isDraggingRef.current = false;
+      lastMouseRef.current = null;
+      container.style.cursor = 'grab';
+    };
+
+    container.addEventListener('mousedown', handleMouseDown);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      container.removeEventListener('mousedown', handleMouseDown);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [scale, translateX, translateY, updateTransform]);
+
+  // 🎯 PHASE 3: Touch support (pinch-to-zoom and single-finger drag)
+  useEffect(() => {
+    if (!isVisualization) return; // Only enable for visualizations
+    const container = containerRef.current;
+    if (!container) return;
+
+    // Helper to calculate distance between two touch points
+    const getTouchDistance = (touches: TouchList): number => {
+      if (touches.length < 2) return 0;
+      const dx = touches[0].clientX - touches[1].clientX;
+      const dy = touches[0].clientY - touches[1].clientY;
+      return Math.sqrt(dx * dx + dy * dy);
+    };
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 1) {
+        // Single finger - start drag
+        isDraggingRef.current = true;
+        lastMouseRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      } else if (e.touches.length === 2) {
+        // Two fingers - start pinch-to-zoom
+        e.preventDefault();
+        isDraggingRef.current = false; // Disable drag during pinch
+        touchStartDistanceRef.current = getTouchDistance(e.touches);
+        touchStartScaleRef.current = scale;
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 1 && isDraggingRef.current && lastMouseRef.current) {
+        // Single finger drag
+        e.preventDefault();
+        const deltaX = e.touches[0].clientX - lastMouseRef.current.x;
+        const deltaY = e.touches[0].clientY - lastMouseRef.current.y;
+
+        lastMouseRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+
+        if (animationFrameRef.current) {
+          cancelAnimationFrame(animationFrameRef.current);
+        }
+
+        animationFrameRef.current = requestAnimationFrame(() => {
+          updateTransform(scale, translateX + deltaX, translateY + deltaY);
+        });
+      } else if (e.touches.length === 2 && touchStartDistanceRef.current) {
+        // Pinch-to-zoom
+        e.preventDefault();
+        const currentDistance = getTouchDistance(e.touches);
+        const scaleChange = currentDistance / touchStartDistanceRef.current;
+        const newScale = touchStartScaleRef.current * scaleChange;
+
+        updateTransform(newScale, translateX, translateY);
+      }
+    };
+
+    const handleTouchEnd = () => {
+      isDraggingRef.current = false;
+      lastMouseRef.current = null;
+      touchStartDistanceRef.current = null;
+      touchStartScaleRef.current = 1;
+    };
+
+    container.addEventListener('touchstart', handleTouchStart, { passive: false });
+    container.addEventListener('touchmove', handleTouchMove, { passive: false });
+    container.addEventListener('touchend', handleTouchEnd);
+    container.addEventListener('touchcancel', handleTouchEnd);
+
+    return () => {
+      container.removeEventListener('touchstart', handleTouchStart);
+      container.removeEventListener('touchmove', handleTouchMove);
+      container.removeEventListener('touchend', handleTouchEnd);
+      container.removeEventListener('touchcancel', handleTouchEnd);
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [scale, translateX, translateY, updateTransform]);
+
+  // 🎯 PHASE 2: Set cursor style based on interaction state
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    if (isVisualization) {
+      container.style.cursor = isDraggingRef.current ? 'grabbing' : 'grab';
+      container.style.userSelect = 'none'; // Prevent text selection during drag
+      container.style.touchAction = 'none'; // Disable default touch behaviors
+    } else {
+      // Reset to defaults for non-visualizations
+      container.style.cursor = 'default';
+      container.style.userSelect = 'auto';
+      container.style.touchAction = 'auto';
+    }
+  }, [isVisualization]);
+
+  // 🎯 PHASE 7: Keyboard accessibility support
+  useEffect(() => {
+    if (!isVisualization) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only handle if container is focused or controls are visible
+      if (!showControls && document.activeElement !== containerRef.current) return;
+
+      const panStep = 20; // pixels to pan per keypress
+      const zoomStep = 1.1; // zoom multiplier
+
+      switch (e.key) {
+        case 'ArrowUp':
+          e.preventDefault();
+          updateTransform(scale, translateX, translateY + panStep);
+          break;
+        case 'ArrowDown':
+          e.preventDefault();
+          updateTransform(scale, translateX, translateY - panStep);
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          updateTransform(scale, translateX + panStep, translateY);
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          updateTransform(scale, translateX - panStep, translateY);
+          break;
+        case '+':
+        case '=':
+          e.preventDefault();
+          updateTransform(scale * zoomStep, translateX, translateY);
+          break;
+        case '-':
+        case '_':
+          e.preventDefault();
+          updateTransform(scale / zoomStep, translateX, translateY);
+          break;
+        case '0':
+        case 'r':
+        case 'R':
+          e.preventDefault();
+          updateTransform(1, 0, 0);
+          break;
+        case 'Escape':
+          e.preventDefault();
+          setShowControls(false);
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isVisualization, scale, translateX, translateY, showControls, updateTransform]);
+
+  // 🎯 Control handlers (must be before early returns to follow Rules of Hooks)
+  const handleZoomIn = useCallback(() => {
+    updateTransform(scale * 1.2, translateX, translateY);
+  }, [scale, translateX, translateY, updateTransform]);
+
+  const handleZoomOut = useCallback(() => {
+    updateTransform(scale / 1.2, translateX, translateY);
+  }, [scale, translateX, translateY, updateTransform]);
+
+  const handleReset = useCallback(() => {
+    updateTransform(1, 0, 0);
+  }, [updateTransform]);
 
   // Loading state
   if (isLoading) {
@@ -1268,9 +1977,90 @@ function MultiPartRenderer({
   return (
     <div
       ref={containerRef}
-      className="backdrop-blur-[12px] bg-gradient-to-b from-white/[0.12] via-white/[0.06] via-white/[0.03] via-white/[0.06] to-white/[0.12] border border-white/[0.15] rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.6),0_2px_8px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.2),inset_0_-1px_0_rgba(0,0,0,0.4),0_0_25px_rgba(255,255,255,0.02),0_0_50px_rgba(255,255,255,0.01)] p-4"
-      style={{ height: 'fit-content' }}
-    />
+      className="backdrop-blur-[12px] bg-gradient-to-b from-white/[0.12] via-white/[0.06] via-white/[0.03] via-white/[0.06] to-white/[0.12] border border-white/[0.15] rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.6),0_2px_8px_rgba(255,255,255,0.06),inset_0_1px_0_rgba(255,255,255,0.2),inset_0_-1px_0_rgba(0,0,0,0.4),0_0_25px_rgba(255,255,255,0.02),0_0_50px_rgba(255,255,255,0.01)] p-0 relative overflow-hidden"
+      style={{ height: 'auto', minHeight: '400px' }}
+      // 🎯 PHASE 7: Accessibility attributes
+      tabIndex={isVisualization ? 0 : undefined}
+      role={isVisualization ? 'application' : undefined}
+      aria-label={isVisualization ? 'Interactive visualization - use arrow keys to pan, +/- to zoom, R to reset, Esc to hide controls' : undefined}
+    >
+      {/* 🎯 PHASE 3: Interactive Controls Overlay with Bloom Gradient (only for visualizations) */}
+      {isVisualization && showControls && (
+        <div className="absolute bottom-4 right-4 z-50 flex flex-col items-center gap-2 p-2 rounded-xl bg-white/10 backdrop-blur-md border-2 border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.4)] transition-all duration-300">
+          {/* 🎯 PHASE 7: Zoom boundary indicator */}
+          {scale >= 3.0 && (
+            <div className="text-[10px] text-center text-[#f1a7b1] font-semibold mb-0.5 animate-pulse">
+              Max Zoom
+            </div>
+          )}
+
+          {/* Zoom In Button - Pink to Peach Gradient */}
+          <button
+            onClick={handleZoomIn}
+            disabled={scale >= 3.0}
+            className="w-10 h-10 flex items-center justify-center rounded-lg bg-gradient-to-br from-[#f1a7b1] to-[#f3c6b4] hover:from-[#f3c6b4] hover:to-[#f5e7c2] text-white font-bold text-xl transition-all duration-200 transform hover:scale-110 active:scale-95 shadow-lg disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
+            title="Zoom In (+)"
+            aria-label="Zoom in"
+          >
+            +
+          </button>
+
+          {/* Zoom Out Button - Peach to Cream Gradient */}
+          <button
+            onClick={handleZoomOut}
+            disabled={scale <= 1.0}
+            className="w-10 h-10 flex items-center justify-center rounded-lg bg-gradient-to-br from-[#f3c6b4] to-[#f5e7c2] hover:from-[#f5e7c2] hover:to-[#f3c6b4] text-white font-bold text-xl transition-all duration-200 transform hover:scale-110 active:scale-95 shadow-lg disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
+            title="Zoom Out (-)"
+            aria-label="Zoom out"
+          >
+            −
+          </button>
+
+          {/* Reset Button - Mint to Sky Gradient */}
+          <button
+            onClick={handleReset}
+            className="w-10 h-10 flex items-center justify-center rounded-lg bg-gradient-to-br from-[#b7e1b7] to-[#87c4e3] hover:from-[#87c4e3] hover:to-[#b7e1b7] text-white font-bold text-lg transition-all duration-200 transform hover:scale-110 active:scale-95 shadow-lg"
+            title="Reset View (R)"
+            aria-label="Reset view"
+          >
+            ⟲
+          </button>
+
+          {/* Zoom Level Indicator with Bloom Gradient Text */}
+          <div
+            className="text-center text-sm font-bold font-mono mt-1 px-2 py-1 rounded-md bg-white/20 backdrop-blur-sm"
+            style={{
+              background: 'linear-gradient(135deg, rgba(241,167,177,0.3), rgba(135,196,227,0.3))',
+              color: scale === 1.0 ? '#b7e1b7' : '#f1a7b1'
+            }}
+          >
+            {Math.round(scale * 100)}%
+          </div>
+
+          {/* Close Controls Button - Subtle */}
+          <button
+            onClick={() => setShowControls(false)}
+            className="w-10 h-10 flex items-center justify-center rounded-lg bg-white/20 hover:bg-white/30 text-white text-lg transition-all duration-200 transform hover:scale-110 active:scale-95 mt-0.5"
+            title="Hide Controls (Esc)"
+            aria-label="Hide controls"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      {/* Show controls button when hidden (only for visualizations) - Bloom Gradient */}
+      {isVisualization && !showControls && (
+        <button
+          onClick={() => setShowControls(true)}
+          className="absolute bottom-4 right-4 z-50 w-10 h-10 flex items-center justify-center rounded-lg bg-gradient-to-br from-[#f1a7b1] to-[#87c4e3] hover:from-[#f3c6b4] hover:to-[#b7e1b7] text-white text-xl transition-all duration-200 transform hover:scale-110 active:scale-95 backdrop-blur-sm border-2 border-white/20 shadow-lg"
+          title="Show Controls"
+          aria-label="Show controls"
+        >
+          ⚙
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -2087,8 +2877,8 @@ export default function BlockRenderer({ blocks }: BlockRendererProps) {
         const borderRadius = imageData.borderRadius || 0;
         const shadow = imageData.shadow || false;
 
-        // Determine breakout width based on alignment
-        const imageBreakoutWidth = alignment === 'full' ? 'full' : 'media';
+        // Use actual width value for BreakoutContainer (content-relative)
+        const imageBreakoutWidth = width;
 
         return (
           <div key={block.id} className="my-8">
@@ -2101,7 +2891,7 @@ export default function BlockRenderer({ blocks }: BlockRendererProps) {
                     width: '100%'
                   }}
                 >
-                  <div style={{ width: alignment === 'full' ? '100%' : `${width}%` }}>
+                  <div style={{ width: '100%' }}>
                     <img
                       src={imageData.src}
                       alt={imageData.alt || ''}
@@ -2179,8 +2969,8 @@ export default function BlockRenderer({ blocks }: BlockRendererProps) {
         const videoBorderRadius = videoData.borderRadius || 0;
         const videoShadow = videoData.shadow || false;
 
-        // Determine breakout width based on alignment
-        const videoBreakoutWidth = videoAlignment === 'full' ? 'full' : 'media';
+        // Use actual width value for BreakoutContainer (content-relative)
+        const videoBreakoutWidth = videoWidth;
 
         return (
           <div key={block.id} className="my-8">
@@ -2193,7 +2983,7 @@ export default function BlockRenderer({ blocks }: BlockRendererProps) {
                     width: '100%'
                   }}
                 >
-                  <div style={{ width: videoAlignment === 'full' ? '100%' : `${videoWidth}%` }}>
+                  <div style={{ width: '100%' }}>
                   {isLocalVideo && videoSource ? (
                     isGif ? (
                       // Render GIF using img tag

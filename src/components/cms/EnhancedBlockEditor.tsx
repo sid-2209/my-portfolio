@@ -32,7 +32,7 @@ interface ImageData {
   alt: string;
   caption?: string;
   alignment?: 'left' | 'center' | 'right' | 'full';
-  width?: number; // percentage
+  width?: number; // percentage (15-200), >100% desktop only
   borderRadius?: number;
   shadow?: boolean;
 }
@@ -80,7 +80,7 @@ interface VideoEmbedData {
   controls?: boolean;
   aspectRatio?: '16:9' | '4:3' | '1:1' | '21:9';
   alignment?: 'left' | 'center' | 'right' | 'full';
-  width?: number;
+  width?: number; // percentage (15-200), >100% desktop only
   borderRadius?: number;
   shadow?: boolean;
   localVideoUrl?: string;
@@ -154,7 +154,7 @@ interface ChartData {
   javascript?: string;
 
   isInteractive?: boolean;
-  containerWidth?: number | 'text' | 'media' | 'full'; // number = percentage (15-100), Breakout container width
+  containerWidth?: number | 'text' | 'media' | 'full'; // number = percentage (15-200), >100% desktop only
 
   // Legacy visual editor fields (backwards compatible)
   chartType?: 'bar' | 'line' | 'area' | 'pie' | 'radar';
@@ -415,20 +415,32 @@ export default function EnhancedBlockEditor({
               {/* Width Control */}
               <div>
                 <label className="block text-gray-700 text-sm font-medium mb-2">
-                  Width: {imageData.width || 100}%
+                  Width
                 </label>
-                <input
-                  type="range"
-                  min="20"
-                  max="100"
-                  step="5"
+                <select
                   value={imageData.width || 100}
                   onChange={(e) => setEditData({
                     ...imageData,
                     width: parseInt(e.target.value)
                   })}
-                  className="w-full"
-                />
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+                >
+                  <option value={15}>15%</option>
+                  <option value={20}>20%</option>
+                  <option value={25}>25%</option>
+                  <option value={30}>30%</option>
+                  <option value={35}>35%</option>
+                  <option value={40}>40%</option>
+                  <option value={45}>45%</option>
+                  <option value={50}>50%</option>
+                  <option value={60}>60%</option>
+                  <option value={70}>70%</option>
+                  <option value={100}>100%</option>
+                  <option value={125}>125% (Desktop only)</option>
+                  <option value={150}>150% (Desktop only)</option>
+                  <option value={175}>175% (Desktop only)</option>
+                  <option value={200}>200% (Desktop only)</option>
+                </select>
               </div>
 
               {/* Styling Options */}

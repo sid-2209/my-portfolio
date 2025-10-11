@@ -115,6 +115,42 @@ function detectD3(code: string): DetectedLibrary | null {
 }
 
 /**
+ * Detect TopoJSON usage in code
+ */
+function detectTopoJSON(code: string): DetectedLibrary | null {
+  const patterns: string[] = [];
+  let confidence = 0;
+
+  // Strong indicators
+  if (/topojson\.(feature|mesh|merge|mergeArcs|neighbors|bbox)/i.test(code)) {
+    patterns.push('topojson API calls');
+    confidence += 0.5;
+  }
+
+  // Medium indicators
+  if (/topojson/i.test(code) && /(topology|arcs|objects)/i.test(code)) {
+    patterns.push('topojson data structure');
+    confidence += 0.3;
+  }
+
+  // Weak indicators
+  if (/topojson/i.test(code)) {
+    patterns.push('topojson mention');
+    confidence += 0.1;
+  }
+
+  const versionMatch = code.match(/topojson[/@](\d+\.\d+\.\d+)/i);
+  const version = versionMatch ? versionMatch[1] : undefined;
+
+  return confidence > 0.3 ? {
+    library: 'topojson',
+    confidence: Math.min(confidence, 1),
+    patterns,
+    version
+  } : null;
+}
+
+/**
  * Detect Mermaid usage in code
  */
 function detectMermaid(code: string): DetectedLibrary | null {
@@ -178,6 +214,8 @@ export function extractCDNScripts(html: string): Array<{ url: string; library?: 
       library = 'chartjs';
     } else if (/\bd3\b/i.test(lowerUrl)) {
       library = 'd3';
+    } else if (/topojson/i.test(lowerUrl)) {
+      library = 'topojson';
     } else if (/mermaid/i.test(lowerUrl)) {
       library = 'mermaid';
     }
@@ -207,6 +245,10 @@ export function detectLibrariesInCode(
   // Detect D3.js
   const d3 = detectD3(combinedCode);
   if (d3) detected.push(d3);
+
+  // Detect TopoJSON
+  const topojson = detectTopoJSON(combinedCode);
+  if (topojson) detected.push(topojson);
 
   // Detect Mermaid
   const mermaid = detectMermaid(combinedCode);
